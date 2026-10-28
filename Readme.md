@@ -16,7 +16,7 @@ Ngoài phần mềm nghiệp vụ, dự án còn tập trung vào quy trình ki�
 - Cung cấp bảng điều khiển, báo cáo và công cụ tra cứu cho từng vai trò.
 - Xây dựng quy trình CI/CD, đóng gói Docker, triển khai qua SSH lên máy chủ và giám sát hệ thống.
 3. Đối tượng sử dụng
-Vai trò	Phạm vi sử dụng chính
+Vai trò	                     Phạm vi sử dụng chính
 Quản trị viên hệ thống (Admin)	Quản lý tài khoản, vai trò và quyền truy cập.
 Ban giám hiệu	Theo dõi báo cáo tổng hợp, xét duyệt các nghiệp vụ được phân quyền.
 Phòng Đào tạo	Quản lý sinh viên, khoa/ngành/lớp, học phần, lịch học; kiểm tra và trình duyệt điểm.
@@ -72,12 +72,119 @@ fix: sua loi dang ky hoc phan
 docs: cap nhat tai lieu du an
 test: bo sung kiem thu diem
 chore: cap nhat cau hinh docker
-8. Cài đặt và chạy dự án
-Dự án đang trong giai đoạn khởi tạo. Hướng dẫn cài đặt và các lệnh chạy frontend, backend, cơ sở dữ liệu và Docker Compose sẽ được cập nhật sau khi nhóm thống nhất cấu trúc thư mục và tạo mã nguồn ban đầu.
-9. Triển khai và giám sát dự kiến
-Quy trình mục tiêu:
-GitHub → Jenkins (Build/Test) → SonarQube → Docker Image
-       → SSH / Docker Compose trên VPS → Prometheus & Grafana
-Các đầu ra cần đạt: ứng dụng hoạt động qua địa chỉ public, pipeline tự động chạy được, có kiểm thử và báo cáo giám sát vận hành.
-10. Tiến độ dự kiến
-Từ 27/10/2026 đến 03/12/2026. Kế hoạch chi tiết được theo dõi trong backlog/Jira của nhóm, gồm khảo sát nhu cầu, xác định phạm vi, phân tích thiết kế, lập trình, kiểm thử, triển khai và nghiệm thu.
+8. Cài đặt và khởi chạy dự án trên Windows
+Hướng dẫn này dành cho thành viên nhóm mới clone repository về Windows, sử dụng VS Code + PowerShell. Đây là quy trình chạy local trong giai đoạn phát triển, chưa phải quy trình deploy bằng Docker/Jenkins.
+8.1. Phần mềm cần cài đặt
+Phần mềm	              Yêu cầu / phiên bản nhóm dùng	              Kiểm tra
+Git hoặc GitHub Desktop	Đã đăng nhập và có quyền truy cập repository	git --version
+Visual Studio Code	       Có thể mở thư mục dự án	                     Mở VS Code
+Node.js và npm	       Node.js 24.x (máy khởi tạo dùng 24.21.0)	       node -v và npm.cmd -v
+Java JDK	              JDK 21 (Eclipse Temurin hoặc tương đương)	       java -version và javac -version
+Maven	       Không bắt buộc cài Maven toàn cục vì đã có mvnw.cmd trong backend	.\mvnw.cmd -version
+
+Lưu ý về Maven: Lệnh kiểm tra đúng là .\mvnw.cmd -version được trình bày tại mục 8.5. Không sử dụng mvn compile khi máy chưa thiết lập Maven vào PATH.
+
+8.2. Clone source từ GitHub
+– GitHub Desktop: File → Clone repository → URL, dán địa chỉ bên dưới rồi chọn thư mục lưu. Sau đó bấm Open in Visual Studio Code.
+
+
+Nếu Git cho đường dẫn khác thư mục đang mở, kiểm tra lại để tránh chạy hoặc commit nhầm source.
+8.3. Cấu trúc thư mục khi khởi tạo
+CMC_SoftwareDeploy/
+├── frontend/               # React + Vite
+│   ├── src/
+│   └── package.json
+├── backend/                # Spring Boot + Maven Wrapper
+│   ├── src/main/java/com/sms/backend/
+│   ├── src/main/resources/application.properties
+│   ├── pom.xml
+│   └── mvnw.cmd
+├── mysql.sql               # Câu lệnh khởi tạo database (nếu có)
+└── Readme.md / README.md   # Tài liệu dự án
+Các thư mục docs/, database/ và infrastructure/ sẽ được bổ sung khi nhóm triển khai những giai đoạn tương ứng. Không tạo bản sao thứ hai của backend hoặc frontend ở thư mục cha.
+8.4. Khởi động MySQL và tạo cơ sở dữ liệu
+Bước 1 – Kiểm tra dịch vụ MySQL trong PowerShell:
+Get-Service *mysql*
+Máy khởi tạo dự án đang dùng tên dịch vụ MySQL267. Nếu trạng thái là Stopped, mở Windows PowerShell bằng quyền Administrator rồi chạy:
+Start-Service -Name MySQL267
+Get-Service MySQL267
+Kết quả mong muốn: Running. Nếu tên dịch vụ trên máy bạn khác, thay bằng tên thật hiển thị ở lệnh kiểm tra. Có thể mở services.msc để kiểm tra hoặc khởi động thủ công. Nếu dịch vụ vẫn không chạy thì cần xử lý lỗi MySQL Server trước.
+
+Bước 2 – Kiểm tra cổng:
+Test-NetConnection 127.0.0.1 -Port 3306
+Cần có TcpTestSucceeded : True nếu MySQL dùng cổng 3306. Nếu False dù dịch vụ đang chạy, dùng MySQL Command Line Client để kiểm tra cổng thực tế:
+SHOW VARIABLES LIKE 'port';
+Bước 3 – Tạo database: Mở MySQL Command Line Client hoặc MySQL Workbench, đăng nhập bằng tài khoản MySQL của bạn rồi chạy:
+CREATE DATABASE IF NOT EXISTS sms_db
+CHARACTER SET utf8mb4
+COLLATE utf8mb4_unicode_ci;
+
+SHOW DATABASES LIKE 'sms_db';
+Khi truy vấn cuối trả về sms_db, database đã tồn tại. Bước này chỉ tạo database, chưa cần tự tạo bảng nghiệp vụ.
+8.5. Cấu hình và chạy Backend Spring Boot
+Bước 1 – Mở file backend/src/main/resources/application.properties, bảo đảm có cấu hình local tương ứng:
+spring.application.name=backend
+server.port=8081
+
+# MySQL local
+spring.datasource.url=jdbc:mysql://127.0.0.1:3306/sms_db
+spring.datasource.username=${DB_USERNAME:root}
+spring.datasource.password=${DB_PASSWORD}
+
+# Chỉ sử dụng ddl-auto=update khi phát triển local
+spring.jpa.hibernate.ddl-auto=update
+spring.jpa.open-in-view=false
+
+# Endpoint kiểm tra trạng thái
+management.endpoints.web.exposure.include=health,info
+- Đổi 3306 nếu MySQL trên máy dùng cổng khác.
+- Backend sử dụng cổng 8081 để không xung đột với Jenkins đang dùng cổng 8080 trên máy khởi tạo.
+- Không viết mật khẩu MySQL trực tiếp vào application.properties hoặc commit mật khẩu lên GitHub.
+Bước 2 – Mở Terminal PowerShell mới tại thư mục gốc repository, sau đó chạy:
+cd backend
+Test-Path .\mvnw.cmd
+.\mvnw.cmd -version
+Test-Path phải trả về True. Nếu False, bạn đang đứng sai thư mục; tìm wrapper bằng:
+Get-ChildItem -Path . -Filter mvnw.cmd -Recurse -File |
+    Select-Object -ExpandProperty FullName
+Bước 3 – Thiết lập thông tin kết nối MySQL trong chính Terminal sẽ chạy Backend:
+$env:DB_USERNAME = "root"
+$secure = Read-Host "Nhap mat khau MySQL" -AsSecureString
+$env:DB_PASSWORD = [System.Net.NetworkCredential]::new("", $secure).Password
+Remove-Variable secure
+Mật khẩu khi nhập sẽ không hiện trên màn hình. Các biến trên chỉ có hiệu lực trong cửa sổ Terminal hiện tại. Với môi trường thực tế, dùng tài khoản cơ sở dữ liệu riêng có quyền tối thiểu thay cho root.
+
+Bước 4 – Biên dịch và chạy:
+.\mvnw.cmd clean compile
+.\mvnw.cmd spring-boot:run
+Nếu biên dịch thành công sẽ có BUILD SUCCESS. Khi ứng dụng chạy thành công, Terminal sẽ có thông báo tương tự:
+Tomcat started on port 8081 (http)
+Started BackendApplication
+Không đóng Terminal Backend khi đang sử dụng ứng dụng. Spring Boot là một máy chủ chạy liên tục nên Terminal không tự quay về dấu nhắc; đó không phải lỗi treo.
+
+Bước 5 – Kiểm tra Backend trên trình duyệt:
+- http://localhost:8081/actuator/health → kết quả mong muốn: {"status":"UP"}.
+- http://localhost:8081/api/hello → trả về JSON thử nghiệm nếu nhóm đã thêm HelloController.
+8.6. Cài đặt và chạy Frontend React
+Mở Terminal thứ hai trong VS Code; giữ Terminal Backend hoạt động. Tại thư mục gốc repository, chạy:
+cd frontend
+npm.cmd install
+npm.cmd run dev
+Nếu Frontend đã được cài thư viện thì lần sau chỉ cần npm.cmd run dev.
+
+Mở đường dẫn Vite hiển thị trong Terminal, thông thường:
+http://localhost:5173/
+Vì sao dùng npm.cmd? PowerShell trên một số máy chặn npm.ps1 với lỗi running scripts is disabled. npm.cmd giải quyết trường hợp này mà không phải thay đổi Execution Policy của Windows.
+
+Lưu ý: Frontend chạy được chưa đồng nghĩa với đã kết nối Backend. Nhóm còn cần bổ sung API client, CORS hoặc Vite Proxy khi triển khai chức năng gọi dữ liệu.
+8.7. Bảng địa chỉ truy cập local
+Thành phần	Địa chỉ / cổng	Kiểm tra
+React + Vite	http://localhost:5173	Trang giao diện React
+Spring Boot	http://localhost:8081	http://localhost:8081/actuator/health
+API thử nghiệm	http://localhost:8081/api/hello	JSON trả về nếu controller đã được tạo
+MySQL	127.0.0.1:3306 (hoặc cổng thực tế)	Test-NetConnection
+Jenkins	http://localhost:8080	Giao diện Jenkins (nếu dịch vụ đang chạy)
+
+4. Mở Terminal 2, vào frontend/, chạy npm.cmd run dev.
+5. Mở http://localhost:5173/ để phát triển và kiểm thử giao diện.
+Dừng ứng dụng: Nhấn Ctrl + C trong từng Terminal chạy Backend/Frontend. Không cần dừng dịch vụ MySQL sau mỗi lần làm việc nếu còn ứng dụng khác cần sử dụng.
