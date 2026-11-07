@@ -1,0 +1,9 @@
+.page-content.page-accounts .data-table th,
+.page-content.page-accounts .data-table td {
+  padding-top: 15px;
+  padding-bottom: 15px;
+}
+
+.page-content.page-accounts .person-cell {
+  min-width: 190px;
+}

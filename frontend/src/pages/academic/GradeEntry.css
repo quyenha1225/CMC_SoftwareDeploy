@@ -1,0 +1,35 @@
+.select-panel {
+  display: flex;
+  align-items: center;
+  gap: 30px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  margin-bottom: 20px;
+  padding: 20px 24px;
+}
+
+.select-panel > div > span {
+  display: block;
+  font-size: 10px;
+  font-weight: 800;
+  color: #9ba8b8;
+  letter-spacing: 0.7px;
+  margin-bottom: 9px;
+}
+
+.select-panel > div:first-child {
+  flex: 1;
+  max-width: 480px;
+}
+
+@media (max-width: 740px) {
+  .select-panel {
+    flex-wrap: wrap;
+    gap: 16px;
+    padding: 15px;
+  }
+  .select-panel > div:first-child {
+    width: 100%;
+    max-width: none;
+  }}

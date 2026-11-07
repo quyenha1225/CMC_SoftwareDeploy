@@ -1,0 +1,14 @@
+.public-header .public-nav a {
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.public-header .public-login-button {
+  font-size: 16px;
+}
+
+@media (max-width: 680px) {
+  .public-header .public-nav a {
+    font-size: 16px;
+  }
+}

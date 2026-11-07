@@ -1,0 +1,13 @@
+.guide-section .guide-grid h3 {
+  font-size: 20px;
+}
+
+.guide-section .guide-grid p,
+.guide-section .guide-callout p {
+  font-size: 16px;
+  line-height: 1.7;
+}
+
+.guide-section .guide-callout button {
+  font-size: 15px;
+}

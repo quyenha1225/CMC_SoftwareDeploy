@@ -1,0 +1,82 @@
+.student-section .student-service-title {
+  font-size: 20px;
+}
+
+.student-section .student-service-description {
+  font-size: 16px;
+  line-height: 1.65;
+}
+
+.student-section .student-service-card {
+  border-radius: 0;
+}
+
+.student-collab-contact {
+  display: grid;
+  grid-template-columns: minmax(230px, 0.8fr) minmax(0, 1.5fr);
+  gap: 30px;
+  margin-top: 30px;
+  padding: clamp(22px, 4vw, 40px);
+  border: 1px solid #d6e5dc;
+  border-left: 5px solid #287568;
+  background:
+    radial-gradient(ellipse at 100% 0, rgb(220 238 228 / 80%), transparent 48%),
+    #f7faf7;
+}
+
+.student-collab-copy h3 {
+  margin: 10px 0;
+  color: #183b36;
+  font-size: clamp(23px, 3vw, 32px);
+}
+
+.student-collab-copy p {
+  max-width: 430px;
+  margin: 0;
+  color: #596a61;
+  font-size: 17px;
+  line-height: 1.65;
+}
+
+.student-collab-details {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.student-collab-details > * {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 13px;
+  border: 1px solid #e1ebe4;
+  background: #fff;
+  color: #287568;
+}
+
+.student-collab-details span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: #26332f;
+  font-size: 16px;
+}
+
+.student-collab-details small {
+  display: block;
+  margin-bottom: 4px;
+  color: #75817c;
+  font-size: 13px;
+}
+
+@media (max-width: 760px) {
+  .student-collab-contact {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 520px) {
+  .student-collab-details {
+    grid-template-columns: 1fr;
+  }
+}

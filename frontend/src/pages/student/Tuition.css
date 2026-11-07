@@ -1,0 +1,71 @@
+.invoice-total {
+  margin-top: 15px;
+  padding: 17px 1px 0;
+  border-top: 1px solid #edf0f6;
+}
+
+.invoice-total > div {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  font-size: 11px;
+  color: #8e9bac;
+}
+
+.invoice-total > div b {
+  color: #2c3b56;
+}
+
+.invoice-total .final-total {
+  border-top: 1px dashed #e2e8f4;
+  margin-top: 8px;
+  padding-top: 17px;
+  font-size: 14px;
+}
+
+.invoice-total .final-total strong {
+  color: #324fc2;
+}
+
+.green-text {
+  color: #189c7d !important;
+}
+
+.payment-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.payment-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 0;
+  border-bottom: 1px solid #f0f3f8;
+}
+
+.payment-row > div:nth-child(2) {
+  flex: 1;
+}
+
+.payment-icon {
+  width: 40px;
+  height: 40px;
+  background: #e8faf3;
+  color: #2cb38e;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+}
+
+.payment-row b {
+  font-size: 12px;
+}
+
+.payment-row p,
+.payment-row small {
+  font-size: 10px;
+  color: #9aa8b8;
+  margin: 3px 0;
+  display: block;
+}

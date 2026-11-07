@@ -1,0 +1,37 @@
+.settings-item {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  padding: 20px 0;
+  border-bottom: 1px solid #f0f3f8;
+}
+
+.settings-item:last-child {
+  border: 0;
+}
+
+.settings-icon {
+  width: 44px;
+  height: 44px;
+  background: #edf1ff;
+  color: #5977e8;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.settings-item > div {
+  flex: 1;
+}
+
+.settings-item b {
+  font-size: 12px;
+}
+
+.settings-item p {
+  font-size: 11px;
+  color: #96a4b7;
+  line-height: 1.7;
+  margin: 7px 0 0;
+}

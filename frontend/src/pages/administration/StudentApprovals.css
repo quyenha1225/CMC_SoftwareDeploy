@@ -1,0 +1,16 @@
+.page-content.page-student-approvals .card + .card {
+  margin-top: 22px;
+}
+
+.page-content.page-student-approvals .data-table th,
+.page-content.page-student-approvals .data-table td {
+  padding: 15px 12px;
+}
+
+.page-content.page-student-approvals .approval-actions .btn {
+  min-height: 36px;
+}
+
+.page-content.page-student-approvals .card-head p {
+  color: #65756c;
+}

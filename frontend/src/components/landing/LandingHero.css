@@ -1,0 +1,11 @@
+.landing-hero-art::after {
+  display: none;
+}
+
+.landing-hero-art > img {
+  object-position: center 56%;
+}
+
+.landing-hero-copy .section-kicker {
+  font-size: 14px;
+}

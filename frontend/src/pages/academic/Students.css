@@ -1,0 +1,17 @@
+.page-content.page-students .stats-grid {
+  margin-bottom: 23px;
+}
+
+.page-content.page-students .person-cell {
+  min-width: 190px;
+}
+
+.page-content.page-students .data-table th,
+.page-content.page-students .data-table td {
+  padding-top: 14px;
+  padding-bottom: 14px;
+}
+
+.page-content.page-students .page-actions .btn {
+  min-height: 44px;
+}

@@ -1,0 +1,47 @@
+.profile-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.3fr;
+  gap: 20px;
+}
+
+.profile-main {
+  padding: 0;
+  overflow: hidden;
+}
+
+.profile-banner {
+  height: 112px;
+  background: linear-gradient(100deg, #4163df, #a8b6ff);
+  position: relative;
+}
+
+.profile-banner:before {
+  position: absolute;
+  content: "";
+  width: 200px;
+  height: 200px;
+  right: -60px;
+  top: -80px;
+  border: 20px solid #ffffff24;
+  border-radius: 50%;
+}
+
+.profile-avatar {
+  margin: -40px 0 0 27px;
+  position: relative;
+}
+
+.profile-summary {
+  padding: 9px 27px 19px;
+}
+
+.profile-summary h2 {
+  margin: 0 0 5px;
+  font-size: 20px;
+}
+
+.profile-summary p {
+  font-size: 11px;
+  color: #9aa7ba;
+  margin: 0 0 12px;
+}

@@ -1,0 +1,32 @@
+.page-content.page-sections .data-table th,
+.page-content.page-sections .data-table td {
+  padding: 14px 12px;
+}
+
+.page-content.page-sections .card-head {
+  gap: 18px;
+}
+
+.page-content.page-sections .searchbox {
+  min-width: min(320px, 100%);
+}
+.page-content.page-sections .semester-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 16px;
+}
+
+.page-content.page-sections .semester-tabs button {
+  padding: 9px 13px;
+  border: 1px solid var(--border);
+  background: #fff;
+  color: #53645a;
+  font-size: 14px;
+}
+
+.page-content.page-sections .semester-tabs button.active {
+  border-color: #9dc7b3;
+  background: #e9f2ee;
+  color: #1d6257;
+}

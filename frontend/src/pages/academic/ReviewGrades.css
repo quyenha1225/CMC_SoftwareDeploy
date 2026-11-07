@@ -1,0 +1,14 @@
+.page-content.page-grade-approval .data-table th,
+.page-content.page-approvals .data-table th {
+  white-space: nowrap;
+}
+
+.page-content.page-grade-approval .table-wrap,
+.page-content.page-approvals .table-wrap {
+  scrollbar-color: #b8c8be transparent;
+}
+
+.page-content.page-grade-approval .data-table td,
+.page-content.page-approvals .data-table td {
+  vertical-align: middle;
+}

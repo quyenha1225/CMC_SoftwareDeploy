@@ -1,0 +1,41 @@
+.page-content.page-grades .stats-grid {
+  margin-bottom: 24px;
+}
+
+.page-content.page-grades .data-table th,
+.page-content.page-grades .data-table td {
+  padding-top: 15px;
+  padding-bottom: 15px;
+}
+
+.grade-detail-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.grade-detail-list > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  background: #f7faf7;
+}
+
+.grade-detail-list span {
+  color: var(--muted);
+}
+
+.grade-detail-note {
+  margin: 16px 0 0;
+  padding: 14px;
+  border-left: 3px solid var(--blue);
+  background: var(--blue-light);
+}
+
+@media (max-width: 560px) {
+  .grade-detail-list {
+    grid-template-columns: 1fr;
+  }
+}

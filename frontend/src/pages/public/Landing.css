@@ -1,0 +1,40 @@
+.public-site .landing-section > .section-heading {
+  margin-bottom: 42px;
+}
+
+.public-site .section-heading h2 {
+  max-width: 760px;
+  font-size: clamp(38px, 4vw, 52px);
+  line-height: 1.15;
+}
+
+.public-site .section-heading > p {
+  font-size: 19px;
+}
+
+.public-site .landing-hero h1 {
+  font-size: clamp(46px, 5vw, 70px);
+}
+
+.public-site .landing-hero-copy > p {
+  font-size: 20px;
+}
+
+@media (max-width: 680px) {
+  .public-site .landing-section > .section-heading {
+    margin-bottom: 28px;
+  }
+
+  .public-site .section-heading h2 {
+    font-size: clamp(32px, 8vw, 42px);
+  }
+
+  .public-site .section-heading > p,
+  .public-site .landing-hero-copy > p {
+    font-size: 17px;
+  }
+
+  .public-site .landing-hero h1 {
+    font-size: clamp(38px, 9vw, 48px);
+  }
+}

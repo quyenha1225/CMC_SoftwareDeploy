@@ -1,0 +1,845 @@
+.week-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #fff;
+  padding: 16px 20px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  margin-bottom: 18px;
+}
+
+.week-summary > div {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.week-summary > div > svg {
+  color: #5a79e8;
+}
+
+.week-summary b,
+.week-summary span {
+  display: block;
+}
+
+.week-summary b {
+  font-size: 12px;
+}
+
+.week-summary span {
+  font-size: 10px;
+  color: #96a4b5;
+  margin-top: 4px;
+}
+
+.week-summary-right {
+  display: flex !important;
+  flex-direction: column;
+  align-items: flex-end !important;
+  gap: 0 !important;
+}
+
+.calendar-card {
+  padding: 0;
+  overflow: hidden;
+}
+
+.schedule-wrap {
+  overflow: auto;
+}
+
+.schedule-grid {
+  display: grid;
+  grid-template-columns: 95px repeat(6, minmax(125px, 1fr));
+  min-width: 850px;
+}
+
+.schedule-head {
+  padding: 18px 8px;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 800;
+  border-bottom: 1px solid #e9edf4;
+  border-right: 1px solid #f1f3f8;
+  background: #fafbff;
+}
+
+.time-col {
+  color: #94a1b4;
+}
+
+.time-block {
+  padding: 19px 10px;
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  justify-content: center;
+  background: #fcfdff;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  font-size: 10px;
+  gap: 7px;
+}
+
+.time-block strong {
+  font-size: 12px;
+  color: #415574;
+}
+
+.time-block span {
+  font-size: 10px;
+  color: #a0acbc;
+}
+
+.schedule-cell {
+  min-height: 135px;
+  border-bottom: 1px solid #eef2f8;
+  border-right: 1px solid #eef2f8;
+  padding: 8px;
+}
+
+.class-tile {
+  width: 100%;
+  background: color-mix(in srgb, var(--tile) 10%, white);
+  border-left: 3px solid var(--tile);
+  border-top: 0;
+  border-right: 0;
+  border-bottom: 0;
+  border-radius: 7px;
+  padding: 10px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 6px;
+  color: #42516b;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1),
+    box-shadow 0.2s ease,
+    background-color 0.2s ease;
+}
+
+.class-tile:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 7px 16px rgb(34 51 88 / 10%);
+}
+
+.schedule-semesters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin: 0 0 14px;
+}
+
+.schedule-semesters button {
+  padding: 9px 13px;
+  color: #536580;
+  border: 1px solid #e3e8f1;
+  border-radius: 9px;
+  background: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  transition:
+    color 0.2s ease,
+    border-color 0.2s ease,
+    background 0.2s ease,
+    transform 0.2s ease;
+}
+
+.schedule-semesters button:hover {
+  transform: translateY(-1px);
+}
+
+.schedule-semesters button.active {
+  color: #3458d8;
+  border-color: #b9c8ff;
+  background: #f2f5ff;
+}
+
+.schedule-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.schedule-detail-grid > div {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 13px;
+  border: 1px solid #edf0f6;
+  border-radius: 10px;
+  background: #fafbff;
+}
+
+.schedule-detail-grid span {
+  color: #8290a6;
+  font-size: 10px;
+}
+
+.schedule-detail-grid strong {
+  color: #263c6e;
+  font-size: 12px;
+}
+
+.schedule-roster {
+  margin-top: 22px;
+}
+
+.schedule-roster h3 {
+  margin: 0 0 12px;
+  color: #233452;
+  font-size: 14px;
+}
+
+.schedule-roster > p {
+  margin: 10px 0 0;
+  color: #8290a6;
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.class-tile strong {
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+.class-tile span {
+  font-size: 9px;
+  color: var(--tile);
+  font-weight: 700;
+}
+
+.class-tile small {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 9px;
+  color: #7e8da1;
+}
+
+.week-summary-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.week-summary-actions .btn {
+  min-height: 34px;
+  font-size: 13px;
+}
+
+.schedule-content {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 276px;
+  align-items: start;
+  gap: 16px;
+}
+
+.schedule-grid {
+  grid-template-columns: 78px repeat(6, minmax(105px, 1fr));
+  min-width: 720px;
+}
+
+.schedule-head {
+  display: grid;
+  gap: 4px;
+  background: #f5f8f5;
+  color: #42574c;
+  font-size: 13px;
+}
+
+.schedule-head b {
+  color: #287568;
+  font-size: 14px;
+}
+
+.time-block {
+  font-size: 12px;
+}
+
+.time-block span,
+.time-block strong {
+  font-size: 12px;
+}
+
+.schedule-cell {
+  min-height: 132px;
+}
+
+.class-tile {
+  border-radius: 2px;
+  padding: 11px 9px;
+}
+
+.class-tile strong {
+  font-size: 13px;
+}
+
+.class-tile span,
+.class-tile small {
+  font-size: 12px;
+}
+
+.schedule-semesters button {
+  border-radius: 2px;
+  color: #52645a;
+  font-size: 14px;
+}
+
+.schedule-semesters button.active {
+  color: #1d6257;
+  border-color: #9dc7b3;
+  background: #e9f2ee;
+}
+
+.schedule-detail-grid > div {
+  border-radius: 2px;
+  background: #f7faf7;
+}
+
+.schedule-detail-grid span {
+  font-size: 13px;
+}
+
+.schedule-detail-grid strong {
+  color: #183b36;
+  font-size: 15px;
+}
+
+.schedule-roster h3 {
+  font-size: 18px;
+}
+
+.schedule-roster > p {
+  font-size: 13px;
+}
+
+.schedule-edit-action {
+  margin-top: 16px;
+}
+
+.month-calendar {
+  padding: 18px;
+}
+
+.month-calendar-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 15px;
+}
+
+.month-calendar-head b,
+.month-calendar-head span {
+  display: block;
+}
+
+.month-calendar-head b {
+  color: #183b36;
+  font-size: 18px;
+}
+
+.month-calendar-head span {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.month-calendar-head > div:last-child {
+  display: flex;
+  gap: 5px;
+}
+
+.month-calendar-head button {
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border);
+  background: #fff;
+  color: #287568;
+  font-size: 21px;
+  transition:
+    background-color 0.18s ease,
+    border-color 0.18s ease,
+    transform 0.18s ease;
+}
+
+.month-calendar-head button:hover {
+  transform: translateY(-1px);
+  border-color: #9dc7b3;
+  background: #e9f2ee;
+}
+
+.month-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  text-align: center;
+}
+
+.month-calendar-weekdays {
+  margin-bottom: 6px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.month-calendar-grid > button {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  border: 0;
+  background: transparent;
+  color: #33453b;
+  font-size: 13px;
+  transition:
+    color 0.18s ease,
+    background-color 0.18s ease,
+    transform 0.18s ease;
+}
+
+.month-calendar-grid > button:hover {
+  transform: scale(1.08);
+  background: #edf5f0;
+}
+
+.month-calendar-grid > button.outside-month {
+  color: #b8c2bb;
+}
+
+.month-calendar-grid > button.selected-day {
+  background: #1d6257;
+  color: #fff;
+}
+
+.month-calendar-grid > button > i,
+.month-calendar-legend > i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #d29a4a;
+}
+
+.month-calendar-grid > button > i {
+  position: absolute;
+  bottom: 3px;
+}
+
+.month-calendar-grid > button.has-exam > i {
+  background: #c76b55;
+}
+
+.month-calendar-grid > button.selected-day > i {
+  background: #fff;
+}
+
+.month-calendar-legend {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 13px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.month-calendar-hint {
+  margin: 14px 0 0;
+  color: #68786f;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.exam-schedule {
+  position: relative;
+  flex: 0 0 auto;
+  border: 1px solid var(--border);
+  background: #fff;
+  z-index: 4;
+}
+
+.exam-schedule-toggle {
+  display: flex;
+  width: 100%;
+  min-height: 52px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px;
+  border: 0;
+  background: #fff;
+  color: #183b36;
+  text-align: left;
+}
+
+.exam-schedule-toggle > span {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  color: #287568;
+}
+
+.exam-schedule-toggle > span > span,
+.exam-schedule-toggle strong,
+.exam-schedule-toggle small {
+  display: block;
+}
+
+.exam-schedule-toggle strong {
+  color: #183b36;
+  font-size: 15px;
+}
+
+.exam-schedule-toggle small {
+  margin-top: 3px;
+  color: #728078;
+  font-size: 12px;
+}
+
+.exam-chevron {
+  transition: transform 0.18s ease;
+}
+
+.exam-chevron.expanded {
+  transform: rotate(180deg);
+}
+
+.exam-schedule-body {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 4px);
+  left: 0;
+  max-height: min(330px, 45vh);
+  overflow: auto;
+  padding: 0 14px 12px;
+  border: 1px solid var(--border);
+  background: #fff;
+  box-shadow: 0 12px 30px rgb(23 58 45 / 16%);
+  z-index: 5;
+  animation: exam-reveal 0.22s ease-out both;
+}
+
+@keyframes calendar-enter {
+  from {
+    opacity: 0.55;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes exam-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(7px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.exam-schedule-notice {
+  margin: 0 0 8px;
+  padding: 8px 10px;
+  border-left: 3px solid #d19b4c;
+  background: #fbf6ec;
+  color: #745a30;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.exam-legend {
+  margin-left: 10px;
+  background: #c76b55 !important;
+}
+
+@media (max-width: 1050px) {
+  .schedule-content {
+    grid-template-columns: 1fr;
+  }
+
+  .month-calendar {
+    max-width: none;
+  }
+}
+
+@media (min-width: 1101px) {
+  .app-layout:has(.page-schedule) {
+    height: 100vh;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .app-layout:has(.page-schedule) .main-frame,
+  .app-layout:has(.page-schedule) .view-area {
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .page-content.page-schedule {
+    display: flex;
+    height: calc(100vh - 75px);
+    min-height: 0;
+    flex: 1;
+    flex-direction: column;
+    gap: 8px;
+    overflow: hidden;
+    padding: 12px 20px 10px;
+  }
+
+  .page-schedule > .page-header {
+    flex: 0 0 auto;
+    margin: 0;
+    align-items: center;
+  }
+
+  .page-schedule > .page-header h1 {
+    font-size: 26px;
+  }
+
+  .page-schedule > .page-header p {
+    margin: 4px 0 0;
+    font-size: 13px;
+  }
+
+  .page-schedule > .schedule-semesters,
+  .page-schedule > .week-summary,
+  .page-schedule > .exam-schedule,
+  .page-schedule > .hint-line {
+    flex: 0 0 auto;
+    margin: 0;
+  }
+
+  .page-schedule > .schedule-semesters {
+    gap: 6px;
+  }
+
+  .page-schedule .schedule-semesters button {
+    padding: 6px 10px;
+    font-size: 13px;
+  }
+
+  .page-schedule > .week-summary {
+    min-height: 46px;
+    padding: 6px 12px;
+  }
+
+  .page-schedule .week-summary b {
+    font-size: 14px;
+  }
+
+  .page-schedule .week-summary span {
+    font-size: 11px;
+  }
+
+  .page-schedule .week-summary-actions .btn {
+    min-height: 30px;
+    padding: 0 9px;
+  }
+
+  .page-schedule > .schedule-content {
+    min-height: 0;
+    flex: 0 0 auto;
+    align-items: start;
+    grid-template-columns: minmax(0, 1fr) 250px;
+    gap: 10px;
+  }
+
+  .page-schedule .calendar-card,
+  .page-schedule .month-calendar {
+    min-height: 0;
+    padding: 8px;
+  }
+
+  .page-schedule .schedule-wrap {
+    height: 100%;
+    overflow: auto;
+  }
+
+  .page-schedule .schedule-grid {
+    min-width: 0;
+    grid-template-columns: 55px repeat(6, minmax(75px, 1fr));
+  }
+
+  .page-schedule .schedule-head {
+    padding: 6px 4px;
+    font-size: 13px;
+  }
+
+  .page-schedule .schedule-head b {
+    font-size: 14px;
+  }
+
+  .page-schedule .time-block {
+    min-height: 78px;
+    padding: 6px 4px;
+    gap: 4px;
+  }
+
+  .page-schedule .time-block strong,
+  .page-schedule .time-block span {
+    font-size: 13px;
+  }
+
+  .page-schedule .schedule-cell {
+    min-height: 78px;
+    padding: 4px;
+  }
+
+  .page-schedule .class-tile {
+    gap: 4px;
+    margin-bottom: 3px;
+    padding: 7px 6px;
+  }
+
+  .page-schedule .class-tile strong {
+    font-size: 14px;
+  }
+
+  .page-schedule .class-tile span,
+  .page-schedule .class-tile small {
+    font-size: 12px;
+  }
+
+  .page-schedule .schedule-grid {
+    animation: calendar-enter 0.24s ease-out both;
+  }
+
+  .page-schedule .month-calendar {
+    position: sticky;
+    top: 0;
+    align-self: start;
+  }
+
+  .page-schedule .month-calendar-head {
+    margin-bottom: 7px;
+  }
+
+  .page-schedule .month-calendar-head b {
+    font-size: 15px;
+  }
+
+  .page-schedule .month-calendar-head span,
+  .page-schedule .month-calendar-legend,
+  .page-schedule .month-calendar-hint {
+    font-size: 13px;
+  }
+
+  .page-schedule .month-calendar-head button {
+    width: 30px;
+    height: 30px;
+    font-size: 19px;
+  }
+
+  .page-schedule .month-calendar-grid > button {
+    font-size: 13px;
+  }
+
+  .page-schedule .month-calendar-grid:not(.month-calendar-weekdays) {
+    animation: calendar-enter 0.22s ease-out both;
+  }
+
+  .page-schedule .month-calendar-legend {
+    margin-top: 5px;
+  }
+
+  .page-schedule .month-calendar-hint {
+    margin-top: 6px;
+    line-height: 1.35;
+  }
+
+  .page-schedule .exam-schedule-toggle {
+    min-height: 42px;
+    padding: 5px 10px;
+  }
+
+  .page-schedule .exam-schedule-toggle strong {
+    font-size: 15px;
+  }
+
+  .page-schedule .exam-schedule-toggle small {
+    font-size: 12px;
+  }
+
+  .page-schedule > .hint-line {
+    font-size: 13px;
+    line-height: 1.4;
+  }
+
+  .page-schedule:has(.exam-schedule-body) > .schedule-content {
+    min-height: 160px;
+    flex: 1 1 0;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  .page-schedule:has(.exam-schedule-body) .month-calendar {
+    display: none;
+  }
+
+  .page-schedule:has(.exam-schedule-body) .calendar-card {
+    height: 100%;
+    min-height: 0;
+    padding: 4px;
+  }
+
+  .page-schedule:has(.exam-schedule-body) .schedule-wrap {
+    height: 100%;
+    overflow: auto;
+  }
+
+  .page-schedule:has(.exam-schedule-body) .schedule-grid {
+    height: 100%;
+    grid-template-rows: 36px repeat(4, minmax(0, 1fr));
+  }
+
+  .page-schedule:has(.exam-schedule-body) .schedule-cell,
+  .page-schedule:has(.exam-schedule-body) .time-block {
+    min-height: 0;
+  }
+
+  .page-schedule:has(.exam-schedule-body) .exam-schedule-body {
+    position: static;
+    max-height: min(160px, 21vh);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-schedule .schedule-grid,
+  .page-schedule .month-calendar-grid:not(.month-calendar-weekdays),
+  .page-schedule .exam-schedule-body {
+    animation: none;
+  }
+}
+
+@media (max-width: 1100px) {
+  .app-layout:has(.page-schedule) {
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
+  }
+
+  .page-content.page-schedule {
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+  }
+}
+
+@media (max-width: 580px) {
+  .week-summary {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .week-summary-actions {
+    width: 100%;
+  }
+
+  .week-summary-actions .btn {
+    flex: 1;
+  }
+}

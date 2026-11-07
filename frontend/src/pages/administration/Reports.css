@@ -1,0 +1,51 @@
+.bar-list {
+  display: flex;
+  flex-direction: column;
+  gap: 25px;
+  margin-top: 26px;
+}
+
+.bar-row > div:first-child {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  margin-bottom: 9px;
+}
+
+.bar-row span {
+  color: #73849e;
+}
+
+.bar-row b {
+  font-weight: 750;
+}
+
+.bar-row .progress-track {
+  height: 8px;
+}
+
+.report-status-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.report-status-grid > div {
+  padding: 15px;
+  background: #fafbfe;
+  border: 1px solid #eff1f7;
+  border-radius: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.report-status-grid strong {
+  font-size: 23px;
+}
+
+@media (max-width: 740px) {
+  .report-status-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }}

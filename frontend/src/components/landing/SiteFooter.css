@@ -1,0 +1,14 @@
+.site-footer h2 {
+  font-size: 17px;
+}
+
+.site-footer-about > p,
+.site-footer-contact p,
+.site-footer-links a {
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.site-footer-bottom {
+  font-size: 12px;
+}
