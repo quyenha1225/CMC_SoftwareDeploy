@@ -25,11 +25,11 @@
 }
 
 .week-summary b {
-  font-size: 12px;
+  font-size: 15px;
 }
 
 .week-summary span {
-  font-size: 10px;
+  font-size: 15px;
   color: #96a4b5;
   margin-top: 4px;
 }
@@ -59,7 +59,7 @@
 .schedule-head {
   padding: 18px 8px;
   text-align: center;
-  font-size: 11px;
+  font-size: 15px;
   font-weight: 800;
   border-bottom: 1px solid #e9edf4;
   border-right: 1px solid #f1f3f8;
@@ -79,17 +79,17 @@
   background: #fcfdff;
   border-right: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
-  font-size: 10px;
+  font-size: 15px;
   gap: 7px;
 }
 
 .time-block strong {
-  font-size: 12px;
+  font-size: 15px;
   color: #415574;
 }
 
 .time-block span {
-  font-size: 10px;
+  font-size: 15px;
   color: #a0acbc;
 }
 
@@ -140,7 +140,7 @@
   border: 1px solid #e3e8f1;
   border-radius: 9px;
   background: #fff;
-  font-size: 11px;
+  font-size: 15px;
   font-weight: 700;
   transition:
     color 0.2s ease,
@@ -177,12 +177,12 @@
 
 .schedule-detail-grid span {
   color: #8290a6;
-  font-size: 10px;
+  font-size: 15px;
 }
 
 .schedule-detail-grid strong {
   color: #263c6e;
-  font-size: 12px;
+  font-size: 15px;
 }
 
 .schedule-roster {
@@ -192,23 +192,23 @@
 .schedule-roster h3 {
   margin: 0 0 12px;
   color: #233452;
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .schedule-roster > p {
   margin: 10px 0 0;
   color: #8290a6;
-  font-size: 11px;
+  font-size: 15px;
   line-height: 1.6;
 }
 
 .class-tile strong {
-  font-size: 10px;
+  font-size: 15px;
   line-height: 1.35;
 }
 
 .class-tile span {
-  font-size: 9px;
+  font-size: 15px;
   color: var(--tile);
   font-weight: 700;
 }
@@ -217,7 +217,7 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  font-size: 9px;
+  font-size: 15px;
   color: #7e8da1;
 }
 
@@ -228,7 +228,7 @@
 
 .week-summary-actions .btn {
   min-height: 34px;
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .schedule-content {
@@ -248,21 +248,21 @@
   gap: 4px;
   background: #f5f8f5;
   color: #42574c;
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .schedule-head b {
   color: #287568;
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .time-block {
-  font-size: 12px;
+  font-size: 15px;
 }
 
 .time-block span,
 .time-block strong {
-  font-size: 12px;
+  font-size: 15px;
 }
 
 .schedule-cell {
@@ -275,18 +275,18 @@
 }
 
 .class-tile strong {
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .class-tile span,
 .class-tile small {
-  font-size: 12px;
+  font-size: 15px;
 }
 
 .schedule-semesters button {
   border-radius: 2px;
   color: #52645a;
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .schedule-semesters button.active {
@@ -301,20 +301,20 @@
 }
 
 .schedule-detail-grid span {
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .schedule-detail-grid strong {
   color: #183b36;
-  font-size: 15px;
+  font-size: 17px;
 }
 
 .schedule-roster h3 {
-  font-size: 18px;
+  font-size: 20px;
 }
 
 .schedule-roster > p {
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .schedule-edit-action {
@@ -339,13 +339,13 @@
 
 .month-calendar-head b {
   color: #183b36;
-  font-size: 18px;
+  font-size: 20px;
 }
 
 .month-calendar-head span {
   margin-top: 4px;
   color: var(--muted);
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .month-calendar-head > div:last-child {
@@ -359,7 +359,7 @@
   border: 1px solid var(--border);
   background: #fff;
   color: #287568;
-  font-size: 21px;
+  font-size: 23px;
   transition:
     background-color 0.18s ease,
     border-color 0.18s ease,
@@ -381,7 +381,7 @@
 .month-calendar-weekdays {
   margin-bottom: 6px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 15px;
 }
 
 .month-calendar-grid > button {
@@ -392,7 +392,7 @@
   border: 0;
   background: transparent;
   color: #33453b;
-  font-size: 13px;
+  font-size: 15px;
   transition:
     color 0.18s ease,
     background-color 0.18s ease,
@@ -440,13 +440,13 @@
   gap: 7px;
   margin-top: 13px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 15px;
 }
 
 .month-calendar-hint {
   margin: 14px 0 0;
   color: #68786f;
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.55;
 }
 
@@ -486,13 +486,13 @@
 
 .exam-schedule-toggle strong {
   color: #183b36;
-  font-size: 15px;
+  font-size: 17px;
 }
 
 .exam-schedule-toggle small {
   margin-top: 3px;
   color: #728078;
-  font-size: 12px;
+  font-size: 15px;
 }
 
 .exam-chevron {
@@ -546,7 +546,7 @@
   border-left: 3px solid #d19b4c;
   background: #fbf6ec;
   color: #745a30;
-  font-size: 12px;
+  font-size: 15px;
   line-height: 1.45;
 }
 
@@ -596,12 +596,12 @@
   }
 
   .page-schedule > .page-header h1 {
-    font-size: 26px;
+    font-size: 28px;
   }
 
   .page-schedule > .page-header p {
     margin: 4px 0 0;
-    font-size: 13px;
+    font-size: 15px;
   }
 
   .page-schedule > .schedule-semesters,
@@ -618,7 +618,7 @@
 
   .page-schedule .schedule-semesters button {
     padding: 6px 10px;
-    font-size: 13px;
+    font-size: 15px;
   }
 
   .page-schedule > .week-summary {
@@ -627,11 +627,11 @@
   }
 
   .page-schedule .week-summary b {
-    font-size: 14px;
+    font-size: 16px;
   }
 
   .page-schedule .week-summary span {
-    font-size: 11px;
+    font-size: 15px;
   }
 
   .page-schedule .week-summary-actions .btn {
@@ -665,11 +665,11 @@
 
   .page-schedule .schedule-head {
     padding: 6px 4px;
-    font-size: 13px;
+    font-size: 15px;
   }
 
   .page-schedule .schedule-head b {
-    font-size: 14px;
+    font-size: 16px;
   }
 
   .page-schedule .time-block {
@@ -680,7 +680,7 @@
 
   .page-schedule .time-block strong,
   .page-schedule .time-block span {
-    font-size: 13px;
+    font-size: 15px;
   }
 
   .page-schedule .schedule-cell {
@@ -695,12 +695,12 @@
   }
 
   .page-schedule .class-tile strong {
-    font-size: 14px;
+    font-size: 16px;
   }
 
   .page-schedule .class-tile span,
   .page-schedule .class-tile small {
-    font-size: 12px;
+    font-size: 15px;
   }
 
   .page-schedule .schedule-grid {
@@ -718,23 +718,23 @@
   }
 
   .page-schedule .month-calendar-head b {
-    font-size: 15px;
+    font-size: 17px;
   }
 
   .page-schedule .month-calendar-head span,
   .page-schedule .month-calendar-legend,
   .page-schedule .month-calendar-hint {
-    font-size: 13px;
+    font-size: 15px;
   }
 
   .page-schedule .month-calendar-head button {
     width: 30px;
     height: 30px;
-    font-size: 19px;
+    font-size: 21px;
   }
 
   .page-schedule .month-calendar-grid > button {
-    font-size: 13px;
+    font-size: 15px;
   }
 
   .page-schedule .month-calendar-grid:not(.month-calendar-weekdays) {
@@ -756,15 +756,15 @@
   }
 
   .page-schedule .exam-schedule-toggle strong {
-    font-size: 15px;
+    font-size: 17px;
   }
 
   .page-schedule .exam-schedule-toggle small {
-    font-size: 12px;
+    font-size: 15px;
   }
 
   .page-schedule > .hint-line {
-    font-size: 13px;
+    font-size: 15px;
     line-height: 1.4;
   }
 
@@ -843,3 +843,24 @@
     flex: 1;
   }
 }
+.schedule-view-picker {
+  position: relative; display: flex; align-items: center; gap: 14px;
+  width: min(100%, 340px); margin: 18px 0; padding: 14px 18px;
+  background: linear-gradient(120deg, #fffefa, #eef7f0);
+  border: 1px solid #cfe2d6; border-radius: 16px;
+  box-shadow: 0 6px 18px #245c4010; color: #216a55;
+}
+.schedule-view-icon { display: grid; place-items: center; width: 46px; height: 46px; border-radius: 13px; background: #deeee3; flex-shrink: 0; }
+.schedule-view-picker label { flex: 1; min-width: 0; }
+.schedule-view-picker label > span { display: block; font-size: 11px; letter-spacing: .1em; color: #637d6e; }
+.schedule-view-picker select { appearance: none; border: 0; background: transparent; color: #194e3f; font: inherit; font-size: 21px; font-weight: 700; width: 100%; padding: 3px 0; cursor: pointer; }
+.schedule-view-picker select::after { display: none; }
+.schedule-view-picker > svg { pointer-events: none; }
+.schedule-view-picker:focus-within { outline: 3px solid #74ad8b44; border-color: #77a88c; }
+.schedule-view-picker select:focus-visible { outline: none; }
+.app-layout .schedule-submenu { gap: 6px; margin: 7px 0 12px 20px; padding: 8px; border: 1px solid #dbe9df; background: #f4f8f3; border-radius: 14px; }
+.app-layout .schedule-submenu .nav-subitem { align-items: center; padding: 11px 12px; gap: 12px; color: #547564; border-radius: 9px; }
+.app-layout .schedule-submenu .nav-subitem-active { background: #fff; color: #1c6a51; box-shadow: 0 3px 12px #22573d0c; font-weight: 700; }
+.app-layout .schedule-submenu .nav-subitem:hover { background: #e4f0e6; color: #19563f; }
+.page-schedule .exam-schedule { animation: schedule-view-enter 380ms ease both; }
+@keyframes schedule-view-enter { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }

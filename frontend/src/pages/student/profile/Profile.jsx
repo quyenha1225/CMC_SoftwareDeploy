@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import "./Profile.css";
-import Icon from "../../components/common/Icon.jsx";
+import Icon from "../../../components/common/Icon.jsx";
 import {
   ROLE_NAMES,
   ACCOUNTS,
@@ -18,7 +18,7 @@ import {
   requestStatusText,
   studentStatusText,
   PRICE_PER_CREDIT,
-} from "../../data/portalData.js";
+} from "../../../data/portalData.js";
 import {
   Badge,
   Button,
@@ -40,7 +40,7 @@ import {
   slot,
   colorByStatus,
   csvDownload,
-} from "../../components/ui.jsx";
+} from "../../../components/ui.jsx";
 
 export default function Profile({ role, state, update, notify }) {
   const account = ACCOUNTS.find((a) => a.role === role);

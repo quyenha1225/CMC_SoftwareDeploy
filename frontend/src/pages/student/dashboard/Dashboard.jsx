@@ -1,6 +1,6 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import "./Dashboard.css";
-import Icon from "../../components/common/Icon.jsx";
+import Icon from "../../../components/common/Icon.jsx";
 import {
   STUDENT_ID,
   PRICE_PER_CREDIT,
@@ -9,7 +9,7 @@ import {
   getGradeSheet,
   gradeTotal,
   money,
-} from "../../data/portalData.js";
+} from "../../../data/portalData.js";
 import {
   Badge,
   Card,
@@ -18,9 +18,29 @@ import {
   Donut,
   AreaChart,
   number,
-} from "../../components/ui.jsx";
+} from "../../../components/ui.jsx";
 
 export default function Dashboard({ role, state, account, navigate }) {
+  const dashboardRef = useRef(null);
+  useEffect(() => {
+    if (!window.IntersectionObserver || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const elements = dashboardRef.current.querySelectorAll(".hero-content > *, .stat-content > *, .card-head, .upcoming, .announcement-mini, .progress-legend > *, .soft-note");
+    const observer = new IntersectionObserver(entries => {
+      entries.forEach(({ target, isIntersecting, boundingClientRect }) => {
+        if (isIntersecting) target.dataset.dashboardReveal = "visible";
+        else if (boundingClientRect.bottom < 0 || boundingClientRect.top > window.innerHeight) target.dataset.dashboardReveal = "pending";
+      });
+    }, { threshold: 0.1 });
+    elements.forEach((element, index) => {
+      element.style.setProperty("--text-delay", `${(index % 3) * 65}ms`);
+      element.dataset.dashboardReveal = "pending";
+      observer.observe(element);
+    });
+    return () => {
+      observer.disconnect();
+      elements.forEach(element => delete element.dataset.dashboardReveal);
+    };
+  }, [role]);
   const chosen = state.enrollmentIds
     .map((id) => getSection(state, id))
     .filter(Boolean);
@@ -67,7 +87,7 @@ export default function Dashboard({ role, state, account, navigate }) {
           : { page: "students", label: "Xem sinh viên" };
 
   return (
-    <>
+    <div className="dashboard-surface" ref={dashboardRef}>
       <PageHeader
         title={`Xin chào, ${account.name.split(" ").at(-1)}`}
         eyebrow="HỌC KỲ I · 2026–2027"
@@ -315,6 +335,6 @@ export default function Dashboard({ role, state, account, navigate }) {
           ))}
         </div>
       </Card>
-    </>
+    </div>
   );
 }

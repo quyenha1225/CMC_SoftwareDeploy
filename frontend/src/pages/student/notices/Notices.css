@@ -1,0 +1,2 @@
+.student-notices { display: grid; gap: 24px; }
+.student-notice-content { font-size: 18px; line-height: 1.75; white-space: pre-wrap; overflow-wrap: anywhere; }

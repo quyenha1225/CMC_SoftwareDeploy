@@ -1,0 +1,6 @@
+.payment-layout { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(300px, 1fr); gap: 24px; }
+.payment-form { display: grid; gap: 18px; padding-top: 20px; }
+.payment-confirm { display: flex; align-items: flex-start; gap: 12px; font-size: 16px; line-height: 1.6; }
+.payment-confirm input { width: 20px; height: 20px; flex-shrink: 0; }
+.enrollment-checkout { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 20px; margin-bottom: 24px; background: #e7f2ec; border-radius: 12px; font-size: 17px; }
+@media (max-width: 1000px) { .payment-layout { grid-template-columns: minmax(0, 1fr); } .enrollment-checkout { align-items: flex-start; flex-direction: column; } }

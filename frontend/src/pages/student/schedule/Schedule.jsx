@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import "./Schedule.css";
-import Icon from "../../components/common/Icon.jsx";
+import Icon from "../../../components/common/Icon.jsx";
 import {
   STUDENT_ID,
   WEEKDAYS,
@@ -9,7 +9,7 @@ import {
   semesterDates,
   getCourse,
   getSection,
-} from "../../data/portalData.js";
+} from "../../../data/portalData.js";
 import {
   Badge,
   Button,
@@ -20,7 +20,7 @@ import {
   PageHeader,
   todayVN,
   displayDay,
-} from "../../components/ui.jsx";
+} from "../../../components/ui.jsx";
 
 const TIMES = [
   ["07:30", "09:50"],
@@ -41,7 +41,7 @@ const shortDate = (date) =>
   date.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit" });
 const displayDate = (date) => date.toLocaleDateString("vi-VN");
 
-export default function Schedule({ state, role, update, notify }) {
+export default function Schedule({ state, role, update, notify, view = "classes", onViewChange }) {
   const [selectedSection, setSelectedSection] = useState(null);
   const [editingSection, setEditingSection] = useState(null);
   const semesters = useMemo(
@@ -82,7 +82,6 @@ export default function Schedule({ state, role, update, notify }) {
         : today;
     return new Date(date.getFullYear(), date.getMonth(), 1);
   });
-  const [examsExpanded, setExamsExpanded] = useState(false);
   const owned =
     role === "lecturer"
       ? state.sections.filter(
@@ -234,6 +233,18 @@ export default function Schedule({ state, role, update, notify }) {
           </button>
         ))}
       </div>
+      <div className="schedule-view-picker">
+        <span className="schedule-view-icon"><Icon name={view === "exams" ? "grades" : "calendar"} size={23} /></span>
+        <label>
+          <span>TRA CỨU LỊCH CÁ NHÂN</span>
+          <select aria-label="Chọn lịch học hoặc lịch thi" value={view} onChange={event => onViewChange?.(event.target.value)}>
+            <option value="classes">Lịch học</option>
+            <option value="exams">Lịch thi</option>
+          </select>
+        </label>
+        <Icon name="down" size={19} />
+      </div>
+      {view === "classes" && <>
       <div className="week-summary">
         <div>
           <Icon name="calendar" size={21} />
@@ -388,12 +399,12 @@ export default function Schedule({ state, role, update, notify }) {
           </p>
         </Card>
       </div>
-      <section className="exam-schedule">
+      </>}
+      {view === "exams" && <section className="exam-schedule">
         <button
           type="button"
           className="exam-schedule-toggle"
-          aria-expanded={examsExpanded}
-          onClick={() => setExamsExpanded((expanded) => !expanded)}
+          aria-expanded={true}
         >
           <span>
             <Icon name="calendar" size={18} />
@@ -402,9 +413,8 @@ export default function Schedule({ state, role, update, notify }) {
               <small>{EXAM_SCHEDULES.filter((exam) => exam.semester === semester).length} lịch thi · {semesterLabel(semester)}</small>
             </span>
           </span>
-          <Icon name="down" size={18} className={examsExpanded ? "exam-chevron expanded" : "exam-chevron"} />
         </button>
-        {examsExpanded && (
+        {(
           <div className="exam-schedule-body">
             <p className="exam-schedule-notice">
               Lịch thi dưới đây là dữ liệu mẫu để minh họa giao diện, chưa phải
@@ -431,7 +441,7 @@ export default function Schedule({ state, role, update, notify }) {
             ) : <Empty title="Chưa có lịch thi trong học kỳ này" />}
           </div>
         )}
-      </section>
+      </section>}
       <div className="hint-line">
         <Icon name="info" size={16} />
         Lịch lớp được lặp theo tuần trong ngày bắt đầu/kết thúc học kỳ. Dùng lịch

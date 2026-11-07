@@ -6,6 +6,7 @@ export default function AppSidebar({
   role,
   page,
   activeProfileSection,
+  activeScheduleSection,
   collapsed,
   sidebarOpen,
   noticesCount,
@@ -86,18 +87,19 @@ export default function AppSidebar({
                   )}
                 </button>
                 {children && isExpanded && !collapsed && (
-                  <div className="nav-submenu">
-                    {children.map(([childLabel, childId]) => (
+                  <div className={`nav-submenu ${id === "schedule" ? "schedule-submenu" : ""}`}>
+                    {children.map(([childLabel, childId, childIcon]) => (
                       <button
                         key={childId}
                         className={`nav-subitem ${
-                          page === id && activeProfileSection === childId
+                          page === id && (activeProfileSection === childId || activeScheduleSection === childId)
                             ? "nav-subitem-active"
                             : ""
                         }`}
                         onClick={() => onNavigate(childId)}
+                        aria-current={page === id && (activeProfileSection === childId || activeScheduleSection === childId) ? "page" : undefined}
                       >
-                        <span className="nav-subitem-dot" />
+                        {childIcon ? <Icon name={childIcon} size={18} /> : <span className="nav-subitem-dot" />}
                         <span>{childLabel}</span>
                       </button>
                     ))}

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import "./Tuition.css";
-import Icon from "../../components/common/Icon.jsx";
+import Icon from "../../../components/common/Icon.jsx";
 import {
   ROLE_NAMES,
   ACCOUNTS,
@@ -18,7 +18,7 @@ import {
   requestStatusText,
   studentStatusText,
   PRICE_PER_CREDIT,
-} from "../../data/portalData.js";
+} from "../../../data/portalData.js";
 import {
   Badge,
   Button,
@@ -40,9 +40,9 @@ import {
   slot,
   colorByStatus,
   csvDownload,
-} from "../../components/ui.jsx";
+} from "../../../components/ui.jsx";
 
-export default function Tuition({ state, role, update, notify }) {
+export default function Tuition({ state, role, update, notify, navigate }) {
   const selected = state.enrollmentIds
     .map((id) => getSection(state, id))
     .filter(Boolean);
@@ -89,7 +89,7 @@ export default function Tuition({ state, role, update, notify }) {
               Ghi nhận thu (demo)
             </Button>
           ) : (
-            <Badge tone="amber">Không tích hợp thanh toán thật</Badge>
+            <Button icon="wallet" disabled={balance <= 0} onClick={() => navigate("payment")}>Thanh toán học phí</Button>
           )
         }
       />

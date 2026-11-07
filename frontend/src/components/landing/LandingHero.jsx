@@ -32,6 +32,10 @@ export default function LandingHero({ onLogin }) {
       </div>
       <figure className="landing-hero-art">
         <img src={campusPhoto} alt="Khuôn viên trường đại học giữa hàng cây" />
+        <figcaption className="campus-caption">
+          <span className="campus-caption-icon"><Icon name="graduation" size={26} /></span>
+          <span><small>KHÔNG GIAN TRI THỨC</small><strong>Kết nối hôm nay. Kiến tạo ngày mai.</strong></span>
+        </figcaption>
       </figure>
     </section>
   );

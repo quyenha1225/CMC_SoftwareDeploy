@@ -1,6 +1,7 @@
+import GradeDetail from "./GradeDetail.jsx";
 import React, { useState } from "react";
 import "./Results.css";
-import Icon from "../../components/common/Icon.jsx";
+import Icon from "../../../components/common/Icon.jsx";
 import {
   ROLE_NAMES,
   ACCOUNTS,
@@ -20,7 +21,7 @@ import {
   requestStatusText,
   studentStatusText,
   PRICE_PER_CREDIT,
-} from "../../data/portalData.js";
+} from "../../../data/portalData.js";
 import {
   Badge,
   Button,
@@ -42,7 +43,7 @@ import {
   slot,
   colorByStatus,
   csvDownload,
-} from "../../components/ui.jsx";
+} from "../../../components/ui.jsx";
 
 export default function Results({ state }) {
   const rows = state.grades
@@ -188,23 +189,7 @@ export default function Results({ state }) {
           {rows.length === 0 && <Empty title="Chưa có kết quả chính thức" />}
         </div>
       </Card>
-      {selectedGrade && (
-        <Modal
-          title={getCourse(selectedGrade.section?.courseId)?.name || "Chi tiết điểm"}
-          subtitle={`${selectedGrade.section?.code} · ${semesterLabel(selectedGrade.section?.semester)}`}
-          onClose={() => setSelectedGrade(null)}
-        >
-          <div className="grade-detail-list">
-            <div><span>Chuyên cần · 10%</span><strong>{selectedGrade.attendance?.toFixed(1) ?? "—"}</strong></div>
-            <div><span>Giữa kỳ · 30%</span><strong>{selectedGrade.midterm?.toFixed(1) ?? "—"}</strong></div>
-            <div><span>Cuối kỳ · 60%</span><strong>{selectedGrade.final?.toFixed(1) ?? "—"}</strong></div>
-            <div><span>Tổng kết</span><strong>{gradeTotal(selectedGrade)?.toFixed(1) ?? "Chưa đủ điểm"}</strong></div>
-            <div><span>Tín chỉ</span><strong>{getCourse(selectedGrade.section?.courseId)?.credits}</strong></div>
-            <div><span>Giảng viên</span><strong>{selectedGrade.section?.teacher}</strong></div>
-          </div>
-          {selectedGrade.note && <p className="grade-detail-note">Nhận xét: {selectedGrade.note}</p>}
-        </Modal>
-      )}
+      <GradeDetail selectedGrade={selectedGrade} setSelectedGrade={setSelectedGrade} />
       <div className="hint-line">
         <Icon name="shield" size={16} /> Điểm tổng kết được tính: 10% chuyên cần
         + 30% giữa kỳ + 60% cuối kỳ (công thức demo; có thể cấu hình theo học

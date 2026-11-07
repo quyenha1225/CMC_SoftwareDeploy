@@ -1,0 +1,104 @@
+:root {
+  --navy: #143f37;
+  --blue: #217563;
+  --blue-light: #e5f2eb;
+  --border: #dce9e1;
+  --muted: #60766b;
+  --shadow: 0 10px 32px rgb(24 70 51 / 6%);
+  --motion-ease: cubic-bezier(.22, 1, .36, 1);
+}
+
+.app-layout {
+  background: radial-gradient(ellipse at 92% 0%, #dceee3 0, transparent 45%), #f3f7f3;
+}
+.app-layout .hero {
+  background: radial-gradient(ellipse at 85% 15%, #ffffff15, transparent 50%), linear-gradient(115deg, #123e36, #267966 70%, #5b9981);
+  border: 1px solid #ffffff24;
+}
+.app-layout .card, .app-layout .stat { border-radius: 14px; }
+.app-layout .card { box-shadow: 0 6px 26px rgb(27 67 47 / 5%); }
+.app-layout .btn, .app-layout .nav-item, .app-layout .notice-card,
+.app-layout .stat, .app-layout .announcement-mini {
+  transition: transform 280ms var(--motion-ease), box-shadow 280ms ease, background-color 220ms ease, border-color 220ms ease;
+}
+.app-layout .btn-primary { background: linear-gradient(120deg, #1c6657, #2e816a); box-shadow: 0 4px 12px #216b5724; }
+.app-layout .data-table tbody tr { transition: background-color 200ms ease; }
+.app-layout .data-table tbody tr:hover { background: #f0f7f2; }
+.app-layout .modal { animation: dialog-arrive 320ms var(--motion-ease) both; border-radius: 18px; }
+.app-layout .modal-backdrop { backdrop-filter: blur(5px); }
+.app-layout .notif-popup { animation: dialog-arrive 260ms var(--motion-ease) both; transform-origin: top right; }
+.app-layout .level-bar > *, .app-layout .progress-bar > * { transition: width 650ms var(--motion-ease); }
+.app-layout .toast { animation: dialog-arrive 300ms var(--motion-ease) both; }
+
+.public-site {
+  --public-ink: #173e34;
+  --public-green: #24745e;
+  --public-green-dark: #164e40;
+  --public-muted: #61746a;
+  --public-border: #dce8df;
+  background: #f6f8f2;
+}
+.public-site .landing-hero {
+  background: radial-gradient(ellipse at 8% 8%, #e0eddf, transparent 55%), #f6f8f0;
+}
+.public-site .landing-hero-copy { animation: school-arrive 850ms var(--motion-ease) both; }
+.public-site .landing-hero h1 span { color: #2d7b61; }
+.public-site .landing-hero-art { animation: none; }
+.public-site .landing-hero-art > img { animation: campus-breathe 20s ease-in-out infinite alternate; }
+.public-site .section-kicker { color: #35725e; letter-spacing: .13em; }
+.public-site .training-section { background: #fffefa; }
+.public-site .student-section { background: #edf5ee; }
+.public-site .program-card, .public-site .student-service-card,
+.public-site .guide-grid article, .public-site .regulation-list article {
+  border-color: #dae7dc;
+  border-radius: 16px;
+  transition: transform 350ms var(--motion-ease), box-shadow 350ms ease, border-color 250ms ease, background-color 250ms ease;
+}
+.public-site .button-solid {
+  background: linear-gradient(120deg, #195c4c, #318367);
+  box-shadow: 0 7px 20px #236c5326;
+}
+.public-site .button-solid, .public-site .button-text { transition: transform 280ms var(--motion-ease), box-shadow 280ms ease; }
+.public-site .button-solid svg, .public-site .button-text svg,
+.public-site .program-card button svg { transition: transform 280ms var(--motion-ease); }
+.public-site .status-mark { box-shadow: 0 0 0 5px #26765e12; animation: semester-pulse 3s ease-in-out infinite; }
+.public-site .campus-caption {
+  position: absolute; z-index: 2; left: 6%; right: 6%; bottom: 7%;
+  display: flex; align-items: center; gap: 16px; padding: 20px 24px;
+  color: #184a3b; background: rgb(255 254 246 / 92%);
+  backdrop-filter: blur(16px); border: 1px solid #ffffffb3; border-radius: 16px;
+  box-shadow: 0 16px 40px #123a3020;
+  animation: school-arrive 900ms 250ms var(--motion-ease) backwards;
+}
+.public-site .campus-caption-icon { display: grid; place-items: center; flex-shrink: 0; width: 48px; height: 48px; border-radius: 12px; background: #e2eee1; }
+.public-site .campus-caption small { display: block; font-size: 12px; letter-spacing: .12em; margin-bottom: 6px; }
+.public-site .campus-caption strong { display: block; font-size: 19px; line-height: 1.4; }
+.public-site [data-reveal] { animation: none; transition: opacity 650ms ease var(--reveal-delay), translate 750ms var(--motion-ease) var(--reveal-delay), transform 300ms var(--motion-ease), box-shadow 300ms ease, border-color 250ms ease; }
+.public-site [data-reveal="pending"] { opacity: 0; translate: 0 24px; }
+.public-site [data-reveal="visible"] { opacity: 1; translate: 0 0; }
+
+:is(.public-site, .app-layout) :is(button, a, input, select, textarea):focus-visible { outline: 3px solid #4b9d7e; outline-offset: 4px; }
+@media (hover: hover) {
+  .public-site .program-card:hover, .public-site .student-service-card:hover,
+  .public-site .guide-grid article:hover { transform: translateY(-6px); border-color: #91bba1; box-shadow: 0 18px 34px #214f3c12; }
+  .public-site .button-solid:hover, .app-layout .btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 9px 20px #215d4226; }
+  .public-site .button-solid:hover svg, .public-site .button-text:hover svg, .public-site .program-card button:hover svg { transform: translateX(4px); }
+  .app-layout .announcement-mini:hover { transform: translateY(-3px); box-shadow: 0 8px 22px #214f3c0d; }
+}
+@keyframes school-arrive { from { opacity: 0; transform: translateY(22px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes dialog-arrive { from { opacity: 0; transform: translateY(10px) scale(.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes campus-breathe { from { transform: scale(1); } to { transform: scale(1.045); } }
+@keyframes semester-pulse { 50% { box-shadow: 0 0 0 8px #26765e06; } }
+@media (max-width: 680px) {
+  .public-site .campus-caption { padding: 14px; gap: 12px; bottom: 6%; }
+  .public-site .campus-caption strong { font-size: 16px; }
+  .public-site .campus-caption small { font-size: 10px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .public-site *, .public-site *::before, .public-site *::after,
+  .app-layout *, .app-layout *::before, .app-layout *::after {
+    animation: none !important; transition: none !important; scroll-behavior: auto !important;
+  }
+  .public-site [data-reveal] { opacity: 1; translate: none; }
+}

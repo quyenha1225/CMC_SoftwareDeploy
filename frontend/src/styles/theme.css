@@ -15,33 +15,33 @@
 
 .stat-label {
   color: #687a70;
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .stat-content > strong {
   color: #163d35;
-  font-size: 26px;
+  font-size: 28px;
 }
 
 .stat-hint {
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .data-table th {
   color: #64776c;
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .data-table td {
   color: #2e4037;
-  font-size: 15px;
+  font-size: 17px;
 }
 
 .control {
   border-color: #d5e2d9;
   background: #fbfdfb;
   color: #273a31;
-  font-size: 15px;
+  font-size: 17px;
 }
 
 body,
@@ -177,7 +177,7 @@ h3 {
   border-radius: 7px;
   color: #53645c;
   background: #fff;
-  font-size: 11px;
+  font-size: 15px;
   font-weight: 650;
   white-space: nowrap;
   transition:
@@ -206,7 +206,7 @@ h3 {
 
 .confirm-dialog p {
   margin: 2px 0 0;
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.65;
 }
 
@@ -230,18 +230,18 @@ h3 {
 
 .page-header > div > p {
   color: #687a70;
-  font-size: 16px;
+  font-size: 18px;
   line-height: 1.6;
 }
 
 .card-head h3 {
   color: #183f37;
-  font-size: 20px;
+  font-size: 22px;
 }
 
 .card-head p {
   color: #76867d;
-  font-size: 14px;
+  font-size: 16px;
   line-height: 1.55;
 }
 
@@ -348,53 +348,53 @@ h3 {
 }
 
 .page-header h1 {
-  font-size: 32px;
+  font-size: 34px;
 }
 
 .page-header p,
 .card-head p,
 .confirm-dialog p {
-  font-size: 15px;
+  font-size: 17px;
 }
 
 .page-content small {
-  font-size: 12px;
+  font-size: 15px;
 }
 
 .page-content .badge {
-  font-size: 12px;
+  font-size: 15px;
 }
 
 .card-head h3 {
-  font-size: 19px;
+  font-size: 21px;
 }
 
 .nav-item {
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .btn {
-  font-size: 15px;
+  font-size: 17px;
 }
 
 .data-table th {
-  font-size: 13px;
-}
-
-.data-table td {
   font-size: 15px;
 }
 
+.data-table td {
+  font-size: 17px;
+}
+
 .hero h2 {
-  font-size: 26px;
+  font-size: 28px;
 }
 
 .hero p {
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .hero-content button {
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .card-head p,
@@ -406,15 +406,15 @@ h3 {
 }
 
 .workspace b {
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .stat-label {
-  font-size: 12px;
+  font-size: 15px;
 }
 
 .stat-hint {
-  font-size: 12px;
+  font-size: 15px;
 }
 
 .approval-actions {
@@ -425,15 +425,15 @@ h3 {
 
 @media (max-width: 740px) {
   .page-header h1 {
-    font-size: 26px;
+    font-size: 28px;
   }
 
   .page-header p {
-    font-size: 13px;
+    font-size: 15px;
   }
 
   .data-table td {
-    font-size: 13px;
+    font-size: 15px;
   }
 }
 
@@ -472,3 +472,14 @@ h3 {
     margin-top: 12px;
   }
 }
+
+/* Readable text and flexible spacing throughout the portal. */
+.app-layout { font-size: 17px; line-height: 1.55; }
+.app-layout .btn { min-height: 42px; white-space: normal; }
+.app-layout .data-table th, .app-layout .data-table td { padding-top: 17px; padding-bottom: 17px; }
+.app-layout .searchbox input { min-width: 0; }
+.app-layout .notif-popup { width: min(420px, calc(100vw - 32px)); }
+.app-layout .notif-popup p, .app-layout .notif-popup strong { font-size: 17px; line-height: 1.6; }
+.app-layout .announcement-mini p { font-size: 17px; line-height: 1.65; }
+.app-layout .announcement-mini { overflow-wrap: anywhere; }
+@media (max-width: 1100px) { .announcement-grid { grid-template-columns: minmax(0, 1fr); } }

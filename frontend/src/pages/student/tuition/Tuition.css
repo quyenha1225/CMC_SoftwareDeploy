@@ -8,7 +8,7 @@
   display: flex;
   justify-content: space-between;
   padding: 8px 0;
-  font-size: 11px;
+  font-size: 15px;
   color: #8e9bac;
 }
 
@@ -20,7 +20,7 @@
   border-top: 1px dashed #e2e8f4;
   margin-top: 8px;
   padding-top: 17px;
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .invoice-total .final-total strong {
@@ -59,12 +59,12 @@
 }
 
 .payment-row b {
-  font-size: 12px;
+  font-size: 15px;
 }
 
 .payment-row p,
 .payment-row small {
-  font-size: 10px;
+  font-size: 15px;
   color: #9aa8b8;
   margin: 3px 0;
   display: block;

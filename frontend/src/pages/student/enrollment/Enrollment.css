@@ -17,19 +17,19 @@
 }
 
 .summary-strip > div span {
-  font-size: 10px;
+  font-size: 15px;
   font-weight: 780;
   color: #7c8fad;
   letter-spacing: 0.6px;
 }
 
 .summary-strip strong {
-  font-size: 23px;
+  font-size: 25px;
   color: #263c6e;
 }
 
 .summary-strip strong small {
-  font-size: 12px;
+  font-size: 15px;
   color: #93a1b7;
 }
 
@@ -49,7 +49,7 @@
   background: transparent;
   border: 0;
   border-bottom: 2px solid transparent;
-  font-size: 11px;
+  font-size: 15px;
   padding: 0 3px 14px;
   color: #8b99aa;
   font-weight: 700;
@@ -97,13 +97,13 @@
 }
 
 .semester-tabs button span {
-  font-size: 12px;
+  font-size: 15px;
   font-weight: 780;
 }
 
 .semester-tabs button small {
   color: #8a98ad;
-  font-size: 10px;
+  font-size: 15px;
 }
 
 .course-name {
@@ -128,7 +128,7 @@
 }
 
 .course-name b {
-  font-size: 11px;
+  font-size: 15px;
   margin-bottom: 4px;
 }
 
@@ -138,7 +138,7 @@
 }
 
 .capacity > span {
-  font-size: 10px;
+  font-size: 15px;
   display: block;
   margin-bottom: 8px;
 }
@@ -156,7 +156,7 @@
     flex: 1 1 40%;
   }
   .summary-strip strong {
-    font-size: 19px;
+    font-size: 21px;
   }
   .summary-strip > .badge {
     margin: 0;
@@ -174,7 +174,7 @@
   border: 0;
   background: transparent;
   color: var(--blue);
-  font-size: 13px;
+  font-size: 15px;
   text-align: left;
   text-decoration: underline;
   text-underline-offset: 3px;
@@ -200,10 +200,10 @@
 
 .course-detail-facts span {
   color: var(--muted);
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .course-detail-heading {
   margin: 22px 0 10px;
-  font-size: 18px;
+  font-size: 20px;
 }

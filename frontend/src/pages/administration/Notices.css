@@ -33,17 +33,17 @@
   gap: 5px;
   align-items: center;
   color: #9aa7bb;
-  font-size: 10px;
+  font-size: 15px;
 }
 
 .announcement h3 {
-  font-size: 14px;
+  font-size: 16px;
   margin: 14px 0 8px;
 }
 
 .announcement p {
   color: #8b9aad;
-  font-size: 11px;
+  font-size: 15px;
   line-height: 1.8;
   margin: 0;
 }
@@ -68,7 +68,7 @@
 .notice-detail-content {
   margin: 18px 0 0;
   color: var(--text);
-  font-size: 17px;
+  font-size: 19px;
   line-height: 1.8;
   white-space: pre-wrap;
 }

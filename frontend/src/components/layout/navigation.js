@@ -2,7 +2,10 @@ export const MENU = {
   student: [
     ["Tổng quan", "dashboard", "dashboard"],
     ["Đăng ký học phần", "enrollment", "bookopen"],
-    ["Thời khóa biểu", "schedule", "calendar"],
+    ["Thời khóa biểu", "schedule", "calendar", [
+      ["Lịch học", "schedule-classes", "bookopen"],
+      ["Lịch thi", "schedule-exams", "grades"],
+    ]],
     ["Kết quả học tập", "grades", "grades"],
     ["Học phí", "tuition", "wallet"],
     ["Yêu cầu hỗ trợ", "requests", "file"],
@@ -59,6 +62,7 @@ export const navTitle = {
   schedule: "Thời khóa biểu",
   grades: "Kết quả học tập",
   tuition: "Học phí",
+  payment: "Thanh toán học phí",
   requests: "Yêu cầu hỗ trợ",
   notices: "Thông báo",
   profile: "Hồ sơ cá nhân",

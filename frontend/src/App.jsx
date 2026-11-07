@@ -6,12 +6,13 @@ import { MENU, navTitle } from "./components/layout/navigation.js";
 import AppFooter from "./components/layout/AppFooter.jsx";
 import AppHeader from "./components/layout/AppHeader.jsx";
 import AppSidebar from "./components/layout/AppSidebar.jsx";
-import Dashboard from "./pages/student/Dashboard.jsx";
-import Enrollment from "./pages/student/Enrollment.jsx";
-import Schedule from "./pages/student/Schedule.jsx";
-import Results from "./pages/student/Results.jsx";
-import Tuition from "./pages/student/Tuition.jsx";
-import Requests from "./pages/student/Requests.jsx";
+import Dashboard from "./pages/student/dashboard/Dashboard.jsx";
+import Enrollment from "./pages/student/enrollment/Enrollment.jsx";
+import Schedule from "./pages/student/schedule/Schedule.jsx";
+import Results from "./pages/student/results/Results.jsx";
+import Payment from "./pages/student/tuition/Payment.jsx";
+import Tuition from "./pages/student/tuition/Tuition.jsx";
+import Requests from "./pages/student/requests/Requests.jsx";
 import Teaching from "./pages/academic/Teaching.jsx";
 import GradeEntry from "./pages/academic/GradeEntry.jsx";
 import ReviewGrades from "./pages/academic/ReviewGrades.jsx";
@@ -19,7 +20,8 @@ import Students from "./pages/academic/Students.jsx";
 import Sections from "./pages/academic/Sections.jsx";
 import Reports from "./pages/administration/Reports.jsx";
 import Notices from "./pages/administration/Notices.jsx";
-import Profile from "./pages/student/Profile.jsx";
+import StudentNotices from "./pages/student/notices/Notices.jsx";
+import Profile from "./pages/student/profile/Profile.jsx";
 import Accounts from "./pages/administration/Accounts.jsx";
 import StudentApprovals from "./pages/administration/StudentApprovals.jsx";
 import Settings from "./pages/administration/Settings.jsx";
@@ -27,6 +29,7 @@ import Landing from "./pages/public/Landing.jsx";
 import Login from "./pages/public/Login.jsx";
 import "./styles/portal.css";
 import "./styles/theme.css";
+import "./styles/refinements.css";
 
 export default function App() {
   const [screen, setScreen] = useState("landing");
@@ -37,6 +40,7 @@ export default function App() {
     },
   );
   const [page, setPage] = useState("dashboard");
+  const [scheduleView, setScheduleView] = useState("classes");
   const [state, setState] = useState(initial);
   const [toast, setToast] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -73,7 +77,10 @@ export default function App() {
   const notify = (text, kind = "success") => setToast({ text, kind });
   const navigate = (destination) => {
     const profileDestination = destination.startsWith("profile-");
-    const nextPage = profileDestination ? "profile" : destination;
+    const scheduleDestination = destination.startsWith("schedule-");
+    const nextPage = profileDestination ? "profile" : scheduleDestination ? "schedule" : destination;
+    if (scheduleDestination) setScheduleView(destination === "schedule-exams" ? "exams" : "classes");
+    else if (destination === "schedule") setScheduleView("classes");
     if (profileDestination) setProfileSection(destination);
     setPage(nextPage);
     setSidebarOpen(false);
@@ -126,12 +133,14 @@ export default function App() {
           />
         );
       case "schedule":
-        return <Schedule state={state} role={role} update={update} notify={notify} />;
+        return <Schedule state={state} role={role} update={update} notify={notify} view={scheduleView} onViewChange={setScheduleView} />;
       case "grades":
         return <Results state={state} />;
+      case "payment":
+        return <Payment state={state} update={update} notify={notify} navigate={navigate} />;
       case "tuition":
         return (
-          <Tuition state={state} role={role} update={update} notify={notify} />
+          <Tuition state={state} role={role} update={update} notify={notify} navigate={navigate} />
         );
       case "requests":
         return (
@@ -175,6 +184,7 @@ export default function App() {
       case "reports":
         return <Reports state={state} notify={notify} />;
       case "notices":
+        if (role === "student") return <StudentNotices state={state} />;
         return (
           <Notices state={state} role={role} update={update} notify={notify} />
         );
@@ -240,6 +250,7 @@ export default function App() {
         role={role}
         page={page}
         activeProfileSection={profileSection}
+        activeScheduleSection={`schedule-${scheduleView}`}
         collapsed={sidebarCollapsed}
         sidebarOpen={sidebarOpen}
         noticesCount={noticesCount}

@@ -1,6 +1,7 @@
+import CourseDetail from "./CourseDetail.jsx";
 import React, { useMemo, useState } from "react";
 import "./Enrollment.css";
-import Icon from "../../components/common/Icon.jsx";
+import Icon from "../../../components/common/Icon.jsx";
 import {
   ROLE_NAMES,
   ACCOUNTS,
@@ -20,7 +21,7 @@ import {
   requestStatusText,
   studentStatusText,
   PRICE_PER_CREDIT,
-} from "../../data/portalData.js";
+} from "../../../data/portalData.js";
 import {
   Badge,
   Button,
@@ -42,8 +43,8 @@ import {
   slot,
   colorByStatus,
   csvDownload,
-} from "../../components/ui.jsx";
-import ConfirmDialog from "../../components/common/ConfirmDialog.jsx";
+} from "../../../components/ui.jsx";
+import ConfirmDialog from "../../../components/common/ConfirmDialog.jsx";
 
 export default function Enrollment({ state, update, notify, navigate }) {
   const [search, setSearch] = useState(""),
@@ -179,6 +180,10 @@ export default function Enrollment({ state, update, notify, navigate }) {
         <Badge tone="green" dot>
           Đang mở đăng ký (demo)
         </Badge>
+      </div>
+      <div className="enrollment-checkout">
+        <p>Đã chọn xong học phần? Tiếp tục kiểm tra và thanh toán học phí.</p>
+        <Button icon="wallet" disabled={!state.enrollmentIds.length} onClick={() => navigate("payment")}>Thanh toán học phí</Button>
       </div>
       <Card
         title="Danh sách lớp học phần"
@@ -338,37 +343,7 @@ export default function Enrollment({ state, update, notify, navigate }) {
           )}
         </div>
       </Card>
-      {selectedCourse && (
-        <Modal
-          title={getCourse(selectedCourse)?.name || "Chi tiết học phần"}
-          subtitle={`Mã học phần ${selectedCourse}`}
-          onClose={() => setSelectedCourse(null)}
-        >
-          <div className="course-detail-facts">
-            <div><span>Tín chỉ</span><strong>{getCourse(selectedCourse)?.credits}</strong></div>
-            <div><span>Khoa</span><strong>{getCourse(selectedCourse)?.faculty || "Chưa cập nhật"}</strong></div>
-            <div><span>Học kỳ</span><strong>{semesterLabel(semester)}</strong></div>
-            <div><span>Thời gian</span><strong>{semesterDates(semester)?.startsOn && semesterDates(semester)?.endsOn ? `${new Date(`${semesterDates(semester).startsOn}T12:00:00`).toLocaleDateString("vi-VN")} – ${new Date(`${semesterDates(semester).endsOn}T12:00:00`).toLocaleDateString("vi-VN")}` : "Chưa cập nhật"}</strong></div>
-          </div>
-          <h3 className="course-detail-heading">Các lớp học phần trong kỳ</h3>
-          <div className="table-wrap">
-            <table className="data-table">
-              <thead><tr><th>Mã lớp</th><th>Giảng viên</th><th>Lịch học</th><th>Phòng</th><th>Sĩ số</th></tr></thead>
-              <tbody>
-                {semesterSections.filter((section) => section.courseId === selectedCourse).map((section) => (
-                  <tr key={section.id}>
-                    <td>{section.code}</td>
-                    <td>{section.teacher}</td>
-                    <td>{displayDay(section.day)} · {section.start}–{section.end}</td>
-                    <td>{section.room}</td>
-                    <td>{section.registered}/{section.limit}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Modal>
-      )}
+      <CourseDetail selectedCourse={selectedCourse} setSelectedCourse={setSelectedCourse} semester={semester} semesterSections={semesterSections} />
       {pendingCancellation && (
         <ConfirmDialog
           title="Xác nhận hủy học phần"
