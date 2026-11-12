@@ -17,7 +17,7 @@ if (fixture) {
   });
 }
 const profile = await mkdtemp(path.join(os.tmpdir(), 'sms-full-ui-'));
-const browser = spawn(process.env.CHROME_PATH || 'C:/Program Files/Google/Chrome/Application/chrome.exe', [
+const browser = spawn(process.env.CHROME_PATH || (process.platform === 'win32' ? 'C:/Program Files/Google/Chrome/Application/chrome.exe' : '/usr/bin/google-chrome'), [
   '--headless=new', '--no-sandbox', '--disable-gpu', '--no-first-run', `--remote-debugging-port=${debugPort}`, `--user-data-dir=${profile}`, 'about:blank',
 ], { windowsHide: true, stdio: 'ignore' });
 const report = { database: fixture ? 'isolated H2' : 'MySQL', screens: [], dialogs: [], issues: [], runtimeErrors: [] };
@@ -105,7 +105,7 @@ try {
   await wait('!!document.querySelector(".login-card select")');
   await inspect('admission form', 'PUBLIC'); await screenshot('admission-form');
   await run(() => document.querySelector('.login-back').click());
-  const credentials = fixture ? null : await readFile('../backend/.local/admin-credentials.txt', 'utf8');
+  const credentials = fixture || process.env.SMS_UI_PASSWORD ? null : await readFile('../backend/.local/admin-credentials.txt', 'utf8');
   const password = process.env.SMS_UI_PASSWORD || (fixture ? process.env.SMS_UI_PASSWORD : credentials.match(/^Password: (.+)$/m)[1].trim());
   const roles = fixture ? ['PRINCIPAL', 'CTSV', 'TRAINING_OFFICE', 'LECTURER', 'STUDENT', 'APPLICANT'] : [process.env.SMS_UI_ROLE || 'PRINCIPAL'];
   for (const role of roles) {

@@ -7,6 +7,7 @@ import com.sms.backend.security.Actor;
 import com.sms.backend.service.admission.Admissions;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -113,7 +114,7 @@ public class InvoiceProposals {
         actor.audit(actor.current(), action, "invoice_proposals", id);
     }
 
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public long save(Long id, Map<String, Object> body) {
         var user = actor.current();
         user.require("CTSV");
@@ -181,7 +182,7 @@ public class InvoiceProposals {
         return id;
     }
 
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public void action(long id, String action, String note) {
         var user = actor.current();
         var row = lock(id);

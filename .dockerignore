@@ -11,3 +11,9 @@ screenshots
 .secrets
 artifacts
 backups
+
+**/.npmrc
+**/.ssh
+**/.aws
+**/.codex
+**/.agents

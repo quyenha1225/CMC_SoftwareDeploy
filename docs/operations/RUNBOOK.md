@@ -27,7 +27,7 @@ Triển khai sau khi đã khởi tạo: `scripts/deploy.py apply --manifest <rel
 python3 scripts/deploy.py rollback --manifest .local/releases/<release-cu>.json
 ```
 
-Receipt phải có schema_version khớp DB hiện tại. Nếu health fail và schema không đổi, apply khôi phục các digest trước. Nếu schema thay đổi, dừng để review expand/contract hoặc phục hồi có kiểm soát; không tự DROP, down -v hay ghi đè DB. Rollback image không đồng nghĩa rollback dữ liệu.
+Receipt phải có schema_version khớp DB hiện tại, gồm phiên bản và chữ ký DDL/lịch sử migration (kể cả bản ghi thất bại). Nếu health fail và schema không đổi, apply khôi phục các digest trước. Nếu schema thay đổi, dừng để review expand/contract hoặc phục hồi có kiểm soát; không tự DROP, down -v hay ghi đè DB. Rollback image không đồng nghĩa rollback dữ liệu.
 
 ## Backup và restore sự cố
 

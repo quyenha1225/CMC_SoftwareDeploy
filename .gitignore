@@ -11,3 +11,6 @@ backend/private-files/
 backups/
 artifacts/
 frontend/coverage/
+
+**/__pycache__/
+infrastructure/migration/target/

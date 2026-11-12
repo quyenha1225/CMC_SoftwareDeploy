@@ -1,6 +1,6 @@
 # Jenkins, GitHub Webhook và Registry
 
-Jenkinsfile hỗ trợ agent Windows/Linux, label **sms-docker**, có Java 21, Node 22+, Python 3, Git, Docker Linux và Maven Wrapper. Giữ Jenkins Windows :8080, website :8088. Service account của Jenkins phải truy cập được Docker engine; Docker access tương đương quyền quản trị host, chỉ dùng agent tin cậy.
+Jenkinsfile hỗ trợ agent Windows/Linux, label **sms-docker**, có Java 21, Node 22+, Python 3, Git, Google Chrome (hoặc CHROME_PATH), Docker Linux và Maven Wrapper. Giữ Jenkins Windows :8080, website :8088. Service account của Jenkins phải truy cập được Docker engine; Docker access tương đương quyền quản trị host, chỉ dùng agent tin cậy.
 
 ## Tạo job
 
@@ -19,7 +19,7 @@ Jenkinsfile hỗ trợ agent Windows/Linux, label **sms-docker**, có Java 21, N
 | Frontend | npm ci → lint → API tests + Vitest/RTL + coverage/JUnit → build |
 | Sonar/Quality Gate | Token từ Jenkins, waitForQualityGate; lỗi chặn các bước sau |
 | Image Build | 3 image tag full commit SHA, gồm image migration bất biến |
-| MySQL Integration | DB riêng `sms_ci_*`, Flyway, 15 login, health/SQL, backup/restore và restart; xóa đúng volume CI sau test |
+| MySQL Integration | DB riêng `sms_ci_*`, Flyway, 15 login, 5 luồng/kiểm tra nghiệp vụ, 6 vai trò trên trình duyệt, health/SQL, backup/restore và restart; xóa đúng volume CI sau test |
 | Security | npm audit mức Critical; Trivy dependency/secret/images, exit 1 nếu Critical |
 | Publish | Chỉ develop/main/tag tin cậy, không PR; ghi digest 3 image vào `artifacts/reports/release.json` |
 | Staging | Chỉ develop và bật tham số DEPLOY_STAGING |

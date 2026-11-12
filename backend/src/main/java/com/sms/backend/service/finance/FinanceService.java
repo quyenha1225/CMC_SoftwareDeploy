@@ -7,12 +7,14 @@ import com.sms.backend.security.Actor;
 import com.sms.backend.service.admission.Admissions;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.*;
 import java.util.*;
 
+/** Invoice/fund locks serialize writers; READ_COMMITTED refreshes sums after waiting. */
 @Service
 public class FinanceService {
     private final Db db;
@@ -25,7 +27,7 @@ public class FinanceService {
         this.proposals = proposals;
     }
 
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public long issue(long studentId, long semesterId) {
         var u = actor.current();
         u.require("CTSV");
@@ -64,7 +66,7 @@ public class FinanceService {
         return id;
     }
 
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public long payment(Map<String, Object> input) {
         var u = actor.current();
         u.require("CTSV");
@@ -101,7 +103,7 @@ public class FinanceService {
         return id;
     }
 
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public long adjustment(Map<String, Object> input) {
         var u = actor.current();
         u.require("CTSV");
@@ -132,7 +134,7 @@ public class FinanceService {
         return id;
     }
 
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public void decideAdjustment(long id, boolean approve) {
         var u = actor.current();
         u.require("PRINCIPAL");
@@ -160,7 +162,7 @@ public class FinanceService {
         actor.audit(u, "DECIDE_ADJUSTMENT", "tuition_adjustments", id);
     }
 
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public long remittance(Map<String, Object> input) {
         var u = actor.current();
         u.require("CTSV");
@@ -234,7 +236,7 @@ public class FinanceService {
         return (List<Map<String, Object>>) input;
     }
 
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public void decideRemittance(long id, boolean confirm, String note) {
         var u = actor.current();
         u.require("PRINCIPAL");
@@ -257,7 +259,7 @@ public class FinanceService {
                 u, confirm ? "CONFIRM_REMITTANCE" : "REJECT_REMITTANCE", "ctsv_remittances", id);
     }
 
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public long report(long semester) {
         var u = actor.current();
         u.require("CTSV");
@@ -298,7 +300,7 @@ public class FinanceService {
         return id;
     }
 
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public void decideReport(long id, boolean approve, String note) {
         var u = actor.current();
         u.require("PRINCIPAL");

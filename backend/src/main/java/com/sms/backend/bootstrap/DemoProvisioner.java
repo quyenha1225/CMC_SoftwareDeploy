@@ -55,7 +55,7 @@ public final class DemoProvisioner {
                     try (var select =
                             connection.prepareStatement(
                                     "SELECT id,password_hash,enabled FROM users WHERE username=?"
-                                        + " FOR UPDATE")) {
+                                            + " FOR UPDATE")) {
                         select.setString(1, name);
                         try (var rows = select.executeQuery()) {
                             if (!rows.next()) {
@@ -66,13 +66,13 @@ public final class DemoProvisioner {
                                 if (!encoder.matches(plain, rows.getString("password_hash"))) {
                                     throw new IllegalStateException(
                                             "Enabled account password differs; no password was"
-                                                + " reset.");
+                                                    + " reset.");
                                 }
                             } else {
                                 try (var update =
                                         connection.prepareStatement(
                                                 "UPDATE users SET enabled=TRUE,password_hash=?"
-                                                    + " WHERE id=?")) {
+                                                        + " WHERE id=?")) {
                                     update.setString(1, encoder.encode(plain));
                                     update.setLong(2, rows.getLong("id"));
                                     update.executeUpdate();
@@ -95,8 +95,8 @@ public final class DemoProvisioner {
         try (var insert =
                 connection.prepareStatement(
                         "INSERT INTO users(username,email,password_hash,full_name,enabled)"
-                            + " VALUES('principal','principal@example.test',?,'Quản trị thực"
-                            + " hành',TRUE)",
+                                + " VALUES('principal','principal@example.test',?,'Quản trị thực"
+                                + " hành',TRUE)",
                         java.sql.Statement.RETURN_GENERATED_KEYS)) {
             insert.setString(1, hash);
             insert.executeUpdate();
@@ -105,7 +105,7 @@ public final class DemoProvisioner {
                 try (var role =
                         connection.prepareStatement(
                                 "INSERT INTO user_roles(user_id,role_id) SELECT ?,id FROM roles"
-                                    + " WHERE code='PRINCIPAL'")) {
+                                        + " WHERE code='PRINCIPAL'")) {
                     role.setLong(1, keys.getLong(1));
                     if (role.executeUpdate() != 1)
                         throw new IllegalStateException("Principal role missing.");

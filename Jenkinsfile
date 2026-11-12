@@ -51,12 +51,13 @@ pipeline {
         }
         stage('Image Build') { steps { script { executeStep('build') } } }
         stage('MySQL Integration + Restore + Restart') { steps { script { executeStep('mysql') } } }
-        stage('Dependency + Secret + Image Scan') { steps { script { executeStep('security') } } }
+        stage('Dependency + Secret + Image Scan') { steps { script { executeStep('security'); executeStep('secrets') } } }
         stage('Publish Immutable Images') {
             when { allOf { not { changeRequest() }; anyOf { branch 'develop'; branch 'main'; buildingTag() } } }
             steps {
                 withCredentials([usernamePassword(credentialsId:'registry-push',usernameVariable:'REGISTRY_USER',passwordVariable:'REGISTRY_PASSWORD')]) {
                     script {
+                        env.DOCKER_CONFIG = pwd() + '/.local/docker-auth'
                         if (isUnix()) { sh 'python3 scripts/registry_login.py' }
                         else { bat 'python scripts/registry_login.py' }
                         try { executeStep('publish') }

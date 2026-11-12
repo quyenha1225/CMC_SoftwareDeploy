@@ -1,7 +1,8 @@
-﻿"""Deploy/rollback only tested immutable images; keep database rollback explicit."""
+"""Deploy/rollback only tested immutable images; keep database rollback explicit."""
 import argparse
 import datetime as dt
 import json
+import hashlib
 import os
 from pathlib import Path
 import re
@@ -19,7 +20,21 @@ def read_manifest(path):
         if not re.fullmatch(r'[a-z0-9._:/-]+@sha256:[0-9a-f]{64}',image):raise RuntimeError('Image digest required; tags are not deployments')
     return data
 
-def schema(runtime):return runtime.sql("SELECT COALESCE(MAX(version),'none') FROM flyway_schema_history WHERE success=1")
+def schema(runtime):
+    # Include real DDL and failed migration records: MySQL DDL can partially commit.
+    queries=[
+        "SELECT table_name,column_name,column_type,is_nullable,column_default,extra,collation_name FROM information_schema.columns WHERE table_schema=DATABASE() ORDER BY table_name,ordinal_position",
+        "SELECT table_name,index_name,non_unique,seq_in_index,column_name FROM information_schema.statistics WHERE table_schema=DATABASE() ORDER BY table_name,index_name,seq_in_index",
+        "SELECT table_name,constraint_name,column_name,referenced_table_name,referenced_column_name FROM information_schema.key_column_usage WHERE table_schema=DATABASE() ORDER BY table_name,constraint_name,ordinal_position",
+        "SELECT constraint_name,check_clause FROM information_schema.check_constraints WHERE constraint_schema=DATABASE() ORDER BY constraint_name",
+        "SELECT table_name,view_definition FROM information_schema.views WHERE table_schema=DATABASE() ORDER BY table_name",
+        "SELECT trigger_name,action_statement FROM information_schema.triggers WHERE trigger_schema=DATABASE() ORDER BY trigger_name",
+        "SELECT routine_name,routine_definition FROM information_schema.routines WHERE routine_schema=DATABASE() ORDER BY routine_name",
+        "SELECT installed_rank,version,checksum,success FROM flyway_schema_history ORDER BY installed_rank",
+    ]
+    signature=hashlib.sha256(runtime.sql(';'.join(queries)).encode('utf-8')).hexdigest()
+    latest=runtime.sql("SELECT COALESCE((SELECT version FROM flyway_schema_history WHERE success=1 AND version IS NOT NULL ORDER BY installed_rank DESC LIMIT 1),'none')")
+    return latest+':'+signature
 def save_env(path,data):
     temp=path.with_suffix('.tmp')
     temp.write_text('\n'.join(k+'='+v for k,v in data.items())+'\n',encoding='utf-8');temp.replace(path)

@@ -7,6 +7,7 @@ import com.sms.backend.security.Actor;
 import com.sms.backend.service.admission.Admissions;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
@@ -23,7 +24,9 @@ public class Academic {
         this.catalog = catalog;
     }
 
-    @Transactional
+    // Actor lookups happen before row locks. Refresh post-lock reads on MySQL instead
+    // of reusing an earlier REPEATABLE READ snapshot for capacity/collision checks.
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public void register(long sectionId, boolean cancel) {
         registration(sectionId, cancel, true);
     }
@@ -189,7 +192,7 @@ public class Academic {
                 sectionId);
     }
 
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public void saveGrade(long enrollmentId, Map<String, Object> input) {
         var u = actor.current();
         u.require("LECTURER");
@@ -229,7 +232,7 @@ public class Academic {
         actor.audit(u, "SAVE_GRADE", "enrollments", enrollmentId);
     }
 
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public void sheet(long sectionId, String action, String note) {
         var u = actor.current();
         var section = db.one("SELECT * FROM course_sections WHERE id=? FOR UPDATE", sectionId);
@@ -312,7 +315,7 @@ public class Academic {
         actor.audit(u, action, "grade_sheets", sheet);
     }
 
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public void schedule(long sectionId, Map<String, Object> input) {
         var u = actor.current();
         u.require("TRAINING_OFFICE");

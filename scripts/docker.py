@@ -36,8 +36,9 @@ class Runtime:
     def __init__(self,env_file=None,context=None,production=False):
         self.env_file=Path(env_file or ROOT/'.env').resolve()
         self.config=settings(self.env_file)
-        self.context=context or ('desktop-linux' if os.name=='nt' else '')
-        self.docker=['docker']+(['--context',self.context] if self.context else [])
+        self.context=context or os.getenv('SMS_DOCKER_CONTEXT','')
+        endpoint=os.getenv('SMS_DOCKER_HOST','npipe:////./pipe/dockerDesktopLinuxEngine' if os.name=='nt' else '')
+        self.docker=['docker']+(['--context',self.context] if self.context else ['--host',endpoint] if endpoint else [])
         self.compose=self.docker+['compose','--project-directory',str(ROOT),'--env-file',str(self.env_file),'-f',str(ROOT/('compose.prod.yaml' if production else 'compose.yaml'))]
         self.secret_dir=Path(self.config.get('SMS_SECRETS_DIR',str(ROOT/'.secrets')))
         if not self.secret_dir.is_absolute():self.secret_dir=ROOT/self.secret_dir
@@ -138,8 +139,20 @@ def restore_test(runtime,folder):
         import tarfile
         with tarfile.open(folder/'private-files.tar.gz') as archive:
             if any(member.name.startswith('/') or '..' in Path(member.name).parts for member in archive.getmembers()):raise RuntimeError('Unsafe archive path')
-        (folder/'restore-test.json').write_text(json.dumps({'passed':True,'tables':len(manifest['rows']),'private_archive_readable':True,'checked_at':dt.datetime.now().isoformat()},indent=2))
-        print('PASS isolated restore: '+str(len(manifest['rows']))+' tables and private archive')
+        # Restore the archive inside a disposable backend container and compare content hashes.
+        with tarfile.open(folder/'private-files.tar.gz') as archive:
+            members=archive.getmembers()
+            if any(not (member.isfile() or member.isdir()) for member in members):raise RuntimeError('Links or special archive entries forbidden')
+            expected={member.name.removeprefix('./'):hashlib.sha256(archive.extractfile(member).read()).hexdigest() for member in members if member.isfile()}
+        image=runtime.config.get('BACKEND_IMAGE','sms-backend:'+runtime.config.get('IMAGE_TAG','local'))
+        output=invoke(runtime.docker+['run','--rm','-i','--network','none','--entrypoint','sh',image,'-c','mkdir -p /tmp/restore-check && tar -xzf - -C /tmp/restore-check && find /tmp/restore-check -type f -exec sha256sum {} +'],data=(folder/'private-files.tar.gz').read_bytes(),capture=True)
+        actual={}
+        for line in output.splitlines():
+            digest,name=line.split(None,1);actual[name.strip().removeprefix('/tmp/restore-check/')]=digest
+        if actual!=expected:raise RuntimeError('Restored private-file hashes differ')
+
+        (folder/'restore-test.json').write_text(json.dumps({'passed':True,'tables':len(manifest['rows']),'private_archive_readable':True,'private_files_restored':len(expected),'checked_at':dt.datetime.now().isoformat()},indent=2))
+        print('PASS isolated restore: '+str(len(manifest['rows']))+' tables and '+str(len(expected))+' restored private files')
     finally:invoke(runtime.docker+['rm','-f',name],capture=True,check=False)
 
 def main():
