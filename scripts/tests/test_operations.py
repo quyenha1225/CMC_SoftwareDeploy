@@ -49,7 +49,7 @@ class OperationsTests(unittest.TestCase):
             with self.assertRaises(RuntimeError):initialize(env,ci=True)
             self.assertEqual(original,env.read_bytes())
     def test_frontend_failure_stops_following_commands(self):
-        with patch.object(ci,'run',side_effect=[None,RuntimeError('lint failed')]) as command:
+        with tempfile.TemporaryDirectory() as folder, patch.object(ci,'ROOT',Path(folder)), patch.object(ci,'run',side_effect=[None,RuntimeError('lint failed')]) as command:
             with self.assertRaises(RuntimeError):ci.main('frontend')
             self.assertEqual(command.call_count,2)
     def test_pull_requests_cannot_publish(self):

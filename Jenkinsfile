@@ -1,13 +1,13 @@
 // Configure a trusted Jenkins agent with Java 21, Node 22+, Python 3 and Linux Docker.
 def executeStep(String step) {
     if (isUnix()) { sh "python3 scripts/ci.py ${step}" }
-    else { bat "python scripts/ci.py ${step}" }
+    else { bat "call scripts\\jenkins-python.cmd scripts/ci.py ${step}" }
 }
 def deployEnvironment(String target) {
     withCredentials([sshUserPrivateKey(credentialsId: 'vps-ssh', keyFileVariable: 'DEPLOY_KEY', usernameVariable: 'DEPLOY_USER'), file(credentialsId: 'vps-known-hosts', variable: 'DEPLOY_KNOWN_HOSTS')]) {
         withEnv(["DEPLOY_TARGET=${target}"]) {
             if (isUnix()) { sh 'python3 scripts/deploy.py remote --manifest artifacts/reports/release.json' }
-            else { bat 'python scripts/deploy.py remote --manifest artifacts/reports/release.json' }
+            else { bat 'call scripts\\jenkins-python.cmd scripts/deploy.py remote --manifest artifacts/reports/release.json' }
         }
     }
 }
@@ -59,11 +59,11 @@ pipeline {
                     script {
                         env.DOCKER_CONFIG = pwd() + '/.local/docker-auth'
                         if (isUnix()) { sh 'python3 scripts/registry_login.py' }
-                        else { bat 'python scripts/registry_login.py' }
+                        else { bat 'call scripts\\jenkins-python.cmd scripts/registry_login.py' }
                         try { executeStep('publish') }
                         finally {
                             if (isUnix()) { sh 'python3 scripts/registry_login.py --logout' }
-                            else { bat 'python scripts/registry_login.py --logout' }
+                            else { bat 'call scripts\\jenkins-python.cmd scripts/registry_login.py --logout' }
                         }
                     }
                 }

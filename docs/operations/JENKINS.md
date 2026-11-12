@@ -19,8 +19,8 @@ Jenkinsfile hỗ trợ agent Windows/Linux, label **sms-docker**, có Java 21, N
 | Frontend | npm ci → lint → API tests + Vitest/RTL + coverage/JUnit → build |
 | Sonar/Quality Gate | Token từ Jenkins, waitForQualityGate; lỗi chặn các bước sau |
 | Image Build | 3 image tag full commit SHA, gồm image migration bất biến |
-| MySQL Integration | DB riêng `sms_ci_*`, Flyway, 15 login, 5 luồng/kiểm tra nghiệp vụ, 6 vai trò trên trình duyệt, health/SQL, backup/restore và restart; xóa đúng volume CI sau test |
-| Security | npm audit mức Critical; Trivy dependency/secret/images, exit 1 nếu Critical |
+| MySQL Integration | DB riêng `sms_ci_*`, Flyway, 15 login, 8 luồng/kiểm tra nghiệp vụ, 6 vai trò trên trình duyệt, health/SQL, backup/restore và restart; xóa đúng volume CI sau test |
+| Security | npm audit mức Critical; Trivy dependency/images chặn Critical; secret scan riêng chặn mọi severity, report che giá trị bí mật |
 | Publish | Chỉ develop/main/tag tin cậy, không PR; ghi digest 3 image vào `artifacts/reports/release.json` |
 | Staging | Chỉ develop và bật tham số DEPLOY_STAGING |
 | Production | main/tag v*, bật tham số và thành viên nhóm `sms-release-approvers` phê duyệt |
@@ -58,3 +58,9 @@ python scripts/ci.py security
 ```
 
 SonarQube/Registry/SSH cần dịch vụ và credential thật. Không commit các giá trị này. Production không build source trên VPS; chỉ pull digest đã scan/test.
+
+## Windows: Python unavailable to Jenkins service
+
+Checkout can succeed while Prepare fails because the service account has a different PATH from the interactive user. Windows pipeline commands use `scripts/jenkins-python.cmd`: `PYTHON_EXE`, then `python`, then `py -3`, then the common all-users Python313 path. Python 3.10+ is required.
+
+In Manage Jenkins > Nodes > select the build node > Configure > Node Properties > Environment variables, set `PYTHON_EXE` to the absolute path of an accessible `python.exe` (no quotes or arguments). Prefer an all-users installation. Restart the agent/service after changing its system PATH. A Python installed under an Admin user profile is not guaranteed accessible to the Jenkins service account. Commit/push the wrapper and Jenkinsfile changes before rebuilding an SCM-based job.
