@@ -1,0 +1,84 @@
+{
+  "database": "MySQL",
+  "screens": [
+    {
+      "role": "PUBLIC",
+      "name": "landing",
+      "width": 1440
+    },
+    {
+      "role": "PUBLIC",
+      "name": "landing-mobile",
+      "width": 390
+    },
+    {
+      "role": "PUBLIC",
+      "name": "admission form",
+      "width": 1440
+    },
+    {
+      "role": "APPLICANT",
+      "name": "overview",
+      "width": 1440
+    },
+    {
+      "role": "APPLICANT",
+      "name": "overview mobile",
+      "width": 390
+    },
+    {
+      "role": "APPLICANT",
+      "name": "Hồ sơ nhập học",
+      "width": 1440
+    },
+    {
+      "role": "APPLICANT",
+      "name": "Hồ sơ nhập học: Thêm hồ sơ nhập học",
+      "width": 1440
+    },
+    {
+      "role": "APPLICANT",
+      "name": "Hồ sơ nhập học: Thêm hồ sơ nhập học mobile",
+      "width": 390
+    },
+    {
+      "role": "APPLICANT",
+      "name": "Hồ sơ nhập học: Chi tiết hồ sơ",
+      "width": 1440
+    },
+    {
+      "role": "APPLICANT",
+      "name": "Hồ sơ nhập học: Chi tiết hồ sơ mobile",
+      "width": 390
+    },
+    {
+      "role": "APPLICANT",
+      "name": "Hồ sơ nhập học mobile",
+      "width": 390
+    },
+    {
+      "role": "APPLICANT",
+      "name": "Thông báo học vụ",
+      "width": 1440
+    },
+    {
+      "role": "APPLICANT",
+      "name": "Thông báo học vụ mobile",
+      "width": 390
+    }
+  ],
+  "dialogs": [
+    {
+      "role": "APPLICANT",
+      "menu": "Hồ sơ nhập học",
+      "control": "Thêm hồ sơ nhập học"
+    },
+    {
+      "role": "APPLICANT",
+      "menu": "Hồ sơ nhập học",
+      "control": "Chi tiết hồ sơ"
+    }
+  ],
+  "issues": [],
+  "runtimeErrors": []
+}

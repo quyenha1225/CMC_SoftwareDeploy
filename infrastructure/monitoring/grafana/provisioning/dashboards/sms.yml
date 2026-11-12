@@ -1,0 +1,7 @@
+apiVersion: 1
+providers:
+  - name: SMS
+    folder: SMS
+    type: file
+    options:
+      path: /var/lib/grafana/dashboards

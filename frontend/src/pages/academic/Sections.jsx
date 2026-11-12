@@ -1,3 +1,4 @@
+import Pagination, { usePagination } from "../../components/common/Pagination.jsx";
 import React, { useState } from "react";
 import "./Sections.css";
 import Icon from "../../components/common/Icon.jsx";
@@ -54,29 +55,32 @@ export default function Sections({ state, update, notify }) {
   const items = state.sections.filter(
     (section) =>
       section.semester === semester &&
-      `${section.code} ${getCourse(section.courseId)?.name} ${section.teacher}`
+      `${section.code} ${getCourse(section.courseId, state)?.name} ${section.teacher}`
         .toLowerCase()
         .includes(search.toLowerCase()),
   );
-  const period = semesterDates(semester);
+  const period = semesterDates(semester, state);
   function save() {
     if (
       !edit.code.trim() ||
       !edit.teacher.trim() ||
       !edit.room.trim() ||
       !edit.courseId ||
-      Number(edit.limit) < 1
+      !Number.isInteger(Number(edit.limit)) || Number(edit.limit) < 1
     )
       return notify("Vui lòng điền đầy đủ thông tin lớp học phần.", "error");
     if (edit.start >= edit.end)
       return notify("Giờ kết thúc phải sau giờ bắt đầu.", "error");
     if (state.sections.some((s) => s.code === edit.code && s.id !== edit.id))
       return notify("Mã lớp học phần đã tồn tại.", "error");
+    if (Number(edit.limit) < (edit.registered || 0)) return notify("Sĩ số tối đa không được nhỏ hơn số đã đăng ký.", "error");
+    if (state.sections.some(section => section.id !== edit.id && section.semester === edit.semester && section.day === Number(edit.day) && section.start < edit.end && edit.start < section.end && (section.teacher === edit.teacher || section.room === edit.room))) return notify("Trùng lịch giảng viên hoặc phòng học.", "error");
     const payload = {
       ...edit,
       limit: Number(edit.limit),
       day: Number(edit.day),
-      semester: getCourse(edit.courseId)?.semester || edit.semester,
+      semester: edit.semester,
+      teacherId: state.lecturers.find(item => item.name === edit.teacher)?.id,
     };
     update((s) => ({
       ...s,
@@ -92,9 +96,10 @@ export default function Sections({ state, update, notify }) {
             },
           ],
     }));
-    notify("Đã lưu lớp học phần demo.", "success");
+    notify("Đã lưu lớp học phần.", "success");
     setEdit(null);
   }
+  const pagination = usePagination(items, search + semester);
   return (
     <>
       <PageHeader
@@ -114,7 +119,7 @@ export default function Sections({ state, update, notify }) {
                 start: "07:30",
                 end: "09:50",
                 limit: 40,
-                semester: getCourse("IT201")?.semester || "2026-1",
+                semester: getCourse("IT201", state)?.semester || "2026-1",
               })
             }
           >
@@ -165,12 +170,12 @@ export default function Sections({ state, update, notify }) {
               </tr>
             </thead>
             <tbody>
-              {items.map((s) => (
+              {pagination.rows.map((s) => (
                 <tr key={s.id}>
                   <td>
                     <b>{s.code}</b>
                   </td>
-                  <td>{getCourse(s.courseId)?.name}</td>
+                  <td>{getCourse(s.courseId, state)?.name}</td>
                   <td>{semesterLabel(s.semester)}</td>
                   <td>{s.teacher}</td>
                   <td>
@@ -189,6 +194,8 @@ export default function Sections({ state, update, notify }) {
               ))}
             </tbody>
           </table>
+      <Pagination {...pagination} />
+
         </div>
       </Card>
       {edit && (
@@ -214,11 +221,11 @@ export default function Sections({ state, update, notify }) {
                   setEdit((v) => ({
                     ...v,
                     courseId: e.target.value,
-                    semester: getCourse(e.target.value)?.semester || v.semester,
+                    semester: v.semester,
                   }))
                 }
               >
-                {COURSE_LIST.map((c) => (
+                {state.courses.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name}
                   </option>
@@ -226,20 +233,10 @@ export default function Sections({ state, update, notify }) {
               </select>
             </Field>
             <Field label="Học kỳ">
-              <input
-                className="control"
-                value={semesterLabel(getCourse(edit.courseId)?.semester)}
-                readOnly
-              />
+              <select className="control" value={edit.semester} onChange={event => setEdit({ ...edit, semester: event.target.value })}>{state.semesters.map(term => <option key={term.id} value={term.id}>{semesterLabel(term.id)}</option>)}</select>
             </Field>
             <Field label="Giảng viên">
-              <input
-                className="control"
-                value={edit.teacher}
-                onChange={(e) =>
-                  setEdit((v) => ({ ...v, teacher: e.target.value }))
-                }
-              />
+              <select className="control" value={edit.teacher} onChange={event => setEdit({ ...edit, teacher: event.target.value })}>{state.lecturers.map(teacher => <option key={teacher.id} value={teacher.name}>{teacher.name}</option>)}</select>
             </Field>
             <Field label="Phòng học">
               <input

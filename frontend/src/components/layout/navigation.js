@@ -1,5 +1,14 @@
 export const MENU = {
+  affairs: [
+    ["Đăng tin & Sự kiện", "manage-events", "calendar"],
+    ["Tiếp nhận hồ sơ", "applications", "file"],
+    ["Quỹ & bàn giao tiền", "funds", "wallet"],
+    ["Lịch sử email", "mail-log", "mail"],
+    ["Thông báo", "notices", "bell"],
+    ["Hồ sơ cá nhân", "profile", "user"],
+  ],
   student: [
+    ["Tin tức & Sự kiện", "events", "calendar"],
     ["Tổng quan", "dashboard", "dashboard"],
     ["Đăng ký học phần", "enrollment", "bookopen"],
     ["Thời khóa biểu", "schedule", "calendar", [
@@ -15,7 +24,6 @@ export const MENU = {
       "profile",
       "user",
       [
-        ["Khai báo hồ sơ nhập học", "profile-registration"],
         ["Xem hồ sơ", "profile-view"],
       ],
     ],
@@ -31,32 +39,42 @@ export const MENU = {
       "profile",
       "user",
       [
-        ["Khai báo hồ sơ nhập học", "profile-registration"],
         ["Xem hồ sơ", "profile-view"],
       ],
     ],
   ],
   training: [
+    ["Đăng tin & Sự kiện", "manage-events", "calendar"],
     ["Tổng quan", "dashboard", "dashboard"],
+    ["Danh mục đào tạo", "catalog", "building"],
     ["Hồ sơ sinh viên", "students", "users"],
     ["Quản lý lớp học phần", "sections", "bookopen"],
     ["Kiểm tra bảng điểm", "grade-approval", "grades"],
     ["Quản lý học phí", "finance", "wallet"],
     ["Yêu cầu sinh viên", "requests", "file"],
     ["Thông báo", "notices", "bell"],
-    ["Tài khoản & phân quyền", "accounts", "users"],
-    ["Cấu hình hệ thống", "settings", "gear"],
   ],
   principal: [
+    ["Tài khoản & phân quyền", "accounts", "users"],
+    ["Cấu hình hệ thống", "settings", "gear"],
+    ["Đăng tin & Sự kiện", "manage-events", "calendar"],
     ["Tổng quan", "dashboard", "dashboard"],
     ["Phê duyệt hồ sơ sinh viên", "student-approvals", "checkcircle"],
     ["Phê duyệt bảng điểm", "approvals", "shield"],
     ["Thống kê & báo cáo", "reports", "chart"],
+    ["Lịch sử email", "mail-log", "mail"],
     ["Thông báo", "notices", "bell"],
   ],
 };
 
 export const navTitle = {
+  events: "Tin tức & Sự kiện",
+  "manage-events": "Đăng tin & Sự kiện",
+  catalog: "Danh mục đào tạo",
+  funds: "Quỹ CTSV & bàn giao tiền",
+  "mail-log": "Lịch sử email",
+  applications: "Tiếp nhận hồ sơ · CTSV",
+  application: "Nộp hồ sơ trực tuyến",
   dashboard: "Tổng quan",
   enrollment: "Đăng ký học phần",
   schedule: "Thời khóa biểu",
@@ -78,5 +96,5 @@ export const navTitle = {
   reports: "Báo cáo thống kê",
   accounts: "Tài khoản & phân quyền",
   "student-approvals": "Phê duyệt hồ sơ sinh viên",
-  settings: "Cấu hình demo",
+  settings: "Cấu hình hệ thống",
 };

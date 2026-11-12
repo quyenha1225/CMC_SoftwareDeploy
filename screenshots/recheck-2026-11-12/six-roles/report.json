@@ -1,0 +1,2464 @@
+{
+  "database": "isolated H2",
+  "screens": [
+    {
+      "role": "PUBLIC",
+      "name": "landing",
+      "width": 1440
+    },
+    {
+      "role": "PUBLIC",
+      "name": "landing-mobile",
+      "width": 390
+    },
+    {
+      "role": "PUBLIC",
+      "name": "admission form",
+      "width": 1440
+    },
+    {
+      "role": "PRINCIPAL",
+      "name": "overview",
+      "width": 1440
+    },
+    {
+      "role": "PRINCIPAL",
+      "name": "overview mobile",
+      "width": 390
+    },
+    {
+      "role": "PRINCIPAL",
+      "name": "Hồ sơ nhập học",
+      "width": 1440
+    },
+    {
+      "role": "PRINCIPAL",
+      "name": "Hồ sơ nhập học: Chi tiết hồ sơ",
+      "width": 1440
+    },
+    {
+      "role": "PRINCIPAL",
+      "name": "Hồ sơ nhập học: Chi tiết hồ sơ mobile",
+      "width": 390
+    },
+    {
+      "role": "PRINCIPAL",
+      "name": "Hồ sơ nhập học mobile",
+      "width": 390
+    },
+    {
+      "role": "PRINCIPAL",
+      "name": "Lịch học",
+      "width": 1440
+    },
+    {
+      "role": "PRINCIPAL",
+      "name": "Lịch học: Ngày",
+      "width": 1440
+    },
+    {
+      "role": "PRINCIPAL",
+      "name": "Lịch học: Ngày mobile",
+      "width": 390
+    },
+    {
+      "role": "PRINCIPAL",
+      "name": "Lịch học: Tháng",
+      "width": 1440
+    },
+    {
+      "role": "PRINCIPAL",
+      "name": "Lịch học: Tháng mobile",
+      "width": 390
+    },
+    {
+      "role": "PRINCIPAL",
+      "name": "Lịch học: Tuần",
+      "width": 1440
+    },
+    {
+      "role": "PRINCIPAL",
+      "name": "Lịch học: Tuần mobile",
+      "width": 390
+    },
+    {
+      "role": "PRINCIPAL",
+      "name": "Calendar event detail",
+      "width": 1440
+    },
+    {
+      "role": "PRINCIPAL",
+      "name": "Lịch học mobile",
+      "width": 390
+    },
+    {
+      "role": "PRINCIPAL",
+      "name": "Lịch thi",
+      "width": 1440
+    },
+    {
+      "role": "PRINCIPAL",
+      "name": "Lịch thi mobile",
+      "width": 390
+    },
+    {
+      "role": "PRINCIPAL",
+      "name": "Bảng điểm",
+      "width": 1440
+    },
+    {
+      "role": "PRINCIPAL",
+      "name": "Bảng điểm: Lịch sử duyệt điểm",
+      "width": 1440
+    },
+    {
+      "role": "PRINCIPAL",
+      "name": "Bảng điểm: Lịch sử duyệt điểm mobile",
+      "width": 390
+    },
+    {
+      "role": "PRINCIPAL",
+      "name": "Bảng điểm: Xem bảng điểm",
+      "width": 1440
+    },
+    {
+      "role": "PRINCIPAL",
+      "name": "Bảng điểm: Xem bảng điểm mobile",
+      "width": 390
+    },
+    {
+      "role": "PRINCIPAL",
+      "name": "Bảng điểm mobile",
+      "width": 390
+    },
+    {
+      "role": "PRINCIPAL",
+      "name": "Sinh viên",
+      "width": 1440
+    },
+    {
+      "role": "PRINCIPAL",
+      "name": "Sinh viên: Hồ sơ / ảnh",
+      "width": 1440
+    },
+    {
+      "role": "PRINCIPAL",
+      "name": "Sinh viên: Hồ sơ / ảnh mobile",
+      "width": 390
+    },
+    {
+      "role": "PRINCIPAL",
+      "name": "Sinh viên mobile",
+      "width": 390
+    },
+    {
+      "role": "PRINCIPAL",
+      "name": "Hóa đơn học phí",
+      "width": 1440
+    },
+    {
+      "role": "PRINCIPAL",
+      "name": "Hóa đơn học phí: Chi tiết hóa đơn",
+      "width": 1440
+    },
+    {
+      "role": "PRINCIPAL",
+      "name": "Hóa đơn học phí: Chi tiết hóa đơn mobile",
+      "width": 390
+    },
+    {
+      "role": "PRINCIPAL",
+      "name": "Hóa đơn học phí mobile",
+      "width": 390
+    },
+    {
+      "role": "PRINCIPAL",
+      "name": "Điều chỉnh học phí",
+      "width": 1440
+    },
+    {
+      "role": "PRINCIPAL",
+      "name": "Điều chỉnh học phí mobile",
+      "width": 390
+    },
+    {
+      "role": "PRINCIPAL",
+      "name": "Bàn giao tiền",
+      "width": 1440
+    },
+    {
+      "role": "PRINCIPAL",
+      "name": "Bàn giao tiền mobile",
+      "width": 390
+    },
+    {
+      "role": "PRINCIPAL",
+      "name": "Báo cáo CTSV",
+      "width": 1440
+    },
+    {
+      "role": "PRINCIPAL",
+      "name": "Báo cáo CTSV mobile",
+      "width": 390
+    },
+    {
+      "role": "PRINCIPAL",
+      "name": "Tài khoản",
+      "width": 1440
+    },
+    {
+      "role": "PRINCIPAL",
+      "name": "Tài khoản: Tạo tài khoản nhân sự",
+      "width": 1440
+    },
+    {
+      "role": "PRINCIPAL",
+      "name": "Tài khoản: Tạo tài khoản nhân sự mobile",
+      "width": 390
+    },
+    {
+      "role": "PRINCIPAL",
+      "name": "Tài khoản: Xem chi tiết",
+      "width": 1440
+    },
+    {
+      "role": "PRINCIPAL",
+      "name": "Tài khoản: Xem chi tiết mobile",
+      "width": 390
+    },
+    {
+      "role": "PRINCIPAL",
+      "name": "Tài khoản: Sửa",
+      "width": 1440
+    },
+    {
+      "role": "PRINCIPAL",
+      "name": "Tài khoản: Sửa mobile",
+      "width": 390
+    },
+    {
+      "role": "PRINCIPAL",
+      "name": "Tài khoản: Gán vai trò",
+      "width": 1440
+    },
+    {
+      "role": "PRINCIPAL",
+      "name": "Tài khoản: Gán vai trò mobile",
+      "width": 390
+    },
+    {
+      "role": "PRINCIPAL",
+      "name": "Tài khoản mobile",
+      "width": 390
+    },
+    {
+      "role": "PRINCIPAL",
+      "name": "Đợt nhập học",
+      "width": 1440
+    },
+    {
+      "role": "PRINCIPAL",
+      "name": "Đợt nhập học: Thêm đợt nhập học",
+      "width": 1440
+    },
+    {
+      "role": "PRINCIPAL",
+      "name": "Đợt nhập học: Thêm đợt nhập học mobile",
+      "width": 390
+    },
+    {
+      "role": "PRINCIPAL",
+      "name": "Đợt nhập học: Xem chi tiết",
+      "width": 1440
+    },
+    {
+      "role": "PRINCIPAL",
+      "name": "Đợt nhập học: Xem chi tiết mobile",
+      "width": 390
+    },
+    {
+      "role": "PRINCIPAL",
+      "name": "Đợt nhập học: Sửa",
+      "width": 1440
+    },
+    {
+      "role": "PRINCIPAL",
+      "name": "Đợt nhập học: Sửa mobile",
+      "width": 390
+    },
+    {
+      "role": "PRINCIPAL",
+      "name": "Đợt nhập học: Giấy tờ yêu cầu",
+      "width": 1440
+    },
+    {
+      "role": "PRINCIPAL",
+      "name": "Đợt nhập học: Giấy tờ yêu cầu mobile",
+      "width": 390
+    },
+    {
+      "role": "PRINCIPAL",
+      "name": "Đợt nhập học: Thêm / sửa loại giấy tờ",
+      "width": 1440
+    },
+    {
+      "role": "PRINCIPAL",
+      "name": "Đợt nhập học: Thêm / sửa loại giấy tờ mobile",
+      "width": 390
+    },
+    {
+      "role": "PRINCIPAL",
+      "name": "Đợt nhập học mobile",
+      "width": 390
+    },
+    {
+      "role": "PRINCIPAL",
+      "name": "Email trường",
+      "width": 1440
+    },
+    {
+      "role": "PRINCIPAL",
+      "name": "Email trường: Xem chi tiết",
+      "width": 1440
+    },
+    {
+      "role": "PRINCIPAL",
+      "name": "Email trường: Xem chi tiết mobile",
+      "width": 390
+    },
+    {
+      "role": "PRINCIPAL",
+      "name": "Email trường: Cấu hình hộp thư",
+      "width": 1440
+    },
+    {
+      "role": "PRINCIPAL",
+      "name": "Email trường: Cấu hình hộp thư mobile",
+      "width": 390
+    },
+    {
+      "role": "PRINCIPAL",
+      "name": "Email trường mobile",
+      "width": 390
+    },
+    {
+      "role": "PRINCIPAL",
+      "name": "Email thông báo",
+      "width": 1440
+    },
+    {
+      "role": "PRINCIPAL",
+      "name": "Email thông báo mobile",
+      "width": 390
+    },
+    {
+      "role": "PRINCIPAL",
+      "name": "Thông báo học vụ",
+      "width": 1440
+    },
+    {
+      "role": "PRINCIPAL",
+      "name": "Thông báo học vụ: Thêm thông báo học vụ",
+      "width": 1440
+    },
+    {
+      "role": "PRINCIPAL",
+      "name": "Thông báo học vụ: Thêm thông báo học vụ mobile",
+      "width": 390
+    },
+    {
+      "role": "PRINCIPAL",
+      "name": "Thông báo học vụ: Sửa",
+      "width": 1440
+    },
+    {
+      "role": "PRINCIPAL",
+      "name": "Thông báo học vụ: Sửa mobile",
+      "width": 390
+    },
+    {
+      "role": "PRINCIPAL",
+      "name": "Thông báo học vụ: Người nhận / đã đọc",
+      "width": 1440
+    },
+    {
+      "role": "PRINCIPAL",
+      "name": "Thông báo học vụ: Người nhận / đã đọc mobile",
+      "width": 390
+    },
+    {
+      "role": "PRINCIPAL",
+      "name": "Thông báo học vụ: Gửi theo vai trò",
+      "width": 1440
+    },
+    {
+      "role": "PRINCIPAL",
+      "name": "Thông báo học vụ: Gửi theo vai trò mobile",
+      "width": 390
+    },
+    {
+      "role": "PRINCIPAL",
+      "name": "Thông báo học vụ mobile",
+      "width": 390
+    },
+    {
+      "role": "PRINCIPAL",
+      "name": "Nhật ký hệ thống",
+      "width": 1440
+    },
+    {
+      "role": "PRINCIPAL",
+      "name": "Nhật ký hệ thống: Xem chi tiết",
+      "width": 1440
+    },
+    {
+      "role": "PRINCIPAL",
+      "name": "Nhật ký hệ thống: Xem chi tiết mobile",
+      "width": 390
+    },
+    {
+      "role": "PRINCIPAL",
+      "name": "Nhật ký hệ thống mobile",
+      "width": 390
+    },
+    {
+      "role": "CTSV",
+      "name": "overview",
+      "width": 1440
+    },
+    {
+      "role": "CTSV",
+      "name": "overview mobile",
+      "width": 390
+    },
+    {
+      "role": "CTSV",
+      "name": "Hồ sơ nhập học",
+      "width": 1440
+    },
+    {
+      "role": "CTSV",
+      "name": "Hồ sơ nhập học: Chi tiết hồ sơ",
+      "width": 1440
+    },
+    {
+      "role": "CTSV",
+      "name": "Hồ sơ nhập học: Chi tiết hồ sơ mobile",
+      "width": 390
+    },
+    {
+      "role": "CTSV",
+      "name": "Hồ sơ nhập học mobile",
+      "width": 390
+    },
+    {
+      "role": "CTSV",
+      "name": "Hóa đơn học phí",
+      "width": 1440
+    },
+    {
+      "role": "CTSV",
+      "name": "Hóa đơn học phí: Phát hành hóa đơn",
+      "width": 1440
+    },
+    {
+      "role": "CTSV",
+      "name": "Hóa đơn học phí: Phát hành hóa đơn mobile",
+      "width": 390
+    },
+    {
+      "role": "CTSV",
+      "name": "Hóa đơn học phí: Chi tiết hóa đơn",
+      "width": 1440
+    },
+    {
+      "role": "CTSV",
+      "name": "Hóa đơn học phí: Chi tiết hóa đơn mobile",
+      "width": 390
+    },
+    {
+      "role": "CTSV",
+      "name": "Hóa đơn học phí mobile",
+      "width": 390
+    },
+    {
+      "role": "CTSV",
+      "name": "Khoản thu học phí",
+      "width": 1440
+    },
+    {
+      "role": "CTSV",
+      "name": "Khoản thu học phí: Ghi nhận thu",
+      "width": 1440
+    },
+    {
+      "role": "CTSV",
+      "name": "Khoản thu học phí: Ghi nhận thu mobile",
+      "width": 390
+    },
+    {
+      "role": "CTSV",
+      "name": "Khoản thu học phí: Xem chi tiết",
+      "width": 1440
+    },
+    {
+      "role": "CTSV",
+      "name": "Khoản thu học phí: Xem chi tiết mobile",
+      "width": 390
+    },
+    {
+      "role": "CTSV",
+      "name": "Khoản thu học phí mobile",
+      "width": 390
+    },
+    {
+      "role": "CTSV",
+      "name": "Đơn giá học phí",
+      "width": 1440
+    },
+    {
+      "role": "CTSV",
+      "name": "Đơn giá học phí: Thêm đơn giá học phí",
+      "width": 1440
+    },
+    {
+      "role": "CTSV",
+      "name": "Đơn giá học phí: Thêm đơn giá học phí mobile",
+      "width": 390
+    },
+    {
+      "role": "CTSV",
+      "name": "Đơn giá học phí: Xem chi tiết",
+      "width": 1440
+    },
+    {
+      "role": "CTSV",
+      "name": "Đơn giá học phí: Xem chi tiết mobile",
+      "width": 390
+    },
+    {
+      "role": "CTSV",
+      "name": "Đơn giá học phí: Sửa",
+      "width": 1440
+    },
+    {
+      "role": "CTSV",
+      "name": "Đơn giá học phí: Sửa mobile",
+      "width": 390
+    },
+    {
+      "role": "CTSV",
+      "name": "Đơn giá học phí mobile",
+      "width": 390
+    },
+    {
+      "role": "CTSV",
+      "name": "Quỹ CTSV",
+      "width": 1440
+    },
+    {
+      "role": "CTSV",
+      "name": "Quỹ CTSV: Thêm quỹ ctsv",
+      "width": 1440
+    },
+    {
+      "role": "CTSV",
+      "name": "Quỹ CTSV: Thêm quỹ ctsv mobile",
+      "width": 390
+    },
+    {
+      "role": "CTSV",
+      "name": "Quỹ CTSV: Xem chi tiết",
+      "width": 1440
+    },
+    {
+      "role": "CTSV",
+      "name": "Quỹ CTSV: Xem chi tiết mobile",
+      "width": 390
+    },
+    {
+      "role": "CTSV",
+      "name": "Quỹ CTSV: Sửa",
+      "width": 1440
+    },
+    {
+      "role": "CTSV",
+      "name": "Quỹ CTSV: Sửa mobile",
+      "width": 390
+    },
+    {
+      "role": "CTSV",
+      "name": "Quỹ CTSV mobile",
+      "width": 390
+    },
+    {
+      "role": "CTSV",
+      "name": "Điều chỉnh học phí",
+      "width": 1440
+    },
+    {
+      "role": "CTSV",
+      "name": "Điều chỉnh học phí: Đề nghị điều chỉnh",
+      "width": 1440
+    },
+    {
+      "role": "CTSV",
+      "name": "Điều chỉnh học phí: Đề nghị điều chỉnh mobile",
+      "width": 390
+    },
+    {
+      "role": "CTSV",
+      "name": "Điều chỉnh học phí mobile",
+      "width": 390
+    },
+    {
+      "role": "CTSV",
+      "name": "Bàn giao tiền",
+      "width": 1440
+    },
+    {
+      "role": "CTSV",
+      "name": "Bàn giao tiền: Lập bàn giao",
+      "width": 1440
+    },
+    {
+      "role": "CTSV",
+      "name": "Bàn giao tiền: Lập bàn giao mobile",
+      "width": 390
+    },
+    {
+      "role": "CTSV",
+      "name": "Bàn giao tiền mobile",
+      "width": 390
+    },
+    {
+      "role": "CTSV",
+      "name": "Báo cáo CTSV",
+      "width": 1440
+    },
+    {
+      "role": "CTSV",
+      "name": "Báo cáo CTSV: Lập / gửi báo cáo học kỳ",
+      "width": 1440
+    },
+    {
+      "role": "CTSV",
+      "name": "Báo cáo CTSV: Lập / gửi báo cáo học kỳ mobile",
+      "width": 390
+    },
+    {
+      "role": "CTSV",
+      "name": "Báo cáo CTSV mobile",
+      "width": 390
+    },
+    {
+      "role": "CTSV",
+      "name": "Yêu cầu sinh viên",
+      "width": 1440
+    },
+    {
+      "role": "CTSV",
+      "name": "Yêu cầu sinh viên: Nội dung",
+      "width": 1440
+    },
+    {
+      "role": "CTSV",
+      "name": "Yêu cầu sinh viên: Nội dung mobile",
+      "width": 390
+    },
+    {
+      "role": "CTSV",
+      "name": "Yêu cầu sinh viên mobile",
+      "width": 390
+    },
+    {
+      "role": "CTSV",
+      "name": "Email thông báo",
+      "width": 1440
+    },
+    {
+      "role": "CTSV",
+      "name": "Email thông báo mobile",
+      "width": 390
+    },
+    {
+      "role": "CTSV",
+      "name": "Thông báo học vụ",
+      "width": 1440
+    },
+    {
+      "role": "CTSV",
+      "name": "Thông báo học vụ: Thêm thông báo học vụ",
+      "width": 1440
+    },
+    {
+      "role": "CTSV",
+      "name": "Thông báo học vụ: Thêm thông báo học vụ mobile",
+      "width": 390
+    },
+    {
+      "role": "CTSV",
+      "name": "Thông báo học vụ: Sửa",
+      "width": 1440
+    },
+    {
+      "role": "CTSV",
+      "name": "Thông báo học vụ: Sửa mobile",
+      "width": 390
+    },
+    {
+      "role": "CTSV",
+      "name": "Thông báo học vụ: Người nhận / đã đọc",
+      "width": 1440
+    },
+    {
+      "role": "CTSV",
+      "name": "Thông báo học vụ: Người nhận / đã đọc mobile",
+      "width": 390
+    },
+    {
+      "role": "CTSV",
+      "name": "Thông báo học vụ: Gửi theo vai trò",
+      "width": 1440
+    },
+    {
+      "role": "CTSV",
+      "name": "Thông báo học vụ: Gửi theo vai trò mobile",
+      "width": 390
+    },
+    {
+      "role": "CTSV",
+      "name": "Thông báo học vụ mobile",
+      "width": 390
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "overview",
+      "width": 1440
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "overview mobile",
+      "width": 390
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Hồ sơ nhập học",
+      "width": 1440
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Hồ sơ nhập học mobile",
+      "width": 390
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Sinh viên",
+      "width": 1440
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Sinh viên: Sửa",
+      "width": 1440
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Sinh viên: Sửa mobile",
+      "width": 390
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Sinh viên: Hồ sơ / ảnh",
+      "width": 1440
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Sinh viên: Hồ sơ / ảnh mobile",
+      "width": 390
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Sinh viên mobile",
+      "width": 390
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Giảng viên",
+      "width": 1440
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Giảng viên: Thêm giảng viên",
+      "width": 1440
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Giảng viên: Thêm giảng viên mobile",
+      "width": 390
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Giảng viên: Xem chi tiết",
+      "width": 1440
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Giảng viên: Xem chi tiết mobile",
+      "width": 390
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Giảng viên: Sửa",
+      "width": 1440
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Giảng viên: Sửa mobile",
+      "width": 390
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Giảng viên mobile",
+      "width": 390
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Khoa",
+      "width": 1440
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Khoa: Thêm khoa",
+      "width": 1440
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Khoa: Thêm khoa mobile",
+      "width": 390
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Khoa: Xem chi tiết",
+      "width": 1440
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Khoa: Xem chi tiết mobile",
+      "width": 390
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Khoa: Sửa",
+      "width": 1440
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Khoa: Sửa mobile",
+      "width": 390
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Khoa mobile",
+      "width": 390
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Ngành",
+      "width": 1440
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Ngành: Thêm ngành",
+      "width": 1440
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Ngành: Thêm ngành mobile",
+      "width": 390
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Ngành: Xem chi tiết",
+      "width": 1440
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Ngành: Xem chi tiết mobile",
+      "width": 390
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Ngành: Sửa",
+      "width": 1440
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Ngành: Sửa mobile",
+      "width": 390
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Ngành mobile",
+      "width": 390
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Khóa tuyển sinh",
+      "width": 1440
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Khóa tuyển sinh: Thêm khóa tuyển sinh",
+      "width": 1440
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Khóa tuyển sinh: Thêm khóa tuyển sinh mobile",
+      "width": 390
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Khóa tuyển sinh: Xem chi tiết",
+      "width": 1440
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Khóa tuyển sinh: Xem chi tiết mobile",
+      "width": 390
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Khóa tuyển sinh: Sửa",
+      "width": 1440
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Khóa tuyển sinh: Sửa mobile",
+      "width": 390
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Khóa tuyển sinh mobile",
+      "width": 390
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Lớp hành chính",
+      "width": 1440
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Lớp hành chính: Thêm lớp hành chính",
+      "width": 1440
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Lớp hành chính: Thêm lớp hành chính mobile",
+      "width": 390
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Lớp hành chính: Xem chi tiết",
+      "width": 1440
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Lớp hành chính: Xem chi tiết mobile",
+      "width": 390
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Lớp hành chính: Sửa",
+      "width": 1440
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Lớp hành chính: Sửa mobile",
+      "width": 390
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Lớp hành chính mobile",
+      "width": 390
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Năm học",
+      "width": 1440
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Năm học: Thêm năm học",
+      "width": 1440
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Năm học: Thêm năm học mobile",
+      "width": 390
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Năm học: Xem chi tiết",
+      "width": 1440
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Năm học: Xem chi tiết mobile",
+      "width": 390
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Năm học: Sửa",
+      "width": 1440
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Năm học: Sửa mobile",
+      "width": 390
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Năm học mobile",
+      "width": 390
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Học kỳ",
+      "width": 1440
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Học kỳ: Thêm học kỳ",
+      "width": 1440
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Học kỳ: Thêm học kỳ mobile",
+      "width": 390
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Học kỳ: Xem chi tiết",
+      "width": 1440
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Học kỳ: Xem chi tiết mobile",
+      "width": 390
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Học kỳ: Sửa",
+      "width": 1440
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Học kỳ: Sửa mobile",
+      "width": 390
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Học kỳ mobile",
+      "width": 390
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Học phần",
+      "width": 1440
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Học phần: Thêm học phần",
+      "width": 1440
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Học phần: Thêm học phần mobile",
+      "width": 390
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Học phần: Xem chi tiết",
+      "width": 1440
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Học phần: Xem chi tiết mobile",
+      "width": 390
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Học phần: Sửa",
+      "width": 1440
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Học phần: Sửa mobile",
+      "width": 390
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Học phần mobile",
+      "width": 390
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Chương trình đào tạo",
+      "width": 1440
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Chương trình đào tạo: Thêm chương trình đào tạo",
+      "width": 1440
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Chương trình đào tạo: Thêm chương trình đào tạo mobile",
+      "width": 390
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Chương trình đào tạo: Xem chi tiết",
+      "width": 1440
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Chương trình đào tạo: Xem chi tiết mobile",
+      "width": 390
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Chương trình đào tạo: Sửa",
+      "width": 1440
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Chương trình đào tạo: Sửa mobile",
+      "width": 390
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Chương trình đào tạo: Học phần trong chương trình",
+      "width": 1440
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Chương trình đào tạo: Học phần trong chương trình mobile",
+      "width": 390
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Chương trình đào tạo mobile",
+      "width": 390
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Phòng học / phòng thi",
+      "width": 1440
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Phòng học / phòng thi: Thêm phòng học / phòng thi",
+      "width": 1440
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Phòng học / phòng thi: Thêm phòng học / phòng thi mobile",
+      "width": 390
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Phòng học / phòng thi: Xem chi tiết",
+      "width": 1440
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Phòng học / phòng thi: Xem chi tiết mobile",
+      "width": 390
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Phòng học / phòng thi: Sửa",
+      "width": 1440
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Phòng học / phòng thi: Sửa mobile",
+      "width": 390
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Phòng học / phòng thi mobile",
+      "width": 390
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Loại kỳ thi",
+      "width": 1440
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Loại kỳ thi: Thêm loại kỳ thi",
+      "width": 1440
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Loại kỳ thi: Thêm loại kỳ thi mobile",
+      "width": 390
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Loại kỳ thi: Xem chi tiết",
+      "width": 1440
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Loại kỳ thi: Xem chi tiết mobile",
+      "width": 390
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Loại kỳ thi: Sửa",
+      "width": 1440
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Loại kỳ thi: Sửa mobile",
+      "width": 390
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Loại kỳ thi mobile",
+      "width": 390
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Lớp học phần",
+      "width": 1440
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Lớp học phần: Thêm lớp học phần",
+      "width": 1440
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Lớp học phần: Thêm lớp học phần mobile",
+      "width": 390
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Lớp học phần: Sửa",
+      "width": 1440
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Lớp học phần: Sửa mobile",
+      "width": 390
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Lớp học phần: Chi tiết học phần",
+      "width": 1440
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Lớp học phần: Chi tiết học phần mobile",
+      "width": 390
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Lớp học phần: Lịch các buổi",
+      "width": 1440
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Lớp học phần: Lịch các buổi mobile",
+      "width": 390
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Lớp học phần mobile",
+      "width": 390
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Lịch học",
+      "width": 1440
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Lịch học: Ngày",
+      "width": 1440
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Lịch học: Ngày mobile",
+      "width": 390
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Lịch học: Tháng",
+      "width": 1440
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Lịch học: Tháng mobile",
+      "width": 390
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Lịch học: Tuần",
+      "width": 1440
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Lịch học: Tuần mobile",
+      "width": 390
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Calendar event detail",
+      "width": 1440
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Lịch học mobile",
+      "width": 390
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Lịch thi",
+      "width": 1440
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Lịch thi: Thêm lịch thi",
+      "width": 1440
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Lịch thi: Thêm lịch thi mobile",
+      "width": 390
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Lịch thi mobile",
+      "width": 390
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Bảng điểm",
+      "width": 1440
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Bảng điểm: Lịch sử duyệt điểm",
+      "width": 1440
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Bảng điểm: Lịch sử duyệt điểm mobile",
+      "width": 390
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Bảng điểm: Xem bảng điểm",
+      "width": 1440
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Bảng điểm: Xem bảng điểm mobile",
+      "width": 390
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Bảng điểm mobile",
+      "width": 390
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Điểm cá nhân",
+      "width": 1440
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Điểm cá nhân: Xem chi tiết",
+      "width": 1440
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Điểm cá nhân: Xem chi tiết mobile",
+      "width": 390
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Điểm cá nhân mobile",
+      "width": 390
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Hóa đơn học phí",
+      "width": 1440
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Hóa đơn học phí: Chi tiết hóa đơn",
+      "width": 1440
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Hóa đơn học phí: Chi tiết hóa đơn mobile",
+      "width": 390
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Hóa đơn học phí mobile",
+      "width": 390
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Yêu cầu sinh viên",
+      "width": 1440
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Yêu cầu sinh viên: Nội dung",
+      "width": 1440
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Yêu cầu sinh viên: Nội dung mobile",
+      "width": 390
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Yêu cầu sinh viên mobile",
+      "width": 390
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Thông báo học vụ",
+      "width": 1440
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Thông báo học vụ: Thêm thông báo học vụ",
+      "width": 1440
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Thông báo học vụ: Thêm thông báo học vụ mobile",
+      "width": 390
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Thông báo học vụ: Sửa",
+      "width": 1440
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Thông báo học vụ: Sửa mobile",
+      "width": 390
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Thông báo học vụ: Người nhận / đã đọc",
+      "width": 1440
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Thông báo học vụ: Người nhận / đã đọc mobile",
+      "width": 390
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Thông báo học vụ: Gửi theo vai trò",
+      "width": 1440
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Thông báo học vụ: Gửi theo vai trò mobile",
+      "width": 390
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "name": "Thông báo học vụ mobile",
+      "width": 390
+    },
+    {
+      "role": "LECTURER",
+      "name": "overview",
+      "width": 1440
+    },
+    {
+      "role": "LECTURER",
+      "name": "overview mobile",
+      "width": 390
+    },
+    {
+      "role": "LECTURER",
+      "name": "Lớp học phần",
+      "width": 1440
+    },
+    {
+      "role": "LECTURER",
+      "name": "Lớp học phần: Chi tiết học phần",
+      "width": 1440
+    },
+    {
+      "role": "LECTURER",
+      "name": "Lớp học phần: Chi tiết học phần mobile",
+      "width": 390
+    },
+    {
+      "role": "LECTURER",
+      "name": "Lớp học phần: Lịch các buổi",
+      "width": 1440
+    },
+    {
+      "role": "LECTURER",
+      "name": "Lớp học phần: Lịch các buổi mobile",
+      "width": 390
+    },
+    {
+      "role": "LECTURER",
+      "name": "Lớp học phần mobile",
+      "width": 390
+    },
+    {
+      "role": "LECTURER",
+      "name": "Lịch học",
+      "width": 1440
+    },
+    {
+      "role": "LECTURER",
+      "name": "Lịch học: Ngày",
+      "width": 1440
+    },
+    {
+      "role": "LECTURER",
+      "name": "Lịch học: Ngày mobile",
+      "width": 390
+    },
+    {
+      "role": "LECTURER",
+      "name": "Lịch học: Tháng",
+      "width": 1440
+    },
+    {
+      "role": "LECTURER",
+      "name": "Lịch học: Tháng mobile",
+      "width": 390
+    },
+    {
+      "role": "LECTURER",
+      "name": "Lịch học: Tuần",
+      "width": 1440
+    },
+    {
+      "role": "LECTURER",
+      "name": "Lịch học: Tuần mobile",
+      "width": 390
+    },
+    {
+      "role": "LECTURER",
+      "name": "Calendar event detail",
+      "width": 1440
+    },
+    {
+      "role": "LECTURER",
+      "name": "Lịch học mobile",
+      "width": 390
+    },
+    {
+      "role": "LECTURER",
+      "name": "Lịch thi",
+      "width": 1440
+    },
+    {
+      "role": "LECTURER",
+      "name": "Lịch thi mobile",
+      "width": 390
+    },
+    {
+      "role": "LECTURER",
+      "name": "Bảng điểm",
+      "width": 1440
+    },
+    {
+      "role": "LECTURER",
+      "name": "Bảng điểm: Lịch sử duyệt điểm",
+      "width": 1440
+    },
+    {
+      "role": "LECTURER",
+      "name": "Bảng điểm: Lịch sử duyệt điểm mobile",
+      "width": 390
+    },
+    {
+      "role": "LECTURER",
+      "name": "Bảng điểm: Xem bảng điểm",
+      "width": 1440
+    },
+    {
+      "role": "LECTURER",
+      "name": "Bảng điểm: Xem bảng điểm mobile",
+      "width": 390
+    },
+    {
+      "role": "LECTURER",
+      "name": "Bảng điểm mobile",
+      "width": 390
+    },
+    {
+      "role": "LECTURER",
+      "name": "Điểm cá nhân",
+      "width": 1440
+    },
+    {
+      "role": "LECTURER",
+      "name": "Điểm cá nhân: Xem chi tiết",
+      "width": 1440
+    },
+    {
+      "role": "LECTURER",
+      "name": "Điểm cá nhân: Xem chi tiết mobile",
+      "width": 390
+    },
+    {
+      "role": "LECTURER",
+      "name": "Điểm cá nhân mobile",
+      "width": 390
+    },
+    {
+      "role": "LECTURER",
+      "name": "Thông báo học vụ",
+      "width": 1440
+    },
+    {
+      "role": "LECTURER",
+      "name": "Thông báo học vụ mobile",
+      "width": 390
+    },
+    {
+      "role": "STUDENT",
+      "name": "overview",
+      "width": 1440
+    },
+    {
+      "role": "STUDENT",
+      "name": "overview mobile",
+      "width": 390
+    },
+    {
+      "role": "STUDENT",
+      "name": "Hồ sơ cá nhân",
+      "width": 1440
+    },
+    {
+      "role": "STUDENT",
+      "name": "Hồ sơ cá nhân mobile",
+      "width": 390
+    },
+    {
+      "role": "STUDENT",
+      "name": "Tra cứu lớp học phần",
+      "width": 1440
+    },
+    {
+      "role": "STUDENT",
+      "name": "Tra cứu lớp học phần: Chi tiết",
+      "width": 1440
+    },
+    {
+      "role": "STUDENT",
+      "name": "Tra cứu lớp học phần: Chi tiết mobile",
+      "width": 390
+    },
+    {
+      "role": "STUDENT",
+      "name": "Tra cứu lớp học phần mobile",
+      "width": 390
+    },
+    {
+      "role": "STUDENT",
+      "name": "Đăng ký / hủy học phần",
+      "width": 1440
+    },
+    {
+      "role": "STUDENT",
+      "name": "Đăng ký / hủy học phần: Chi tiết",
+      "width": 1440
+    },
+    {
+      "role": "STUDENT",
+      "name": "Đăng ký / hủy học phần: Chi tiết mobile",
+      "width": 390
+    },
+    {
+      "role": "STUDENT",
+      "name": "Available sections",
+      "width": 1440
+    },
+    {
+      "role": "STUDENT",
+      "name": "Registered sections",
+      "width": 1440
+    },
+    {
+      "role": "STUDENT",
+      "name": "Đăng ký / hủy học phần mobile",
+      "width": 390
+    },
+    {
+      "role": "STUDENT",
+      "name": "Lịch học",
+      "width": 1440
+    },
+    {
+      "role": "STUDENT",
+      "name": "Lịch học: Ngày",
+      "width": 1440
+    },
+    {
+      "role": "STUDENT",
+      "name": "Lịch học: Ngày mobile",
+      "width": 390
+    },
+    {
+      "role": "STUDENT",
+      "name": "Lịch học: Tháng",
+      "width": 1440
+    },
+    {
+      "role": "STUDENT",
+      "name": "Lịch học: Tháng mobile",
+      "width": 390
+    },
+    {
+      "role": "STUDENT",
+      "name": "Lịch học: Tuần",
+      "width": 1440
+    },
+    {
+      "role": "STUDENT",
+      "name": "Lịch học: Tuần mobile",
+      "width": 390
+    },
+    {
+      "role": "STUDENT",
+      "name": "Calendar event detail",
+      "width": 1440
+    },
+    {
+      "role": "STUDENT",
+      "name": "Lịch học mobile",
+      "width": 390
+    },
+    {
+      "role": "STUDENT",
+      "name": "Lịch thi",
+      "width": 1440
+    },
+    {
+      "role": "STUDENT",
+      "name": "Lịch thi mobile",
+      "width": 390
+    },
+    {
+      "role": "STUDENT",
+      "name": "Kết quả học tập",
+      "width": 1440
+    },
+    {
+      "role": "STUDENT",
+      "name": "Kết quả học tập: Chi tiết",
+      "width": 1440
+    },
+    {
+      "role": "STUDENT",
+      "name": "Kết quả học tập: Chi tiết mobile",
+      "width": 390
+    },
+    {
+      "role": "STUDENT",
+      "name": "Kết quả học tập mobile",
+      "width": 390
+    },
+    {
+      "role": "STUDENT",
+      "name": "Công nợ & hóa đơn",
+      "width": 1440
+    },
+    {
+      "role": "STUDENT",
+      "name": "Công nợ & hóa đơn: Chi tiết",
+      "width": 1440
+    },
+    {
+      "role": "STUDENT",
+      "name": "Công nợ & hóa đơn: Chi tiết mobile",
+      "width": 390
+    },
+    {
+      "role": "STUDENT",
+      "name": "Công nợ & hóa đơn mobile",
+      "width": 390
+    },
+    {
+      "role": "STUDENT",
+      "name": "Lịch sử thanh toán",
+      "width": 1440
+    },
+    {
+      "role": "STUDENT",
+      "name": "Lịch sử thanh toán: Chi tiết",
+      "width": 1440
+    },
+    {
+      "role": "STUDENT",
+      "name": "Lịch sử thanh toán: Chi tiết mobile",
+      "width": 390
+    },
+    {
+      "role": "STUDENT",
+      "name": "Lịch sử thanh toán mobile",
+      "width": 390
+    },
+    {
+      "role": "STUDENT",
+      "name": "Yêu cầu hỗ trợ",
+      "width": 1440
+    },
+    {
+      "role": "STUDENT",
+      "name": "Yêu cầu hỗ trợ: Gửi yêu cầu",
+      "width": 1440
+    },
+    {
+      "role": "STUDENT",
+      "name": "Yêu cầu hỗ trợ: Gửi yêu cầu mobile",
+      "width": 390
+    },
+    {
+      "role": "STUDENT",
+      "name": "Yêu cầu hỗ trợ: Nội dung",
+      "width": 1440
+    },
+    {
+      "role": "STUDENT",
+      "name": "Yêu cầu hỗ trợ: Nội dung mobile",
+      "width": 390
+    },
+    {
+      "role": "STUDENT",
+      "name": "Yêu cầu hỗ trợ mobile",
+      "width": 390
+    },
+    {
+      "role": "STUDENT",
+      "name": "Thông báo",
+      "width": 1440
+    },
+    {
+      "role": "STUDENT",
+      "name": "Read notification",
+      "width": 1440
+    },
+    {
+      "role": "STUDENT",
+      "name": "Thông báo mobile",
+      "width": 390
+    },
+    {
+      "role": "APPLICANT",
+      "name": "overview",
+      "width": 1440
+    },
+    {
+      "role": "APPLICANT",
+      "name": "overview mobile",
+      "width": 390
+    },
+    {
+      "role": "APPLICANT",
+      "name": "Hồ sơ nhập học",
+      "width": 1440
+    },
+    {
+      "role": "APPLICANT",
+      "name": "Hồ sơ nhập học: Thêm hồ sơ nhập học",
+      "width": 1440
+    },
+    {
+      "role": "APPLICANT",
+      "name": "Hồ sơ nhập học: Thêm hồ sơ nhập học mobile",
+      "width": 390
+    },
+    {
+      "role": "APPLICANT",
+      "name": "Hồ sơ nhập học: Sửa",
+      "width": 1440
+    },
+    {
+      "role": "APPLICANT",
+      "name": "Hồ sơ nhập học: Sửa mobile",
+      "width": 390
+    },
+    {
+      "role": "APPLICANT",
+      "name": "Hồ sơ nhập học: Chi tiết hồ sơ",
+      "width": 1440
+    },
+    {
+      "role": "APPLICANT",
+      "name": "Hồ sơ nhập học: Chi tiết hồ sơ mobile",
+      "width": 390
+    },
+    {
+      "role": "APPLICANT",
+      "name": "Hồ sơ nhập học mobile",
+      "width": 390
+    },
+    {
+      "role": "APPLICANT",
+      "name": "Thông báo học vụ",
+      "width": 1440
+    },
+    {
+      "role": "APPLICANT",
+      "name": "Thông báo học vụ mobile",
+      "width": 390
+    }
+  ],
+  "dialogs": [
+    {
+      "role": "PRINCIPAL",
+      "menu": "Hồ sơ nhập học",
+      "control": "Chi tiết hồ sơ"
+    },
+    {
+      "role": "PRINCIPAL",
+      "menu": "Bảng điểm",
+      "control": "Lịch sử duyệt điểm"
+    },
+    {
+      "role": "PRINCIPAL",
+      "menu": "Bảng điểm",
+      "control": "Xem bảng điểm"
+    },
+    {
+      "role": "PRINCIPAL",
+      "menu": "Sinh viên",
+      "control": "Hồ sơ / ảnh"
+    },
+    {
+      "role": "PRINCIPAL",
+      "menu": "Hóa đơn học phí",
+      "control": "Chi tiết hóa đơn"
+    },
+    {
+      "role": "PRINCIPAL",
+      "menu": "Tài khoản",
+      "control": "Tạo tài khoản nhân sự"
+    },
+    {
+      "role": "PRINCIPAL",
+      "menu": "Tài khoản",
+      "control": "Xem chi tiết"
+    },
+    {
+      "role": "PRINCIPAL",
+      "menu": "Tài khoản",
+      "control": "Sửa"
+    },
+    {
+      "role": "PRINCIPAL",
+      "menu": "Tài khoản",
+      "control": "Gán vai trò"
+    },
+    {
+      "role": "PRINCIPAL",
+      "menu": "Đợt nhập học",
+      "control": "Thêm đợt nhập học"
+    },
+    {
+      "role": "PRINCIPAL",
+      "menu": "Đợt nhập học",
+      "control": "Xem chi tiết"
+    },
+    {
+      "role": "PRINCIPAL",
+      "menu": "Đợt nhập học",
+      "control": "Sửa"
+    },
+    {
+      "role": "PRINCIPAL",
+      "menu": "Đợt nhập học",
+      "control": "Giấy tờ yêu cầu"
+    },
+    {
+      "role": "PRINCIPAL",
+      "menu": "Đợt nhập học",
+      "control": "Thêm / sửa loại giấy tờ"
+    },
+    {
+      "role": "PRINCIPAL",
+      "menu": "Email trường",
+      "control": "Xem chi tiết"
+    },
+    {
+      "role": "PRINCIPAL",
+      "menu": "Email trường",
+      "control": "Cấu hình hộp thư"
+    },
+    {
+      "role": "PRINCIPAL",
+      "menu": "Thông báo học vụ",
+      "control": "Thêm thông báo học vụ"
+    },
+    {
+      "role": "PRINCIPAL",
+      "menu": "Thông báo học vụ",
+      "control": "Sửa"
+    },
+    {
+      "role": "PRINCIPAL",
+      "menu": "Thông báo học vụ",
+      "control": "Người nhận / đã đọc"
+    },
+    {
+      "role": "PRINCIPAL",
+      "menu": "Thông báo học vụ",
+      "control": "Gửi theo vai trò"
+    },
+    {
+      "role": "PRINCIPAL",
+      "menu": "Nhật ký hệ thống",
+      "control": "Xem chi tiết"
+    },
+    {
+      "role": "CTSV",
+      "menu": "Hồ sơ nhập học",
+      "control": "Chi tiết hồ sơ"
+    },
+    {
+      "role": "CTSV",
+      "menu": "Hóa đơn học phí",
+      "control": "Phát hành hóa đơn"
+    },
+    {
+      "role": "CTSV",
+      "menu": "Hóa đơn học phí",
+      "control": "Chi tiết hóa đơn"
+    },
+    {
+      "role": "CTSV",
+      "menu": "Khoản thu học phí",
+      "control": "Ghi nhận thu"
+    },
+    {
+      "role": "CTSV",
+      "menu": "Khoản thu học phí",
+      "control": "Xem chi tiết"
+    },
+    {
+      "role": "CTSV",
+      "menu": "Đơn giá học phí",
+      "control": "Thêm đơn giá học phí"
+    },
+    {
+      "role": "CTSV",
+      "menu": "Đơn giá học phí",
+      "control": "Xem chi tiết"
+    },
+    {
+      "role": "CTSV",
+      "menu": "Đơn giá học phí",
+      "control": "Sửa"
+    },
+    {
+      "role": "CTSV",
+      "menu": "Quỹ CTSV",
+      "control": "Thêm quỹ ctsv"
+    },
+    {
+      "role": "CTSV",
+      "menu": "Quỹ CTSV",
+      "control": "Xem chi tiết"
+    },
+    {
+      "role": "CTSV",
+      "menu": "Quỹ CTSV",
+      "control": "Sửa"
+    },
+    {
+      "role": "CTSV",
+      "menu": "Điều chỉnh học phí",
+      "control": "Đề nghị điều chỉnh"
+    },
+    {
+      "role": "CTSV",
+      "menu": "Bàn giao tiền",
+      "control": "Lập bàn giao"
+    },
+    {
+      "role": "CTSV",
+      "menu": "Báo cáo CTSV",
+      "control": "Lập / gửi báo cáo học kỳ"
+    },
+    {
+      "role": "CTSV",
+      "menu": "Yêu cầu sinh viên",
+      "control": "Nội dung"
+    },
+    {
+      "role": "CTSV",
+      "menu": "Thông báo học vụ",
+      "control": "Thêm thông báo học vụ"
+    },
+    {
+      "role": "CTSV",
+      "menu": "Thông báo học vụ",
+      "control": "Sửa"
+    },
+    {
+      "role": "CTSV",
+      "menu": "Thông báo học vụ",
+      "control": "Người nhận / đã đọc"
+    },
+    {
+      "role": "CTSV",
+      "menu": "Thông báo học vụ",
+      "control": "Gửi theo vai trò"
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "menu": "Sinh viên",
+      "control": "Sửa"
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "menu": "Sinh viên",
+      "control": "Hồ sơ / ảnh"
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "menu": "Giảng viên",
+      "control": "Thêm giảng viên"
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "menu": "Giảng viên",
+      "control": "Xem chi tiết"
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "menu": "Giảng viên",
+      "control": "Sửa"
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "menu": "Khoa",
+      "control": "Thêm khoa"
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "menu": "Khoa",
+      "control": "Xem chi tiết"
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "menu": "Khoa",
+      "control": "Sửa"
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "menu": "Ngành",
+      "control": "Thêm ngành"
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "menu": "Ngành",
+      "control": "Xem chi tiết"
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "menu": "Ngành",
+      "control": "Sửa"
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "menu": "Khóa tuyển sinh",
+      "control": "Thêm khóa tuyển sinh"
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "menu": "Khóa tuyển sinh",
+      "control": "Xem chi tiết"
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "menu": "Khóa tuyển sinh",
+      "control": "Sửa"
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "menu": "Lớp hành chính",
+      "control": "Thêm lớp hành chính"
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "menu": "Lớp hành chính",
+      "control": "Xem chi tiết"
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "menu": "Lớp hành chính",
+      "control": "Sửa"
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "menu": "Năm học",
+      "control": "Thêm năm học"
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "menu": "Năm học",
+      "control": "Xem chi tiết"
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "menu": "Năm học",
+      "control": "Sửa"
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "menu": "Học kỳ",
+      "control": "Thêm học kỳ"
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "menu": "Học kỳ",
+      "control": "Xem chi tiết"
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "menu": "Học kỳ",
+      "control": "Sửa"
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "menu": "Học phần",
+      "control": "Thêm học phần"
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "menu": "Học phần",
+      "control": "Xem chi tiết"
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "menu": "Học phần",
+      "control": "Sửa"
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "menu": "Chương trình đào tạo",
+      "control": "Thêm chương trình đào tạo"
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "menu": "Chương trình đào tạo",
+      "control": "Xem chi tiết"
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "menu": "Chương trình đào tạo",
+      "control": "Sửa"
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "menu": "Chương trình đào tạo",
+      "control": "Học phần trong chương trình"
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "menu": "Phòng học / phòng thi",
+      "control": "Thêm phòng học / phòng thi"
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "menu": "Phòng học / phòng thi",
+      "control": "Xem chi tiết"
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "menu": "Phòng học / phòng thi",
+      "control": "Sửa"
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "menu": "Loại kỳ thi",
+      "control": "Thêm loại kỳ thi"
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "menu": "Loại kỳ thi",
+      "control": "Xem chi tiết"
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "menu": "Loại kỳ thi",
+      "control": "Sửa"
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "menu": "Lớp học phần",
+      "control": "Thêm lớp học phần"
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "menu": "Lớp học phần",
+      "control": "Sửa"
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "menu": "Lớp học phần",
+      "control": "Chi tiết học phần"
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "menu": "Lớp học phần",
+      "control": "Lịch các buổi"
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "menu": "Lịch thi",
+      "control": "Thêm lịch thi"
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "menu": "Bảng điểm",
+      "control": "Lịch sử duyệt điểm"
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "menu": "Bảng điểm",
+      "control": "Xem bảng điểm"
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "menu": "Điểm cá nhân",
+      "control": "Xem chi tiết"
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "menu": "Hóa đơn học phí",
+      "control": "Chi tiết hóa đơn"
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "menu": "Yêu cầu sinh viên",
+      "control": "Nội dung"
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "menu": "Thông báo học vụ",
+      "control": "Thêm thông báo học vụ"
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "menu": "Thông báo học vụ",
+      "control": "Sửa"
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "menu": "Thông báo học vụ",
+      "control": "Người nhận / đã đọc"
+    },
+    {
+      "role": "TRAINING_OFFICE",
+      "menu": "Thông báo học vụ",
+      "control": "Gửi theo vai trò"
+    },
+    {
+      "role": "LECTURER",
+      "menu": "Lớp học phần",
+      "control": "Chi tiết học phần"
+    },
+    {
+      "role": "LECTURER",
+      "menu": "Lớp học phần",
+      "control": "Lịch các buổi"
+    },
+    {
+      "role": "LECTURER",
+      "menu": "Bảng điểm",
+      "control": "Lịch sử duyệt điểm"
+    },
+    {
+      "role": "LECTURER",
+      "menu": "Bảng điểm",
+      "control": "Xem bảng điểm"
+    },
+    {
+      "role": "LECTURER",
+      "menu": "Điểm cá nhân",
+      "control": "Xem chi tiết"
+    },
+    {
+      "role": "STUDENT",
+      "menu": "Tra cứu lớp học phần",
+      "control": "Chi tiết"
+    },
+    {
+      "role": "STUDENT",
+      "menu": "Đăng ký / hủy học phần",
+      "control": "Chi tiết"
+    },
+    {
+      "role": "STUDENT",
+      "menu": "Kết quả học tập",
+      "control": "Chi tiết"
+    },
+    {
+      "role": "STUDENT",
+      "menu": "Công nợ & hóa đơn",
+      "control": "Chi tiết"
+    },
+    {
+      "role": "STUDENT",
+      "menu": "Lịch sử thanh toán",
+      "control": "Chi tiết"
+    },
+    {
+      "role": "STUDENT",
+      "menu": "Yêu cầu hỗ trợ",
+      "control": "Gửi yêu cầu"
+    },
+    {
+      "role": "STUDENT",
+      "menu": "Yêu cầu hỗ trợ",
+      "control": "Nội dung"
+    },
+    {
+      "role": "APPLICANT",
+      "menu": "Hồ sơ nhập học",
+      "control": "Thêm hồ sơ nhập học"
+    },
+    {
+      "role": "APPLICANT",
+      "menu": "Hồ sơ nhập học",
+      "control": "Sửa"
+    },
+    {
+      "role": "APPLICANT",
+      "menu": "Hồ sơ nhập học",
+      "control": "Chi tiết hồ sơ"
+    }
+  ],
+  "issues": [],
+  "runtimeErrors": []
+}

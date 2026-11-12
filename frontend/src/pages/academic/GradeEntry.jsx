@@ -1,3 +1,5 @@
+import Pagination, { usePagination } from "../../components/common/Pagination.jsx";
+import { roster } from "../../data/workflows.js";
 import React, { useState } from "react";
 import "./GradeEntry.css";
 import Icon from "../../components/common/Icon.jsx";
@@ -42,27 +44,22 @@ import {
   csvDownload,
 } from "../../components/ui.jsx";
 
-export default function GradeEntry({ state, update, notify }) {
+export default function GradeEntry({ state, update, notify, selectedSectionId }) {
   const sections = state.sections.filter((s) => s.teacher === "Trần Quốc Huy");
-  const [sectionId, setSectionId] = useState(sections[0]?.id || "SEC-01");
+  const [sectionId, setSectionId] = useState(sections.some(item => item.id === selectedSectionId) ? selectedSectionId : sections[0]?.id || "");
   const [editing, setEditing] = useState(null);
   const [detailGrade, setDetailGrade] = useState(null);
   const sec = getSection(state, sectionId);
   const sheet = getGradeSheet(state, sectionId);
   const readOnly = !["DRAFT", "RETURNED"].includes(sheet.status);
-  const participants =
-    sectionId === "SEC-01"
-      ? state.students.slice(0, 3)
-      : sectionId === "SEC-03"
-        ? state.students.slice(0, 2)
-        : state.students.slice(1, 4);
+  const participants = roster(state, sectionId);
   const grades = participants.map((st) => ({
     student: st,
     grade: state.grades.find(
       (g) => g.studentId === st.id && g.sectionId === sectionId,
     ),
   }));
-  const validAll = grades.every(
+  const validAll = grades.length > 0 && grades.every(
     ({ grade: g }) =>
       g &&
       [g.attendance, g.midterm, g.final].every(
@@ -112,6 +109,7 @@ export default function GradeEntry({ state, update, notify }) {
     }));
     notify("Đã nộp bảng điểm lên Phòng Đào tạo.", "success");
   }
+  const pagination = usePagination(grades, sectionId);
   return (
     <>
       <PageHeader
@@ -128,7 +126,7 @@ export default function GradeEntry({ state, update, notify }) {
           >
             {sections.map((s) => (
               <option key={s.id} value={s.id}>
-                {s.code} – {getCourse(s.courseId)?.name}
+                {s.code} – {getCourse(s.courseId, state)?.name}
               </option>
             ))}
           </select>
@@ -147,7 +145,7 @@ export default function GradeEntry({ state, update, notify }) {
       )}
       <Card
         title={`Danh sách điểm – ${sec?.code}`}
-        subtitle="Tỷ trọng minh họa: 10% chuyên cần · 30% giữa kỳ · 60% cuối kỳ"
+        subtitle="Tỷ trọng: 10% chuyên cần · 30% giữa kỳ · 60% cuối kỳ"
         extra={
           !readOnly && (
             <Button icon="send" onClick={submitSheet} disabled={!validAll}>
@@ -171,7 +169,7 @@ export default function GradeEntry({ state, update, notify }) {
               </tr>
             </thead>
             <tbody>
-              {grades.map(({ student, grade: g }) => (
+              {pagination.rows.map(({ student, grade: g }) => (
                 <tr key={student.id}>
                   <td>{student.id}</td>
                   <td>
@@ -220,6 +218,8 @@ export default function GradeEntry({ state, update, notify }) {
               ))}
             </tbody>
           </table>
+      <Pagination {...pagination} />
+
         </div>
       </Card>
       <div className="hint-line">
@@ -276,7 +276,7 @@ export default function GradeEntry({ state, update, notify }) {
       {detailGrade && (
         <Modal
           title={`Chi tiết điểm · ${detailGrade.student.name}`}
-          subtitle={`${sec?.code} · ${getCourse(sec?.courseId)?.name}`}
+          subtitle={`${sec?.code} · ${getCourse(sec?.courseId, state)?.name}`}
           onClose={() => setDetailGrade(null)}
         >
           <div className="grade-detail-list">

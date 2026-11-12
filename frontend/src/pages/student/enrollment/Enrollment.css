@@ -207,3 +207,5 @@
   margin: 22px 0 10px;
   font-size: 20px;
 }
+.enrollment-checkout { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 20px; margin-bottom: 24px; background: #e7f2ec; border-radius: 12px; font-size: 17px; }
+@media (max-width: 740px) { .enrollment-checkout { flex-direction: column; align-items: flex-start; } }

@@ -5,7 +5,7 @@ export default function AppFooter() {
     <footer className="app-footer">
       <span>© 2026 EduPortal · Trường HVQ JISS</span>
       <span>
-        <span className="green-dot" /> Bản demo · Không dùng dữ liệu thật
+        <span className="green-dot" /> Cổng thông tin đào tạo
       </span>
     </footer>
   );

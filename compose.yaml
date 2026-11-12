@@ -1,0 +1,154 @@
+name: ${COMPOSE_PROJECT_NAME:-sms_local}
+services:
+  db:
+    image: mysql:8.4.5
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB_NAME:-sms_db}
+      MYSQL_ROOT_PASSWORD_FILE: /run/secrets/mysql_root_password
+      TZ: ${TZ:-Asia/Ho_Chi_Minh}
+    command: [--character-set-server=utf8mb4, --collation-server=utf8mb4_unicode_ci, --max-connections=150, --log-bin-trust-function-creators=1]
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./infrastructure/mysql/10-users.sh:/docker-entrypoint-initdb.d/10-users.sh:ro
+    secrets: [mysql_root_password, db_password, migrator_password]
+    networks: [data]
+    healthcheck:
+      test: [CMD-SHELL, 'MYSQL_PWD=$$(cat /run/secrets/mysql_root_password) mysql --protocol=socket --user=root --execute="SELECT 1" >/dev/null 2>&1']
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 60s
+    logging: &logging
+      driver: json-file
+      options: {max-size: 10m, max-file: '3'}
+  migrate:
+    build: {context: ., dockerfile: infrastructure/migration/Dockerfile}
+    image: sms-migration:${IMAGE_TAG:-local}
+    command: [migrate]
+    environment:
+      FLYWAY_URL: jdbc:mysql://db:3306/${DB_NAME:-sms_db}?allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=Asia/Ho_Chi_Minh
+      FLYWAY_USER: sms_migrator
+      FLYWAY_CONNECT_RETRIES: '60'
+      FLYWAY_CLEAN_DISABLED: 'true'
+      FLYWAY_VALIDATE_MIGRATION_NAMING: 'true'
+      SMS_SEED_DEMO: ${SMS_SEED_DEMO:-true}
+      SMS_ENVIRONMENT: ${SMS_ENVIRONMENT:-local}
+    secrets: [migrator_password]
+    depends_on:
+      db: {condition: service_healthy}
+    networks: [data]
+    logging: *logging
+  backend:
+    build: {context: ., dockerfile: backend/Dockerfile}
+    image: sms-backend:${IMAGE_TAG:-local}
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_CONFIG_IMPORT: optional:configtree:/run/secrets/
+      DB_URL: jdbc:mysql://db:3306/${DB_NAME:-sms_db}?allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=Asia/Ho_Chi_Minh
+      DB_USERNAME: sms_app
+      SMS_ENVIRONMENT: ${SMS_ENVIRONMENT:-local}
+      SESSION_SECURE: ${SESSION_SECURE:-false}
+      SMS_PUBLIC_URL: ${SMS_PUBLIC_URL:-http://localhost:8088}
+      SMS_BOOTSTRAP_ENABLED: ${SMS_BOOTSTRAP_ENABLED:-false}
+      SMS_BOOTSTRAP_USERNAME: ${SMS_BOOTSTRAP_USERNAME:-principal}
+      SMS_BOOTSTRAP_EMAIL: ${SMS_BOOTSTRAP_EMAIL:-principal@example.test}
+      SMS_MAIL_ENABLED: ${SMS_MAIL_ENABLED:-false}
+      SMS_OUTBOX_ENABLED: ${SMS_OUTBOX_ENABLED:-false}
+      SMS_SMTP_USERNAME: ${SMS_SMTP_USERNAME:-}
+      TZ: ${TZ:-Asia/Ho_Chi_Minh}
+    secrets:
+      - {source: db_password, target: DB_PASSWORD}
+      - {source: jwt_secret, target: SMS_JWT_SECRET}
+      - {source: identity_key, target: SMS_IDENTITY_KEY}
+      - {source: bootstrap_password, target: SMS_BOOTSTRAP_PASSWORD}
+      - {source: smtp_password, target: SMS_SMTP_PASSWORD}
+    volumes: [private_files:/app/private-files]
+    tmpfs: ['/tmp:uid=10001,gid=10001,mode=1770']
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    networks: [app, data, observability]
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+    logging: *logging
+  frontend:
+    build: {context: ., dockerfile: frontend/Dockerfile}
+    image: sms-frontend:${IMAGE_TAG:-local}
+    restart: unless-stopped
+    ports: ['${APP_BIND:-127.0.0.1}:${APP_PORT:-8088}:8080']
+    tmpfs: [/tmp]
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    networks: [app]
+    depends_on:
+      backend: {condition: service_healthy}
+    logging: *logging
+  provision:
+    image: sms-backend:${IMAGE_TAG:-local}
+    profiles: [tools]
+    entrypoint: [java, '-Dloader.main=com.sms.backend.bootstrap.DemoProvisioner', -cp, /app/backend.jar, org.springframework.boot.loader.launch.PropertiesLauncher]
+    environment:
+      DB_URL: jdbc:mysql://db:3306/${DB_NAME:-sms_db}?allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=Asia/Ho_Chi_Minh
+      SMS_ENVIRONMENT: local
+      SMS_SEED_DEMO: ${SMS_SEED_DEMO:-true}
+    secrets:
+      - {source: db_password, target: DB_PASSWORD}
+      - {source: demo_accounts, target: demo_accounts}
+    networks: [data]
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+  prometheus:
+    image: prom/prometheus:v3.4.1
+    profiles: [monitoring]
+    restart: unless-stopped
+    command: [--config.file=/etc/prometheus/prometheus.yml, --storage.tsdb.retention.time=15d]
+    ports: ['127.0.0.1:${PROMETHEUS_PORT:-9090}:9090']
+    volumes:
+      - ./infrastructure/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./infrastructure/monitoring/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus_data:/prometheus
+    networks: [observability, monitoring_edge]
+    logging: *logging
+  grafana:
+    image: grafana/grafana:12.0.2
+    profiles: [monitoring]
+    restart: unless-stopped
+    ports: ['127.0.0.1:${GRAFANA_PORT:-3000}:3000']
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD__FILE: /run/secrets/grafana_password
+      GF_ANALYTICS_REPORTING_ENABLED: 'false'
+      GF_ANALYTICS_CHECK_FOR_UPDATES: 'false'
+      GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES: 'false'
+      GF_USERS_ALLOW_SIGN_UP: 'false'
+      GF_AUTH_ANONYMOUS_ENABLED: 'false'
+    secrets: [grafana_password]
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./infrastructure/monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./infrastructure/monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    networks: [observability, monitoring_edge]
+    depends_on: [prometheus]
+    logging: *logging
+networks:
+  app: {}
+  monitoring_edge: {}
+  data: {internal: true}
+  observability: {internal: true}
+volumes:
+  mysql_data: {}
+  private_files: {}
+  prometheus_data: {}
+  grafana_data: {}
+secrets:
+  mysql_root_password: {file: '${SMS_SECRETS_DIR:-./.secrets}/mysql_root_password'}
+  db_password: {file: '${SMS_SECRETS_DIR:-./.secrets}/db_password'}
+  migrator_password: {file: '${SMS_SECRETS_DIR:-./.secrets}/migrator_password'}
+  jwt_secret: {file: '${SMS_SECRETS_DIR:-./.secrets}/jwt_secret'}
+  identity_key: {file: '${SMS_SECRETS_DIR:-./.secrets}/identity_key'}
+  bootstrap_password: {file: '${SMS_SECRETS_DIR:-./.secrets}/bootstrap_password'}
+  smtp_password: {file: '${SMS_SECRETS_DIR:-./.secrets}/smtp_password'}
+  grafana_password: {file: '${SMS_SECRETS_DIR:-./.secrets}/grafana_password'}
+  demo_accounts: {file: '${SMS_SECRETS_DIR:-./.secrets}/demo_accounts'}

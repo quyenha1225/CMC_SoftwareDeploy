@@ -1,0 +1,17 @@
+.application-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 24px; }
+.application-fields input[type=file] { height: auto; padding: 12px; max-width: 100%; }
+.application-row { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 22px 0; border-bottom: 1px solid #deebe1; }
+.application-row > div:last-child { display: flex; gap: 10px; flex-wrap: wrap; }
+.application-documents li { margin: 14px 0; overflow-wrap: anywhere; }
+.application-documents span { display: block; }
+.application-documents a { color: #26735b; text-decoration: underline; }
+.application-timeline li { padding: 8px 0; }
+.application-timeline p { margin: 5px 0; white-space: pre-wrap; }
+.application-error { color: #aa3932; }
+.application-receipt { padding: 20px; margin-bottom: 22px; background: #e1f1e5; border-radius: 14px; }
+.application-public { max-width: 1120px; padding: 42px 24px; margin: auto; }
+.application-public .card { margin-bottom: 24px; }
+.recovery-main { max-width: 550px; margin: 60px auto; padding: 0 20px; }
+.auth-text-button { display: block; margin-top: 16px; border: 0; padding: 8px 0; background: transparent; color: #246a55; text-decoration: underline; font: inherit; cursor: pointer; }
+.login-extra-actions { display: flex; justify-content: space-between; gap: 18px; flex-wrap: wrap; margin-top: 8px; }
+@media (max-width: 680px) { .application-fields { grid-template-columns: minmax(0, 1fr); } .application-row { align-items: flex-start; flex-direction: column; } }

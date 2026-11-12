@@ -1,0 +1,6 @@
+.finance-filters { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; margin-bottom: 22px; }
+.finance-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.document-check { display: flex; gap: 10px; align-items: center; margin-top: 10px; color: #246e56; }
+.fund-selection { display: flex; align-items: center; gap: 12px; padding: 15px; border-bottom: 1px solid #e0eae2; }
+.fund-selection input { width: 18px; height: 18px; }
+@media(max-width: 740px) { .finance-filters { grid-template-columns: 1fr; gap: 10px; } }

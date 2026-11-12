@@ -12,3 +12,18 @@
     font-size: 16px;
   }
 }
+.public-header .public-apply-link { padding: 12px; border: 0; background: transparent; color: #296e52; font: inherit; font-size: 16px; font-weight: 700; white-space: nowrap; }
+.public-header .public-search-toggle { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; border: 1px solid #dce8dd; background: #f3f8f1; color: #347154; }
+.public-header-search { position: absolute; right: clamp(20px, 5vw, 80px); top: calc(100% + 10px); width: min(520px, calc(100vw - 32px)); background: #fffefa; border: 1px solid #d9e6d9; border-radius: 14px; padding: 20px; box-shadow: 0 15px 40px #244f3924; }
+.public-header-search > label { display: block; color: #467057; font-size: 15px; margin-bottom: 12px; }
+.public-header-search > div { display: flex; gap: 8px; }
+.public-header-search input { min-width: 0; flex: 1; padding: 11px; border: 1px solid #ccdfce; border-radius: 8px; font: inherit; }
+.public-header-search button { background: #286c52; color: white; border: 0; border-radius: 8px; padding: 8px 12px; font: inherit; }
+@media (min-width: 981px) { .public-site .public-header { padding-left: clamp(24px, 4vw, 64px); padding-right: clamp(24px, 4vw, 64px); gap: 16px; } .public-site .public-header .public-nav { margin-right: 0; gap: 2px; } .public-site .public-header .public-nav a { padding: 13px 8px; font-size: 16px; } }
+@media (max-width: 1250px) {
+  .public-header .public-menu-toggle { display: grid; }
+  .public-header .public-nav { display: none; position: absolute; top: 100%; left: 0; right: 0; margin: 0; padding: 14px 24px; background: #f7faf2; border-bottom: 1px solid #dce8d9; box-shadow: 0 14px 25px #244f3915; flex-direction: column; align-items: stretch; }
+  .public-header .public-nav.public-nav-open { display: flex; }
+  .public-header .public-apply-link { text-align: left; }
+  .public-header .public-header-actions { margin-left: auto; }
+}

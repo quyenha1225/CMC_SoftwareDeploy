@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from "react";
 import "./Dashboard.css";
+import { invoices } from "../../../data/workflows.js";
 import Icon from "../../../components/common/Icon.jsx";
 import {
   STUDENT_ID,
@@ -45,7 +46,7 @@ export default function Dashboard({ role, state, account, navigate }) {
     .map((id) => getSection(state, id))
     .filter(Boolean);
   const credits = chosen.reduce(
-    (total, section) => total + (getCourse(section.courseId)?.credits || 0),
+    (total, section) => total + (getCourse(section.courseId, state)?.credits || 0),
     0,
   );
   const doneGrades = state.grades.filter(
@@ -54,19 +55,14 @@ export default function Dashboard({ role, state, account, navigate }) {
       getGradeSheet(state, grade.sectionId).status === "PUBLISHED" &&
       gradeTotal(grade) !== null,
   );
-  const gpa = doneGrades.length
+  const gradedCredits = doneGrades.reduce((sum, grade) => sum + (getCourse(getSection(state, grade.sectionId)?.courseId, state)?.credits || 0), 0);
+  const gpa = gradedCredits
     ? (
-        doneGrades.reduce((total, grade) => total + gradeTotal(grade), 0) /
-        doneGrades.length
+        doneGrades.reduce((total, grade) => total + gradeTotal(grade) * (getCourse(getSection(state, grade.sectionId)?.courseId, state)?.credits || 0), 0) /
+        gradedCredits
       ).toFixed(2)
     : "—";
-  const owing = Math.max(
-    0,
-    credits * PRICE_PER_CREDIT -
-      state.payments
-        .filter((payment) => payment.studentId === STUDENT_ID)
-        .reduce((total, payment) => total + payment.amount, 0),
-  );
+  const owing = invoices(state).filter(item => item.studentId === STUDENT_ID).reduce((sum, item) => sum + item.balance, 0);
   const outstandingSheets = state.gradeSheets.filter(
     (sheet) => sheet.status === "SUBMITTED" || sheet.status === "VERIFIED",
   );
@@ -178,7 +174,7 @@ export default function Dashboard({ role, state, account, navigate }) {
                         <span>{section.start}</span>
                       </div>
                       <div className="upcoming-info">
-                        <b>{getCourse(section.courseId)?.name}</b>
+                        <b>{getCourse(section.courseId, state)?.name}</b>
                         <p>
                           {section.teacher} · Phòng {section.room}
                         </p>

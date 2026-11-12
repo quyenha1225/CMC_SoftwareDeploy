@@ -44,12 +44,12 @@ import {
   csvDownload,
 } from "../../../components/ui.jsx";
 
-export default function GradeDetail({ selectedGrade, setSelectedGrade }) {
+export default function GradeDetail({ state, selectedGrade, setSelectedGrade }) {
   return (
     <>
 {selectedGrade && (
         <Modal
-          title={getCourse(selectedGrade.section?.courseId)?.name || "Chi tiết điểm"}
+          title={getCourse(selectedGrade.section?.courseId, state)?.name || "Chi tiết điểm"}
           subtitle={`${selectedGrade.section?.code} · ${semesterLabel(selectedGrade.section?.semester)}`}
           onClose={() => setSelectedGrade(null)}
         >
@@ -58,7 +58,7 @@ export default function GradeDetail({ selectedGrade, setSelectedGrade }) {
             <div><span>Giữa kỳ · 30%</span><strong>{selectedGrade.midterm?.toFixed(1) ?? "—"}</strong></div>
             <div><span>Cuối kỳ · 60%</span><strong>{selectedGrade.final?.toFixed(1) ?? "—"}</strong></div>
             <div><span>Tổng kết</span><strong>{gradeTotal(selectedGrade)?.toFixed(1) ?? "Chưa đủ điểm"}</strong></div>
-            <div><span>Tín chỉ</span><strong>{getCourse(selectedGrade.section?.courseId)?.credits}</strong></div>
+            <div><span>Tín chỉ</span><strong>{getCourse(selectedGrade.section?.courseId, state)?.credits}</strong></div>
             <div><span>Giảng viên</span><strong>{selectedGrade.section?.teacher}</strong></div>
           </div>
           {selectedGrade.note && <p className="grade-detail-note">Nhận xét: {selectedGrade.note}</p>}

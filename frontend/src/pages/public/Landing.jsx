@@ -1,4 +1,5 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import Events from "../events/Events.jsx";
 import AppFooter from "../../components/landing/SiteFooter.jsx";
 import LandingHero from "../../components/landing/LandingHero.jsx";
 import PublicHeader from "../../components/landing/PublicHeader.jsx";
@@ -9,9 +10,11 @@ import UsageGuide from "../../components/landing/UsageGuide.jsx";
 import "../../styles/public-site.css";
 import "./Landing.css";
 
-export default function Landing({ onLogin }) {
+export default function Landing({ onLogin, onApply, state, update, onOpenEvent, sqlOnly=false }) {
+  const [query, setQuery] = useState("");
   const landingRef = useRef(null);
   useEffect(() => {
+    if (window.location.hash === "#events") requestAnimationFrame(() => document.getElementById("events")?.scrollIntoView({ block: "start" }));
     if (!window.IntersectionObserver || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const elements = landingRef.current.querySelectorAll(".section-heading, .program-card, .student-service-card, .regulation-list article, .guide-grid article");
     const observer = new IntersectionObserver((entries) => {
@@ -33,9 +36,10 @@ export default function Landing({ onLogin }) {
   }, []);
   return (
     <div className="public-site" id="top" ref={landingRef}>
-      <PublicHeader onLogin={onLogin} />
+      <PublicHeader sqlOnly={sqlOnly} onLogin={onLogin} onApply={onApply} onSearch={sqlOnly?undefined:value => { setQuery(value); document.getElementById("events")?.scrollIntoView({ behavior: "smooth", block: "start" }); }} />
       <main>
         <LandingHero onLogin={onLogin} />
+        {!sqlOnly&&<Events state={state} update={update} publicView onLogin={onLogin} onOpen={onOpenEvent} search={query} onSearch={setQuery} />}
         <TrainingSection onLogin={onLogin} />
         <StudentServices onLogin={onLogin} />
         <RegulationsSection onLogin={onLogin} />

@@ -1,0 +1,13 @@
+frontend/.npm-cache/
+backend/private-files/
+.env
+.env.local
+.env.*
+!.env.example
+**/.local/
+*.log
+
+.secrets/
+backups/
+artifacts/
+frontend/coverage/

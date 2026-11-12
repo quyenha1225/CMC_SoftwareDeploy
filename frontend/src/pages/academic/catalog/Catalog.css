@@ -1,0 +1,4 @@
+.catalog-tabs { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 24px; }
+.catalog-tabs button { display: flex; align-items: center; gap: 12px; border: 1px solid #d8e6dc; background: #fff; color: #577462; border-radius: 12px; padding: 13px 18px; font: inherit; transition: background 180ms ease; }
+.catalog-tabs button.active { background: #236c55; color: white; border-color: #236c55; box-shadow: 0 6px 16px #246e5620; }
+.catalog-tabs button span { font-size: 13px; padding: 2px 7px; background: #88ae8e25; border-radius: 6px; }

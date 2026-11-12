@@ -7,6 +7,24 @@
   --shadow: 0 10px 32px rgb(24 70 51 / 6%);
   --motion-ease: cubic-bezier(.22, 1, .36, 1);
 }
+.viewport-dialog { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px; background: #112e3a75; backdrop-filter: blur(5px); }
+.viewport-dialog .modal { width: min(640px, 100%); max-height: calc(100dvh - 40px); display: flex; flex-direction: column; margin: 0; border-radius: 18px; background: #fff; color: var(--text); box-shadow: 0 24px 80px #123d3938; animation: dialog-arrive 250ms var(--motion-ease) both; }
+.viewport-dialog .modal-wide { width: min(1000px, 100%); }
+.viewport-dialog .modal-head { flex-shrink: 0; }
+.viewport-dialog .modal-body { overflow-y: auto; min-height: 0; overscroll-behavior: contain; }
+@media (prefers-reduced-motion: reduce) { .viewport-dialog .modal { animation: none; } }
+
+.page-loading { min-height: 65vh; display: flex; align-items: center; justify-content: center; gap: 14px; color: #2b6d55; font-size: 18px; background: #f4f8f2; }
+.page-loading > span { width: 24px; height: 24px; border: 3px solid #dceade; border-top-color: #28765b; border-radius: 50%; animation: loading-spin 800ms linear infinite; }
+@keyframes loading-spin { to { transform: rotate(360deg); } }
+.app-layout .data-table { font-variant-numeric: tabular-nums; }
+.app-layout .semester-tabs { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 18px; }
+.app-layout .semester-tabs button { padding: 11px 15px; border: 1px solid #d9e6dd; border-radius: 10px; background: white; color: #557461; font: inherit; }
+.app-layout .semester-tabs button.active { background: #e5f1e8; color: #23684f; border-color: #91baa0; }
+.app-layout .data-table td { overflow-wrap: anywhere; }
+.app-layout .data-table tbody tr { animation: none; }
+.app-layout .card { margin-bottom: 22px; }
+@media (prefers-reduced-motion: reduce) { .page-loading > span { animation: none; } }
 
 .app-layout {
   background: radial-gradient(ellipse at 92% 0%, #dceee3 0, transparent 45%), #f3f7f3;

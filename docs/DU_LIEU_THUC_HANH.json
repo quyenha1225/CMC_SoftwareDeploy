@@ -1,0 +1,131 @@
+{
+  "purpose": "Bộ dữ liệu thực hành, không phải hồ sơ chính thức của trường",
+  "students": [
+    {
+      "username": "student_demo_001",
+      "old_code": "DEMO26001",
+      "student_code": "SV260001",
+      "full_name": "Lê Minh Mai",
+      "gender": "FEMALE",
+      "hometown": "Hà Nội",
+      "address": "12 Nguyễn Trãi, Thanh Xuân, Hà Nội",
+      "current_address": "Ký túc xá khu A, Hà Nội",
+      "guardian": "Lê Văn Thành",
+      "email": "le.minh.mai@example.test",
+      "school_email": "leminhmai.sv26@students.edu.test",
+      "class_code": "KTPM26-A"
+    },
+    {
+      "username": "student_demo_002",
+      "old_code": "DEMO26002",
+      "student_code": "SV260002",
+      "full_name": "Nguyễn Hoàng Nam",
+      "gender": "MALE",
+      "hometown": "Bắc Ninh",
+      "address": "25 Lý Thái Tổ, Bắc Ninh",
+      "current_address": "Ký túc xá khu A, Hà Nội",
+      "guardian": "Nguyễn Văn Hùng",
+      "email": "nguyen.hoang.nam@example.test",
+      "school_email": "nguyenhoangnam.sv26@students.edu.test",
+      "class_code": "KTPM26-A"
+    },
+    {
+      "username": "student_demo_003",
+      "old_code": "DEMO26003",
+      "student_code": "SV260003",
+      "full_name": "Trần Thu Hà",
+      "gender": "FEMALE",
+      "hometown": "Nam Định",
+      "address": "18 Trần Hưng Đạo, Nam Định",
+      "current_address": "Ký túc xá khu B, Hà Nội",
+      "guardian": "Trần Văn Phúc",
+      "email": "tran.thu.ha@example.test",
+      "school_email": "tranthuha.sv26@students.edu.test",
+      "class_code": "KTPM26-A"
+    },
+    {
+      "username": "student_demo_004",
+      "old_code": "DEMO26004",
+      "student_code": "SV260004",
+      "full_name": "Phạm Quốc Bảo",
+      "gender": "MALE",
+      "hometown": "Hải Phòng",
+      "address": "32 Lạch Tray, Hải Phòng",
+      "current_address": "Ký túc xá khu A, Hà Nội",
+      "guardian": "Phạm Văn Quang",
+      "email": "pham.quoc.bao@example.test",
+      "school_email": "phamquocbao.sv26@students.edu.test",
+      "class_code": "KTPM26-A"
+    },
+    {
+      "username": "student_demo_005",
+      "old_code": "DEMO25005",
+      "student_code": "SV250005",
+      "full_name": "Đỗ Khánh Linh",
+      "gender": "FEMALE",
+      "hometown": "Hà Nam",
+      "address": "16 Lê Lợi, Hà Nam",
+      "current_address": "Ký túc xá khu B, Hà Nội",
+      "guardian": "Đỗ Thị Lan",
+      "email": "do.khanh.linh@example.test",
+      "school_email": "dokhanhlinh.sv25@students.edu.test",
+      "class_code": "HTTT25-A"
+    },
+    {
+      "username": "student_demo_006",
+      "old_code": "DEMO26006",
+      "student_code": "SV260006",
+      "full_name": "Vũ Đức Minh",
+      "gender": "MALE",
+      "hometown": "Hưng Yên",
+      "address": "28 Nguyễn Văn Linh, Hưng Yên",
+      "current_address": "Ký túc xá khu A, Hà Nội",
+      "guardian": "Vũ Văn Hải",
+      "email": "vu.duc.minh@example.test",
+      "school_email": "vuducminh.sv26@students.edu.test",
+      "class_code": "QTKD26-A"
+    }
+  ],
+  "staff": [
+    {
+      "username": "principal_demo",
+      "full_name": "Nguyễn Thanh Hà",
+      "email": "nguyen.thanh.ha@example.test"
+    },
+    {
+      "username": "training_demo",
+      "full_name": "Phạm Thị Hương",
+      "email": "pham.thi.huong@example.test"
+    },
+    {
+      "username": "lecturer_demo_01",
+      "full_name": "Trần Quốc Huy",
+      "email": "tran.quoc.huy@example.test"
+    },
+    {
+      "username": "lecturer_demo_02",
+      "full_name": "Nguyễn Thị Lan",
+      "email": "nguyen.thi.lan@example.test"
+    },
+    {
+      "username": "lecturer_demo_03",
+      "full_name": "Lê Anh Tuấn",
+      "email": "le.anh.tuan@example.test"
+    },
+    {
+      "username": "ctsv_demo",
+      "full_name": "Đặng Thu Trang",
+      "email": "dang.thu.trang@example.test"
+    },
+    {
+      "username": "applicant_demo_03",
+      "full_name": "Nguyễn Gia Huy",
+      "email": "nguyen.gia.huy@example.test"
+    },
+    {
+      "username": "applicant_demo_04",
+      "full_name": "Bùi Ngọc Anh",
+      "email": "bui.ngoc.anh@example.test"
+    }
+  ]
+}

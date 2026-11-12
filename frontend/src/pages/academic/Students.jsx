@@ -1,3 +1,4 @@
+import Pagination, { usePagination } from "../../components/common/Pagination.jsx";
 import React, { useState } from "react";
 import "./Students.css";
 import Icon from "../../components/common/Icon.jsx";
@@ -57,6 +58,8 @@ export default function Students({ state, update, notify }) {
     (request) => request.status === "PENDING",
   );
   function save() {
+    const chosenClass = state.classes.find(item => item.name === edit.className);
+    if (!chosenClass || state.majors.find(item => item.id === chosenClass.majorId)?.name !== edit.major) return notify("Lớp hành chính phải thuộc ngành đã chọn.", "error");
     if (
       !edit.name.trim() ||
       !edit.id.trim() ||
@@ -80,14 +83,15 @@ export default function Students({ state, update, notify }) {
         ...s,
         students: s.students.map((student) =>
           student.id === edit.originalId
-            ? { ...edit, name: edit.name.trim() }
+            ? { ...edit, classId: chosenClass.id, name: edit.name.trim() }
             : student,
         ),
       }));
-      notify("Đã cập nhật hồ sơ sinh viên trong dữ liệu demo.", "success");
+      notify("Đã cập nhật hồ sơ sinh viên.", "success");
     } else {
       const student = {
         ...edit,
+        classId: chosenClass.id,
         name: edit.name.trim(),
         id: edit.id.trim(),
         status: "STUDYING",
@@ -108,6 +112,7 @@ export default function Students({ state, update, notify }) {
     }
     setEdit(null);
   }
+  const pagination = usePagination(list, q + filter);
   return (
     <>
       <PageHeader
@@ -141,7 +146,7 @@ export default function Students({ state, update, notify }) {
           icon="users"
           label="Tổng hồ sơ"
           value={number(state.students.length)}
-          hint="Dữ liệu demo"
+          hint="Tổng hợp hồ sơ sinh viên"
         />
         <Stat
           icon="checkcircle"
@@ -214,7 +219,7 @@ export default function Students({ state, update, notify }) {
       </Card>
       <Card
         title="Danh sách sinh viên"
-        subtitle="Thông tin mô phỏng dùng để xây dựng giao diện"
+        subtitle="Thông tin sinh viên và trạng thái học tập"
         extra={
           <div className="table-tools">
             <div className="searchbox">
@@ -252,13 +257,14 @@ export default function Students({ state, update, notify }) {
               </tr>
             </thead>
             <tbody>
-              {list.map((s) => (
+              {pagination.rows.map((s) => (
                 <tr key={s.id}>
                   <td>
                     <div className="person-cell">
                       <Avatar name={s.name} size="sm" />
                       <b>{s.name}</b>
                     </div>
+                    <small className="cell-sub">{s.schoolEmail || "Chưa cấp email trường"}</small>
                   </td>
                   <td>{s.id}</td>
                   <td>{s.className}</td>
@@ -283,6 +289,8 @@ export default function Students({ state, update, notify }) {
               ))}
             </tbody>
           </table>
+      <Pagination {...pagination} />
+
           {list.length === 0 && <Empty title="Không tìm thấy sinh viên" />}
         </div>
       </Card>
@@ -291,7 +299,7 @@ export default function Students({ state, update, notify }) {
           title={edit.originalId ? "Cập nhật hồ sơ" : "Ghi nhận sinh viên mới"}
           subtitle={
             edit.originalId
-              ? "Cập nhật dữ liệu demo."
+              ? "Cập nhật thông tin sinh viên."
               : "Hồ sơ sẽ được gửi Ban Giám hiệu phê duyệt trước khi thêm vào danh sách chính thức."
           }
           onClose={() => setEdit(null)}
@@ -315,22 +323,10 @@ export default function Students({ state, update, notify }) {
               />
             </Field>
             <Field label="Lớp hành chính">
-              <input
-                className="control"
-                value={edit.className}
-                onChange={(e) =>
-                  setEdit((s) => ({ ...s, className: e.target.value }))
-                }
-              />
+              <select className="control" value={edit.className} onChange={event => setEdit({ ...edit, className: event.target.value })}><option value="">Chọn lớp</option>{state.classes.filter(item => state.majors.find(major => major.id === item.majorId)?.name === edit.major).map(item => <option key={item.id} value={item.name}>{item.name}</option>)}</select>
             </Field>
             <Field label="Ngành học">
-              <input
-                className="control"
-                value={edit.major}
-                onChange={(e) =>
-                  setEdit((s) => ({ ...s, major: e.target.value }))
-                }
-              />
+              <select className="control" value={edit.major} onChange={event => setEdit({ ...edit, major: event.target.value, className: "" })}>{state.majors.map(item => <option key={item.id} value={item.name}>{item.name}</option>)}</select>
             </Field>
             {edit.originalId && (
               <Field label="Trạng thái">

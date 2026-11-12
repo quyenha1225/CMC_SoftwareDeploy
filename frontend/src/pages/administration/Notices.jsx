@@ -1,3 +1,4 @@
+import Pagination, { usePagination } from "../../components/common/Pagination.jsx";
 import React, { useState } from "react";
 import "./Notices.css";
 import Icon from "../../components/common/Icon.jsx";
@@ -78,6 +79,7 @@ export default function Notices({ state, role, update, notify }) {
       notice.audience === "all" ||
       notice.audience === role,
   );
+  const pagination = usePagination(visibleAnnouncements, role);
   return (
     <>
       <PageHeader
@@ -92,7 +94,7 @@ export default function Notices({ state, role, update, notify }) {
         }
       />
       <div className="announcements">
-        {visibleAnnouncements.map((n) => (
+        {pagination.rows.map((n) => (
           <Card key={n.id} className="announcement">
             <div className="announcement-body">
               <div
@@ -119,6 +121,8 @@ export default function Notices({ state, role, update, notify }) {
           </Card>
         ))}
       </div>
+      <Pagination {...pagination} />
+
       {open && (
         <Modal title="Tạo thông báo" onClose={() => setOpen(false)}>
           <form onSubmit={submit}>

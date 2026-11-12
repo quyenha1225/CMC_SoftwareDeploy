@@ -1,0 +1,22 @@
+.admin-welcome { display: flex; align-items: center; justify-content: space-between; gap: 30px; padding: 34px; background: linear-gradient(110deg, #182f45, #27565c); color: #f2f6f4; border-radius: 18px; margin-bottom: 25px; }
+.admin-welcome h1 { margin: 14px 0; font-size: clamp(28px, 3vw, 40px); }
+.admin-welcome p { color: #d1dfdd; line-height: 1.7; max-width: 630px; margin-bottom: 24px; }
+.admin-eyebrow { font-size: 12px; letter-spacing: .15em; color: #b7d2cf; }
+.admin-welcome-mark { display: grid; place-items: center; width: 170px; height: 170px; border: 1px solid #ffffff25; border-radius: 50%; background: #ffffff08; flex-shrink: 0; }
+.admin-task-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 22px; }
+.admin-task-title { display: flex; align-items: center; gap: 12px; justify-content: space-between; }
+.admin-task-title h2 { color: #263f4d; font-size: 22px; }
+.admin-task p { color: #6b7d83; line-height: 1.7; min-height: 55px; }
+.admin-task-icon { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 13px; color: #365d6d; background: #eaf0f2; }
+.admin-activity > div { display: flex; align-items: center; gap: 14px; padding: 17px 0; border-bottom: 1px solid #e3ebed; color: #3f6c66; }
+.admin-activity small { display: block; margin-top: 5px; color: #7c8c92; }
+.app-layout.admin-layout .sidebar { background: #193044; border-right-color: #274458; color: #dce8eb; }
+.app-layout.admin-layout .brand strong, .app-layout.admin-layout .nav-item { color: #dce8eb; }
+.app-layout.admin-layout .workspace { background: #ffffff08; border-color: #ffffff1a; }
+.app-layout.admin-layout .workspace b { color: #e5f0ee; }
+.app-layout.admin-layout .nav-active, .app-layout.admin-layout .nav-item:hover { background: #ffffff12; color: #fff; }
+.app-layout.admin-layout .nav-active::before { background: #86bfb6; }
+.app-layout.admin-layout .sidebar-help { display: none; }
+.app-layout.admin-layout .topbar { border-bottom: 3px solid #274c5a; }
+.app-layout.admin-layout { background: #f0f4f6; }
+@media (max-width: 1000px) { .admin-task-grid { grid-template-columns: 1fr; } .admin-welcome-mark { display: none; } }

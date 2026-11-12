@@ -1,3 +1,4 @@
+import Pagination, { usePagination } from "../../../components/common/Pagination.jsx";
 import GradeDetail from "./GradeDetail.jsx";
 import React, { useState } from "react";
 import "./Results.css";
@@ -62,25 +63,28 @@ export default function Results({ state }) {
   const visibleRows = rows.filter((row) => row.section?.semester === semester);
   const semesterTotal = visibleRows.reduce(
     (sum, grade) =>
-      sum + gradeTotal(grade) * (getCourse(grade.section?.courseId)?.credits || 0),
+      sum + gradeTotal(grade) * (getCourse(grade.section?.courseId, state)?.credits || 0),
     0,
   );
   const credits = visibleRows.reduce(
-    (a, g) => a + (getCourse(g.section?.courseId)?.credits || 0),
+    (a, g) => a + (getCourse(g.section?.courseId, state)?.credits || 0),
     0,
   );
   const avg = credits ? (semesterTotal / credits).toFixed(2) : "—";
+
+
+  const pagination = usePagination(visibleRows, semester);
   return (
     <>
       <PageHeader
         title="Kết quả học tập"
-        description={`Tra cứu điểm đã công bố · ${semesterLabel(semester)}${semesterDates(semester)?.startsOn ? ` · ${new Date(`${semesterDates(semester).startsOn}T12:00:00`).toLocaleDateString("vi-VN")} – ${new Date(`${semesterDates(semester).endsOn}T12:00:00`).toLocaleDateString("vi-VN")}` : ""}.`}
+        description={`Tra cứu điểm đã công bố · ${semesterLabel(semester)}${semesterDates(semester, state)?.startsOn ? ` · ${new Date(`${semesterDates(semester, state).startsOn}T12:00:00`).toLocaleDateString("vi-VN")} – ${new Date(`${semesterDates(semester, state).endsOn}T12:00:00`).toLocaleDateString("vi-VN")}` : ""}.`}
         action={
           <Button
             kind="outline"
             icon="download"
             onClick={() =>
-              csvDownload("bang-diem-demo.csv", [
+              csvDownload("bang-diem.csv", [
                 [
                   "Học phần",
                   "Tín chỉ",
@@ -90,8 +94,8 @@ export default function Results({ state }) {
                   "Tổng kết",
                 ],
                 ...rows.map((g) => [
-                  getCourse(g.section?.courseId)?.name,
-                  getCourse(g.section?.courseId)?.credits,
+                  getCourse(g.section?.courseId, state)?.name,
+                  getCourse(g.section?.courseId, state)?.credits,
                   g.attendance,
                   g.midterm,
                   g.final,
@@ -122,7 +126,7 @@ export default function Results({ state }) {
           icon="graduation"
           label="Tín chỉ có kết quả"
           value={`${credits}`}
-          hint="Theo dữ liệu mẫu"
+          hint="Theo học kỳ đã chọn"
           tone="purple"
         />
       </div>
@@ -159,13 +163,13 @@ export default function Results({ state }) {
               </tr>
             </thead>
             <tbody>
-              {visibleRows.map((g) => (
+              {pagination.rows.map((g) => (
                 <tr key={g.sectionId}>
                   <td>
-                    <b>{getCourse(g.section?.courseId)?.name}</b>
+                    <b>{getCourse(g.section?.courseId, state)?.name}</b>
                     <small className="cell-sub">{g.section?.code}</small>
                   </td>
-                  <td>{getCourse(g.section?.courseId)?.credits}</td>
+                  <td>{getCourse(g.section?.courseId, state)?.credits}</td>
                   <td>{g.attendance?.toFixed(1)}</td>
                   <td>{g.midterm?.toFixed(1)}</td>
                   <td>{g.final?.toFixed(1)}</td>
@@ -186,14 +190,15 @@ export default function Results({ state }) {
               ))}
             </tbody>
           </table>
+      <Pagination {...pagination} />
+
           {rows.length === 0 && <Empty title="Chưa có kết quả chính thức" />}
         </div>
       </Card>
-      <GradeDetail selectedGrade={selectedGrade} setSelectedGrade={setSelectedGrade} />
+      <GradeDetail state={state} selectedGrade={selectedGrade} setSelectedGrade={setSelectedGrade} />
       <div className="hint-line">
         <Icon name="shield" size={16} /> Điểm tổng kết được tính: 10% chuyên cần
-        + 30% giữa kỳ + 60% cuối kỳ (công thức demo; có thể cấu hình theo học
-        phần khi có backend).
+        + 30% giữa kỳ + 60% cuối kỳ .
       </div>
     </>
   );

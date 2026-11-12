@@ -45,19 +45,19 @@ import {
 export default function Profile({ role, state, update, notify }) {
   const account = ACCOUNTS.find((a) => a.role === role);
   const student = state.students.find((s) => s.id === STUDENT_ID);
-  const [form, setForm] = useState(state.profile);
+  const [form, setForm] = useState(state.profiles?.[role] || (role === "student" ? state.profile : { email: account?.email || "", phone: "", address: "" }));
   function save(e) {
     e.preventDefault();
     if (!form.email.includes("@"))
       return notify("Địa chỉ email chưa hợp lệ.", "error");
-    update((s) => ({ ...s, profile: form }));
-    notify("Đã lưu thông tin liên hệ trong trình duyệt.", "success");
+    update((s) => ({ ...s, profiles: { ...s.profiles, [role]: form }, ...(role === "student" ? { profile: form } : {}) }));
+    notify("Đã cập nhật thông tin liên hệ.", "success");
   }
   return (
     <>
       <PageHeader
         title="Hồ sơ cá nhân"
-        description="Xem thông tin tài khoản và cập nhật liên hệ của bạn trong bản demo."
+        description="Xem thông tin tài khoản và cập nhật liên hệ của bạn."
       />
       <div className="profile-grid">
         <Card className="profile-main" id="profile-view">
@@ -69,7 +69,7 @@ export default function Profile({ role, state, update, notify }) {
             <h2>{account?.name}</h2>
             <p>{ROLE_NAMES[role]}</p>
             <Badge tone="green" dot>
-              Tài khoản demo
+              Tài khoản học vụ
             </Badge>
           </div>
           <TextRows
@@ -77,6 +77,8 @@ export default function Profile({ role, state, update, notify }) {
               role === "student"
                 ? [
                     ["Mã sinh viên", STUDENT_ID],
+                    ["Email trường", student?.schoolEmail || "Chưa cấp"],
+                    ["Trạng thái email", student?.emailStatus === "ACTIVE" ? "Đã kích hoạt" : "Chưa kích hoạt"],
                     ["Lớp hành chính", student?.className],
                     ["Ngành học", student?.major],
                     ["Khóa", student?.year],
@@ -85,14 +87,14 @@ export default function Profile({ role, state, update, notify }) {
                 : [
                     ["Vai trò", ROLE_NAMES[role]],
                     ["Đơn vị", "Hệ thống đào tạo"],
-                    ["Loại tài khoản", "Demo"],
+                    ["Loại tài khoản", ROLE_NAMES[role]],
                   ]
             }
           />
         </Card>
         <Card
           title="Thông tin liên hệ"
-          subtitle="Lưu cục bộ, không cập nhật MySQL"
+          subtitle="Cập nhật thông tin liên hệ"
           id="profile-registration"
         >
           <form onSubmit={save}>

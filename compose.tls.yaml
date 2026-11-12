@@ -1,0 +1,16 @@
+services:
+  gateway:
+    image: caddy:2.10.0-alpine
+    restart: unless-stopped
+    ports: ['80:80', '443:443']
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN:?Set the public DNS domain}
+    volumes:
+      - ./infrastructure/tls/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks: [app]
+    depends_on: [frontend]
+volumes:
+  caddy_data: {}
+  caddy_config: {}

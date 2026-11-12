@@ -1,3 +1,5 @@
+import { roster as sectionRoster } from "../../../data/workflows.js";
+import HourlyCalendar from "./HourlyCalendar.jsx";
 import React, { useMemo, useState } from "react";
 import "./Schedule.css";
 import Icon from "../../../components/common/Icon.jsx";
@@ -22,12 +24,6 @@ import {
   displayDay,
 } from "../../../components/ui.jsx";
 
-const TIMES = [
-  ["07:30", "09:50"],
-  ["09:55", "12:15"],
-  ["13:00", "15:20"],
-  ["15:25", "17:45"],
-];
 const parseDate = (value) => new Date(`${value}T12:00:00`);
 const mondayOf = (date) => {
   const monday = new Date(date);
@@ -41,7 +37,7 @@ const shortDate = (date) =>
   date.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit" });
 const displayDate = (date) => date.toLocaleDateString("vi-VN");
 
-export default function Schedule({ state, role, update, notify, view = "classes", onViewChange }) {
+export default function Schedule({ state, role, update, notify, view = "classes" }) {
   const [selectedSection, setSelectedSection] = useState(null);
   const [editingSection, setEditingSection] = useState(null);
   const semesters = useMemo(
@@ -61,7 +57,7 @@ export default function Schedule({ state, role, update, notify, view = "classes"
       semesters[0] ||
       "",
   );
-  const semesterPeriod = semesterDates(semester);
+  const semesterPeriod = semesterDates(semester, state);
   const today = new Date();
   const todayWithinSemester =
     semesterPeriod &&
@@ -107,22 +103,7 @@ export default function Schedule({ state, role, update, notify, view = "classes"
       return date;
     });
   })();
-  const roster = selectedSection
-    ? [
-        ...new Set([
-          ...state.grades
-            .filter((grade) => grade.sectionId === selectedSection.id)
-            .map((grade) => grade.studentId),
-          ...(state.enrollmentIds.includes(selectedSection.id)
-            ? [STUDENT_ID]
-            : []),
-        ]),
-      ]
-        .map((studentId) =>
-          state.students.find((student) => student.id === studentId),
-        )
-        .filter(Boolean)
-    : [];
+  const roster = selectedSection ? sectionRoster(state, selectedSection.id) : [];
   const inSemester = (date) =>
     !semesterPeriod ||
     (dateKey(date) >= semesterPeriod.startsOn &&
@@ -138,7 +119,7 @@ export default function Schedule({ state, role, update, notify, view = "classes"
       : [];
   const chooseSemester = (term) => {
     setSemester(term);
-    const startsOn = semesterDates(term)?.startsOn;
+    const startsOn = semesterDates(term, state)?.startsOn;
     if (startsOn) {
       const date = parseDate(startsOn);
       setSelectedDate(date);
@@ -181,7 +162,7 @@ export default function Schedule({ state, role, update, notify, view = "classes"
     const conflict = state.sections.some(
       (section) =>
         section.id !== editingSection.id &&
-        section.teacher === "Trần Quốc Huy" &&
+        (section.teacher === editingSection.teacher || section.room === editingSection.room.trim()) &&
         section.semester === editingSection.semester &&
         section.day === Number(editingSection.day) &&
         section.start < editingSection.end &&
@@ -233,17 +214,6 @@ export default function Schedule({ state, role, update, notify, view = "classes"
           </button>
         ))}
       </div>
-      <div className="schedule-view-picker">
-        <span className="schedule-view-icon"><Icon name={view === "exams" ? "grades" : "calendar"} size={23} /></span>
-        <label>
-          <span>TRA CỨU LỊCH CÁ NHÂN</span>
-          <select aria-label="Chọn lịch học hoặc lịch thi" value={view} onChange={event => onViewChange?.(event.target.value)}>
-            <option value="classes">Lịch học</option>
-            <option value="exams">Lịch thi</option>
-          </select>
-        </label>
-        <Icon name="down" size={19} />
-      </div>
       {view === "classes" && <>
       <div className="week-summary">
         <div>
@@ -252,7 +222,7 @@ export default function Schedule({ state, role, update, notify, view = "classes"
             <b>
               {shortDate(weekDates[0])} – {shortDate(weekDates[5])}
             </b>
-            <span>{todayVN()} · Chọn ngày để xem lịch tuần</span>
+            <span>{todayVN()} · 07:00–19:00 · Chọn ngày để xem lịch tuần</span>
           </div>
         </div>
         <div className="week-summary-actions">
@@ -293,51 +263,7 @@ export default function Schedule({ state, role, update, notify, view = "classes"
       </div>
       <div className="schedule-content">
         <Card className="calendar-card">
-          <div className="schedule-wrap">
-            <div className="schedule-grid" key={dateKey(weekDates[0])}>
-              <div className="schedule-head time-col">Ca học</div>
-              {weekDates.map((date) => (
-                <div className="schedule-head" key={dateKey(date)}>
-                  <span>{WEEKDAYS[isoDay(date) - 1]}</span>
-                  <b>{shortDate(date)}</b>
-                </div>
-              ))}
-              {TIMES.map(([start, end], index) => (
-                <React.Fragment key={start}>
-                  <div className="time-block">
-                    <strong>Ca {index + 1}</strong>
-                    <span>{start}</span>
-                    <span>{end}</span>
-                  </div>
-                  {weekDates.map((date) => (
-                    <div className="schedule-cell" key={`${start}-${dateKey(date)}`}>
-                      {classesFor(date, start, end).map((section) => (
-                        <button
-                          key={section.id}
-                          className="class-tile"
-                          style={{ "--tile": section.color }}
-                          type="button"
-                          aria-haspopup="dialog"
-                          onClick={() => setSelectedSection(section)}
-                        >
-                          <strong>{getCourse(section.courseId)?.name}</strong>
-                          <span>{section.code}</span>
-                          <small>
-                            <Icon name="clock" size={13} />
-                            {section.start}–{section.end}
-                          </small>
-                          <small>
-                            <Icon name="building" size={13} />
-                            {section.room}
-                          </small>
-                        </button>
-                      ))}
-                    </div>
-                  ))}
-                </React.Fragment>
-              ))}
-            </div>
-          </div>
+          <HourlyCalendar state={state} dates={weekDates} classesFor={classesFor} onSelect={setSelectedSection} />
         </Card>
         <Card className="month-calendar">
           <div className="month-calendar-head">
@@ -416,11 +342,6 @@ export default function Schedule({ state, role, update, notify, view = "classes"
         </button>
         {(
           <div className="exam-schedule-body">
-            <p className="exam-schedule-notice">
-              Lịch thi dưới đây là dữ liệu mẫu để minh họa giao diện, chưa phải
-              lịch chính thức của trường. Phòng Đào tạo cần xác nhận ngày và ca
-              thi trước khi áp dụng.
-            </p>
             {EXAM_SCHEDULES.filter((exam) => exam.semester === semester).length ? (
               <div className="table-wrap">
                 <table className="data-table">
@@ -429,7 +350,7 @@ export default function Schedule({ state, role, update, notify, view = "classes"
                     {EXAM_SCHEDULES.filter((exam) => exam.semester === semester).map((exam) => (
                       <tr key={exam.id}>
                         <td>{displayDate(parseDate(exam.date))}</td>
-                        <td><strong>{getCourse(exam.courseId)?.name}</strong><small className="cell-sub">{exam.courseId}</small></td>
+                        <td><strong>{getCourse(exam.courseId, state)?.name}</strong><small className="cell-sub">{exam.courseId}</small></td>
                         <td>{exam.type}</td>
                         <td>{exam.start}–{exam.end}</td>
                         <td>{exam.room}</td>
@@ -449,7 +370,7 @@ export default function Schedule({ state, role, update, notify, view = "classes"
       </div>
       {selectedSection && (
         <Modal
-          title={getCourse(selectedSection.courseId)?.name || "Chi tiết ca học"}
+          title={getCourse(selectedSection.courseId, state)?.name || "Chi tiết ca học"}
           subtitle={`Lớp học phần ${selectedSection.code}`}
           wide
           onClose={() => setSelectedSection(null)}
@@ -500,7 +421,7 @@ export default function Schedule({ state, role, update, notify, view = "classes"
       {editingSection && (
         <Modal
           title={`Chỉnh lịch · ${editingSection.code}`}
-          subtitle={getCourse(editingSection.courseId)?.name}
+          subtitle={getCourse(editingSection.courseId, state)?.name}
           onClose={() => setEditingSection(null)}
         >
           <div className="form-grid">

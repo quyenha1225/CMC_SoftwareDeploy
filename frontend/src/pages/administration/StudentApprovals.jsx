@@ -1,4 +1,8 @@
+import Pagination, { usePagination } from "../../components/common/Pagination.jsx";
+import { approveStudent } from "../../data/workflows.js";
+import { useState } from "react";
 import React from "react";
+import ApplicationDetail from "../student/application/ApplicationDetail.jsx";
 import "./StudentApprovals.css";
 import {
   Badge,
@@ -7,51 +11,25 @@ import {
   Empty,
   PageHeader,
   todayVN,
+  Modal,
+  Field,
 } from "../../components/ui.jsx";
 
 export default function StudentApprovals({ state, update, notify }) {
+  const [rejection, setRejection] = useState(null), [reason, setReason] = useState("");
+  const [detail, setDetail] = useState(null);
   const requests = state.studentApprovals || [];
   const pending = requests.filter((request) => request.status === "PENDING");
   const history = requests.filter((request) => request.status !== "PENDING");
 
   function review(request, approved) {
-    if (
-      approved &&
-      state.students.some((student) => student.id === request.student.id)
-    ) {
-      notify(
-        `Mã sinh viên ${request.student.id} đã tồn tại; không thể phê duyệt hồ sơ trùng.`,
-        "error",
-      );
-      return;
-    }
-
-    update((current) => ({
-      ...current,
-      studentApprovals: (current.studentApprovals || []).map((item) =>
-        item.id === request.id
-          ? {
-              ...item,
-              status: approved ? "APPROVED" : "REJECTED",
-              reviewedAt: todayVN(),
-            }
-          : item,
-      ),
-      students: approved
-        ? [
-            ...current.students,
-            { ...request.student, status: "STUDYING" },
-          ]
-        : current.students,
-    }));
-    notify(
-      approved
-        ? `Đã phê duyệt hồ sơ ${request.student.name}.`
-        : `Đã từ chối hồ sơ ${request.student.name}.`,
-      approved ? "success" : "info",
-    );
+    if (!approved) { setRejection(request); setReason(""); return; }
+    try { const next = approveStudent(state, request.id, true); update(() => next); notify("?? duy?t, ??ng b? sinh vi?n v? t?i kho?n/email tr??ng."); }
+    catch (error) { notify(error.message, "error"); }
   }
 
+  const pendingPage = usePagination(pending);
+  const historyPage = usePagination(history);
   return (
     <>
       <PageHeader
@@ -77,7 +55,7 @@ export default function StudentApprovals({ state, update, notify }) {
                 </tr>
               </thead>
               <tbody>
-                {pending.map((request) => (
+                {pendingPage.rows.map((request) => (
                   <tr key={request.id}>
                     <td>{request.student.id}</td>
                     <td>{request.student.name}</td>
@@ -94,6 +72,7 @@ export default function StudentApprovals({ state, update, notify }) {
                     <td>{request.submittedAt}</td>
                     <td>
                       <div className="approval-actions">
+                        {request.applicationId && <Button small kind="outline" onClick={() => setDetail(state.applications.find(item => item.id === request.applicationId))}>Xem hồ sơ gốc</Button>}
                         <Button
                           small
                           onClick={() => review(request, true)}
@@ -113,6 +92,7 @@ export default function StudentApprovals({ state, update, notify }) {
                 ))}
               </tbody>
             </table>
+<Pagination {...pendingPage} />
           </div>
         ) : (
           <Empty
@@ -140,7 +120,7 @@ export default function StudentApprovals({ state, update, notify }) {
                 </tr>
               </thead>
               <tbody>
-                {history.map((request) => (
+                {historyPage.rows.map((request) => (
                   <tr key={request.id}>
                     <td>{request.student.id}</td>
                     <td>{request.student.name}</td>
@@ -163,11 +143,14 @@ export default function StudentApprovals({ state, update, notify }) {
                 ))}
               </tbody>
             </table>
+<Pagination {...historyPage} />
           </div>
         ) : (
           <Empty title="Chưa có lịch sử xử lý" />
         )}
       </Card>
+      {detail && <ApplicationDetail application={detail} onClose={() => setDetail(null)} />}
+      {rejection && <Modal title="Từ chối hồ sơ" onClose={() => setRejection(null)}><form onSubmit={event => { event.preventDefault(); try { const next = approveStudent(state, rejection.id, false, reason); update(() => next); setRejection(null); notify("Đã lưu kết quả xét duyệt."); } catch(error) { notify(error.message, "error"); } }}><Field label="Lý do từ chối"><textarea className="control textarea" required value={reason} onChange={event => setReason(event.target.value)} /></Field><div className="modal-actions"><Button kind="outline" onClick={() => setRejection(null)}>Hủy</Button><Button type="submit">Xác nhận</Button></div></form></Modal>}
     </>
   );
 }

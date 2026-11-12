@@ -1,3 +1,4 @@
+import Pagination, { usePagination } from "../../../components/common/Pagination.jsx";
 import React, { useState } from "react";
 import "./Requests.css";
 import Icon from "../../../components/common/Icon.jsx";
@@ -79,7 +80,7 @@ export default function Requests({ role, state, update, notify }) {
     setOpen(false);
     setSubject("");
     setDescription("");
-    notify("Đã gửi yêu cầu đến Phòng Đào tạo (demo).", "success");
+    notify("Đã ghi nhận yêu cầu hỗ trợ.", "success");
   }
   function changeStatus(status) {
     update((s) => ({
@@ -92,6 +93,7 @@ export default function Requests({ role, state, update, notify }) {
     setSelected(null);
     setReply("");
   }
+  const pagination = usePagination(list, role);
   return (
     <>
       <PageHeader
@@ -113,10 +115,10 @@ export default function Requests({ role, state, update, notify }) {
       />
       <Card
         title="Danh sách yêu cầu"
-        subtitle={`${list.length} yêu cầu trong dữ liệu demo`}
+        subtitle={`${list.length} yêu cầu`}
       >
         <div className="request-list">
-          {list.map((r) => (
+          {pagination.rows.map((r) => (
             <button
               key={r.id}
               className="request-item"
@@ -146,11 +148,13 @@ export default function Requests({ role, state, update, notify }) {
           ))}
           {list.length === 0 && <Empty title="Chưa có yêu cầu" />}
         </div>
-      </Card>
+
+      <Pagination {...pagination} />
+</Card>
       {open && (
         <Modal
           title="Gửi yêu cầu hỗ trợ"
-          subtitle="Yêu cầu sẽ được lưu trong trình duyệt để nhóm thử quy trình"
+          subtitle="Nhập nội dung và thông tin cần hỗ trợ"
           onClose={() => setOpen(false)}
         >
           <form onSubmit={submit}>

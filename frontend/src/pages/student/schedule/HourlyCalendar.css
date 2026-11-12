@@ -1,0 +1,16 @@
+.hourly-scroll { max-height: 660px; overflow: auto; scrollbar-gutter: stable; border: 1px solid #deebe2; border-radius: 10px; }
+.hourly-calendar { --hour-height: 88px; display: grid; grid-template-columns: 72px repeat(6, minmax(150px, 1fr)); min-width: 980px; padding-bottom: 22px; background: #fff; }
+.hourly-heading { position: sticky; top: 0; z-index: 4; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; min-height: 68px; background: #f1f7f2; color: #486356; border-right: 1px solid #e1ece4; border-bottom: 1px solid #dce8df; font-size: 16px; }
+.hourly-heading b { color: #24765e; }
+.hourly-corner { left: 0; z-index: 6; }
+.hourly-axis { position: sticky; left: 0; z-index: 3; height: calc(12 * var(--hour-height)); background: #fbfdfb; border-right: 1px solid #dce8df; }
+.hourly-axis > span { position: absolute; right: 10px; transform: translateY(-50%); font-size: 14px; color: #647b6c; padding: 0 3px; background: #fbfdfb; }
+.hourly-axis > span:first-child { transform: none; }
+.hourly-day { position: relative; height: calc(12 * var(--hour-height)); border-right: 1px solid #e2ece5; border-bottom: 1px solid #dce8df; background: repeating-linear-gradient(to bottom, #dfeae2 0 1px, transparent 1px calc(var(--hour-height) / 2), #edf3ee calc(var(--hour-height) / 2) calc(var(--hour-height) / 2 + 1px), transparent calc(var(--hour-height) / 2 + 1px) var(--hour-height)); }
+.hourly-event { position: absolute; display: flex; flex-direction: column; gap: 7px; padding: 10px 9px; border: 1px solid color-mix(in srgb, var(--tile) 22%, white); border-left: 3px solid var(--tile); border-radius: 8px; background: color-mix(in srgb, var(--tile) 10%, white); color: #3d5550; text-align: left; overflow: auto; font-size: 15px; line-height: 1.4; transition: box-shadow 200ms ease, filter 200ms ease; }
+.hourly-event strong { font-size: 16px; }
+.hourly-event span { display: flex; align-items: center; gap: 5px; }
+.hourly-event .hourly-code { color: var(--tile); font-weight: 700; }
+.hourly-event:hover { z-index: 2; box-shadow: 0 7px 18px #1b513d20; filter: saturate(1.15); }
+.hourly-event:focus-visible { z-index: 5; outline: 3px solid #438b70; outline-offset: 1px; }
+@media (max-width: 740px) { .hourly-scroll { max-height: 580px; } }

@@ -1,3 +1,4 @@
+import Pagination, { usePagination } from "../../../components/common/Pagination.jsx";
 import CourseDetail from "./CourseDetail.jsx";
 import React, { useMemo, useState } from "react";
 import "./Enrollment.css";
@@ -77,7 +78,7 @@ export default function Enrollment({ state, update, notify, navigate }) {
           : true,
     )
     .filter((s) =>
-      `${s.code} ${getCourse(s.courseId)?.name} ${s.teacher}`
+      `${s.code} ${getCourse(s.courseId, state)?.name} ${s.teacher}`
         .toLowerCase()
         .includes(search.toLowerCase()),
     );
@@ -85,19 +86,23 @@ export default function Enrollment({ state, update, notify, navigate }) {
     .map((id) => getSection(state, id))
     .filter((section) => section?.semester === semester);
   const credits = registered.reduce(
-    (sum, s) => sum + (getCourse(s.courseId)?.credits || 0),
+    (sum, s) => sum + (getCourse(s.courseId, state)?.credits || 0),
     0,
   );
   function toggle(section) {
     const selected = state.enrollmentIds.includes(section.id);
+    const term = state.semesters.find(item => item.id === section.semester);
+    if (!term?.registrationOpen) return notify("Học kỳ đã đóng đăng ký/hủy học phần.", "error");
+    if (state.issuedInvoices.some(item => item.studentId === STUDENT_ID && item.semester === section.semester)) return notify("Hóa đơn học kỳ đã chốt khi thanh toán. Liên hệ Phòng Đào tạo để điều chỉnh học phần.", "error");
+    if (state.students.find(item => item.id === STUDENT_ID)?.status !== "STUDYING") return notify("Trạng thái sinh viên không cho phép đăng ký học phần.", "error");
     if (selected) {
       if (
         ["PUBLISHED", "APPROVED"].includes(
           getGradeSheet(state, section.id).status,
         )
       )
-        return notify(
-          "Học phần đã có kết quả, không thể hủy đăng ký trên bản demo.",
+      return notify(
+          "Học phần đã có kết quả, không thể hủy đăng ký.",
           "error",
         );
       setPendingCancellation(section);
@@ -114,8 +119,8 @@ export default function Enrollment({ state, update, notify, navigate }) {
         "Không thể đăng ký: lớp này trùng thời khóa biểu hiện tại.",
         "error",
       );
-    if (credits + (getCourse(section.courseId)?.credits || 0) > 24)
-      return notify("Vượt mức 24 tín chỉ giới hạn trong bản demo.", "error");
+    if (credits + (getCourse(section.courseId, state)?.credits || 0) > 24)
+      return notify("Không được đăng ký vượt quá 24 tín chỉ trong học kỳ.", "error");
     if (registered.some((x) => x.courseId === section.courseId))
       return notify("Bạn đã đăng ký học phần này ở nhóm khác.", "error");
     update((s) => ({
@@ -145,6 +150,7 @@ export default function Enrollment({ state, update, notify, navigate }) {
     notify("Đã hủy đăng ký học phần.", "success");
     setPendingCancellation(null);
   }
+  const pagination = usePagination(courses, semester + tab + search);
   return (
     <>
       <PageHeader
@@ -178,7 +184,7 @@ export default function Enrollment({ state, update, notify, navigate }) {
           <strong>{money(credits * PRICE_PER_CREDIT)}</strong>
         </div>
         <Badge tone="green" dot>
-          Đang mở đăng ký (demo)
+          Đang mở đăng ký
         </Badge>
       </div>
       <div className="enrollment-checkout">
@@ -187,7 +193,7 @@ export default function Enrollment({ state, update, notify, navigate }) {
       </div>
       <Card
         title="Danh sách lớp học phần"
-        subtitle={`Danh sách lớp mở trong ${semesterLabel(semester)} · ${semesterDates(semester)?.startsOn ? `${new Date(`${semesterDates(semester).startsOn}T12:00:00`).toLocaleDateString("vi-VN")} – ${new Date(`${semesterDates(semester).endsOn}T12:00:00`).toLocaleDateString("vi-VN")}` : "Chưa cập nhật ngày học kỳ"}.`}
+        subtitle={`Danh sách lớp mở trong ${semesterLabel(semester)} · ${semesterDates(semester, state)?.startsOn ? `${new Date(`${semesterDates(semester, state).startsOn}T12:00:00`).toLocaleDateString("vi-VN")} – ${new Date(`${semesterDates(semester, state).endsOn}T12:00:00`).toLocaleDateString("vi-VN")}` : "Chưa cập nhật ngày học kỳ"}.`}
         extra={
           <div className="table-tools">
             <div className="searchbox">
@@ -252,8 +258,8 @@ export default function Enrollment({ state, update, notify, navigate }) {
               </tr>
             </thead>
             <tbody>
-              {courses.map((s) => {
-                const c = getCourse(s.courseId),
+              {pagination.rows.map((s) => {
+                const c = getCourse(s.courseId, state),
                   mine = state.enrollmentIds.includes(s.id);
                 return (
                   <tr key={s.id}>
@@ -334,6 +340,8 @@ export default function Enrollment({ state, update, notify, navigate }) {
               })}
             </tbody>
           </table>
+      <Pagination {...pagination} />
+
           {courses.length === 0 && (
             <Empty
               icon="search"
@@ -343,7 +351,7 @@ export default function Enrollment({ state, update, notify, navigate }) {
           )}
         </div>
       </Card>
-      <CourseDetail selectedCourse={selectedCourse} setSelectedCourse={setSelectedCourse} semester={semester} semesterSections={semesterSections} />
+      <CourseDetail state={state} selectedCourse={selectedCourse} setSelectedCourse={setSelectedCourse} semester={semester} semesterSections={semesterSections} />
       {pendingCancellation && (
         <ConfirmDialog
           title="Xác nhận hủy học phần"

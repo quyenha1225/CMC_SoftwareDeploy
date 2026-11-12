@@ -1,4 +1,6 @@
-import React from "react";
+import { normalizeState } from "../data/workflows.js";
+import React, { useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import Icon from "./common/Icon.jsx";
 import {
   ROLE_NAMES,
@@ -26,7 +28,7 @@ export const number = (n) => new Intl.NumberFormat("vi-VN").format(n);
 export const initial = () => {
   try {
     const s = localStorage.getItem(STORAGE_KEY);
-    if (!s) return structuredClone(initialState);
+    if (!s) return normalizeState(structuredClone(initialState));
     const savedState = {
       ...structuredClone(initialState),
       ...JSON.parse(s),
@@ -41,11 +43,11 @@ export const initial = () => {
     savedState.sections = savedState.sections.map((section) => ({
       ...section,
       semester:
-        getCourse(section.courseId)?.semester || section.semester || "2026-1",
+        section.semester || getCourse(section.courseId)?.semester || "2026-1",
     }));
-    return savedState;
+    return normalizeState(savedState);
   } catch {
-    return structuredClone(initialState);
+    return normalizeState(structuredClone(initialState));
   }
 };
 export const displayDay = (d) => WEEKDAYS[d - 1] || "Lịch học";
@@ -184,9 +186,30 @@ export function Empty({
   );
 }
 export function Modal({ title, subtitle, children, onClose, wide = false }) {
-  return (
+  const dialogRef = useRef(null);
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+  useEffect(() => {
+    const previous = document.activeElement;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    dialogRef.current?.focus({ preventScroll: true });
+    const handleKey = event => {
+      if (event.key === "Escape") closeRef.current();
+      if (event.key !== "Tab") return;
+      const items = [...dialogRef.current.querySelectorAll('button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex="0"]')].filter(item => item.getClientRects().length);
+      if (!items.length) { event.preventDefault(); return; }
+      const first = items[0], last = items.at(-1);
+      if (event.shiftKey && (document.activeElement === first || document.activeElement === dialogRef.current)) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && (document.activeElement === last || document.activeElement === dialogRef.current)) { event.preventDefault(); first.focus(); }
+    };
+    document.addEventListener("keydown", handleKey);
+    return () => { document.body.style.overflow = previousOverflow; document.removeEventListener("keydown", handleKey); if (previous?.isConnected) previous.focus({ preventScroll: true }); };
+  }, []);
+  if (typeof document === "undefined") return null;
+  return createPortal(
     <div
-      className="modal-backdrop"
+      className="modal-backdrop viewport-dialog"
       onMouseDown={(e) => e.target === e.currentTarget && onClose()}
     >
       <div
@@ -194,6 +217,8 @@ export function Modal({ title, subtitle, children, onClose, wide = false }) {
         role="dialog"
         aria-modal="true"
         aria-label={title}
+        ref={dialogRef}
+        tabIndex={-1}
       >
         <div className="modal-head">
           <div>
@@ -206,7 +231,7 @@ export function Modal({ title, subtitle, children, onClose, wide = false }) {
         </div>
         <div className="modal-body">{children}</div>
       </div>
-    </div>
+    </div>, document.body
   );
 }
 export function Field({ label, children, hint }) {

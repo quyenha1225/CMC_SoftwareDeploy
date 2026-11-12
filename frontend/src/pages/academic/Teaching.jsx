@@ -1,3 +1,4 @@
+import Pagination, { usePagination } from "../../components/common/Pagination.jsx";
 import React, { useState } from "react";
 import "./Teaching.css";
 import Icon from "../../components/common/Icon.jsx";
@@ -44,11 +45,14 @@ import {
 
 export default function Teaching({ state, navigate }) {
   const sections = state.sections.filter((s) => s.teacher === "Trần Quốc Huy");
+
+
+  const pagination = usePagination(sections, "");
   return (
     <>
       <PageHeader
         title="Lớp học phần được phân công"
-        description="Các lớp giảng dạy của tài khoản giảng viên demo."
+        description="Các lớp giảng dạy được phân công."
         action={
           <Button
             kind="outline"
@@ -68,7 +72,7 @@ export default function Teaching({ state, navigate }) {
         />
         <Stat
           icon="users"
-          label="Sinh viên toàn lớp (mô phỏng)"
+          label="Sinh viên toàn lớp"
           value={number(sections.reduce((a, s) => a + s.registered, 0))}
           hint="Tổng sĩ số danh nghĩa"
           tone="purple"
@@ -82,7 +86,7 @@ export default function Teaching({ state, navigate }) {
         />
       </div>
       <div className="course-card-grid">
-        {sections.map((s) => (
+        {pagination.rows.map((s) => (
           <Card key={s.id} className="course-card">
             <div
               className="course-card-icon"
@@ -96,7 +100,7 @@ export default function Teaching({ state, navigate }) {
                 {gradeStatusText[getGradeSheet(state, s.id).status]}
               </Badge>
             </div>
-            <h3>{getCourse(s.courseId)?.name}</h3>
+            <h3>{getCourse(s.courseId, state)?.name}</h3>
             <p>
               <Icon name="calendar" size={15} />
               {slot(s)}
@@ -108,13 +112,15 @@ export default function Teaching({ state, navigate }) {
             <Button
               kind="outline"
               icon="grades"
-              onClick={() => navigate("grade-entry")}
+              onClick={() => navigate("grade-entry", { sectionId: s.id })}
             >
               Quản lý bảng điểm
             </Button>
           </Card>
         ))}
       </div>
+      <Pagination {...pagination} />
+
     </>
   );
 }

@@ -1,0 +1,304 @@
+{
+  "database": "MySQL",
+  "screens": [
+    {
+      "role": "PUBLIC",
+      "name": "landing",
+      "width": 1440
+    },
+    {
+      "role": "PUBLIC",
+      "name": "landing-mobile",
+      "width": 390
+    },
+    {
+      "role": "PUBLIC",
+      "name": "admission form",
+      "width": 1440
+    },
+    {
+      "role": "STUDENT",
+      "name": "overview",
+      "width": 1440
+    },
+    {
+      "role": "STUDENT",
+      "name": "overview mobile",
+      "width": 390
+    },
+    {
+      "role": "STUDENT",
+      "name": "Hồ sơ cá nhân",
+      "width": 1440
+    },
+    {
+      "role": "STUDENT",
+      "name": "Hồ sơ cá nhân mobile",
+      "width": 390
+    },
+    {
+      "role": "STUDENT",
+      "name": "Tra cứu lớp học phần",
+      "width": 1440
+    },
+    {
+      "role": "STUDENT",
+      "name": "Tra cứu lớp học phần: Chi tiết",
+      "width": 1440
+    },
+    {
+      "role": "STUDENT",
+      "name": "Tra cứu lớp học phần: Chi tiết mobile",
+      "width": 390
+    },
+    {
+      "role": "STUDENT",
+      "name": "Tra cứu lớp học phần mobile",
+      "width": 390
+    },
+    {
+      "role": "STUDENT",
+      "name": "Đăng ký / hủy học phần",
+      "width": 1440
+    },
+    {
+      "role": "STUDENT",
+      "name": "Đăng ký / hủy học phần: Chi tiết",
+      "width": 1440
+    },
+    {
+      "role": "STUDENT",
+      "name": "Đăng ký / hủy học phần: Chi tiết mobile",
+      "width": 390
+    },
+    {
+      "role": "STUDENT",
+      "name": "Available sections",
+      "width": 1440
+    },
+    {
+      "role": "STUDENT",
+      "name": "Registered sections",
+      "width": 1440
+    },
+    {
+      "role": "STUDENT",
+      "name": "Đăng ký / hủy học phần mobile",
+      "width": 390
+    },
+    {
+      "role": "STUDENT",
+      "name": "Lịch học",
+      "width": 1440
+    },
+    {
+      "role": "STUDENT",
+      "name": "Lịch học: Ngày",
+      "width": 1440
+    },
+    {
+      "role": "STUDENT",
+      "name": "Lịch học: Ngày mobile",
+      "width": 390
+    },
+    {
+      "role": "STUDENT",
+      "name": "Lịch học: Tháng",
+      "width": 1440
+    },
+    {
+      "role": "STUDENT",
+      "name": "Lịch học: Tháng mobile",
+      "width": 390
+    },
+    {
+      "role": "STUDENT",
+      "name": "Lịch học: Tuần",
+      "width": 1440
+    },
+    {
+      "role": "STUDENT",
+      "name": "Lịch học: Tuần mobile",
+      "width": 390
+    },
+    {
+      "role": "STUDENT",
+      "name": "Calendar event detail",
+      "width": 1440
+    },
+    {
+      "role": "STUDENT",
+      "name": "Lịch học mobile",
+      "width": 390
+    },
+    {
+      "role": "STUDENT",
+      "name": "Lịch thi",
+      "width": 1440
+    },
+    {
+      "role": "STUDENT",
+      "name": "Lịch thi: Chi tiết",
+      "width": 1440
+    },
+    {
+      "role": "STUDENT",
+      "name": "Lịch thi: Chi tiết mobile",
+      "width": 390
+    },
+    {
+      "role": "STUDENT",
+      "name": "Lịch thi mobile",
+      "width": 390
+    },
+    {
+      "role": "STUDENT",
+      "name": "Kết quả học tập",
+      "width": 1440
+    },
+    {
+      "role": "STUDENT",
+      "name": "Kết quả học tập: Chi tiết",
+      "width": 1440
+    },
+    {
+      "role": "STUDENT",
+      "name": "Kết quả học tập: Chi tiết mobile",
+      "width": 390
+    },
+    {
+      "role": "STUDENT",
+      "name": "Kết quả học tập mobile",
+      "width": 390
+    },
+    {
+      "role": "STUDENT",
+      "name": "Công nợ & hóa đơn",
+      "width": 1440
+    },
+    {
+      "role": "STUDENT",
+      "name": "Công nợ & hóa đơn: Chi tiết",
+      "width": 1440
+    },
+    {
+      "role": "STUDENT",
+      "name": "Công nợ & hóa đơn: Chi tiết mobile",
+      "width": 390
+    },
+    {
+      "role": "STUDENT",
+      "name": "Công nợ & hóa đơn mobile",
+      "width": 390
+    },
+    {
+      "role": "STUDENT",
+      "name": "Lịch sử thanh toán",
+      "width": 1440
+    },
+    {
+      "role": "STUDENT",
+      "name": "Lịch sử thanh toán: Chi tiết",
+      "width": 1440
+    },
+    {
+      "role": "STUDENT",
+      "name": "Lịch sử thanh toán: Chi tiết mobile",
+      "width": 390
+    },
+    {
+      "role": "STUDENT",
+      "name": "Lịch sử thanh toán mobile",
+      "width": 390
+    },
+    {
+      "role": "STUDENT",
+      "name": "Yêu cầu hỗ trợ",
+      "width": 1440
+    },
+    {
+      "role": "STUDENT",
+      "name": "Yêu cầu hỗ trợ: Gửi yêu cầu",
+      "width": 1440
+    },
+    {
+      "role": "STUDENT",
+      "name": "Yêu cầu hỗ trợ: Gửi yêu cầu mobile",
+      "width": 390
+    },
+    {
+      "role": "STUDENT",
+      "name": "Yêu cầu hỗ trợ: Nội dung",
+      "width": 1440
+    },
+    {
+      "role": "STUDENT",
+      "name": "Yêu cầu hỗ trợ: Nội dung mobile",
+      "width": 390
+    },
+    {
+      "role": "STUDENT",
+      "name": "Yêu cầu hỗ trợ mobile",
+      "width": 390
+    },
+    {
+      "role": "STUDENT",
+      "name": "Thông báo",
+      "width": 1440
+    },
+    {
+      "role": "STUDENT",
+      "name": "Read notification",
+      "width": 1440
+    },
+    {
+      "role": "STUDENT",
+      "name": "Thông báo mobile",
+      "width": 390
+    }
+  ],
+  "dialogs": [
+    {
+      "role": "STUDENT",
+      "menu": "Tra cứu lớp học phần",
+      "control": "Chi tiết"
+    },
+    {
+      "role": "STUDENT",
+      "menu": "Đăng ký / hủy học phần",
+      "control": "Chi tiết"
+    },
+    {
+      "role": "STUDENT",
+      "menu": "Lịch thi",
+      "control": "Chi tiết"
+    },
+    {
+      "role": "STUDENT",
+      "menu": "Kết quả học tập",
+      "control": "Chi tiết"
+    },
+    {
+      "role": "STUDENT",
+      "menu": "Công nợ & hóa đơn",
+      "control": "Chi tiết"
+    },
+    {
+      "role": "STUDENT",
+      "menu": "Lịch sử thanh toán",
+      "control": "Chi tiết"
+    },
+    {
+      "role": "STUDENT",
+      "menu": "Yêu cầu hỗ trợ",
+      "control": "Gửi yêu cầu"
+    },
+    {
+      "role": "STUDENT",
+      "menu": "Yêu cầu hỗ trợ",
+      "control": "Nội dung"
+    }
+  ],
+  "issues": [],
+  "runtimeErrors": []
+}

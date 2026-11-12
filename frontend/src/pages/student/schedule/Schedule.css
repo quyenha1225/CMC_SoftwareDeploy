@@ -864,3 +864,56 @@
 .app-layout .schedule-submenu .nav-subitem:hover { background: #e4f0e6; color: #19563f; }
 .page-schedule .exam-schedule { animation: schedule-view-enter 380ms ease both; }
 @keyframes schedule-view-enter { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+.page-schedule .schedule-view-picker { display: none; }
+
+/* One fixed workspace: only the hourly timeline scrolls on desktop. */
+@media (min-width: 1101px) {
+  .app-layout:has(.page-schedule) { height: 100dvh; }
+  .app-layout:has(.page-schedule) .topbar,
+  .app-layout:has(.page-schedule) .app-footer { flex-shrink: 0; }
+  .page-content.page-schedule {
+    height: auto;
+    max-width: none;
+    padding: 12px 20px 8px;
+  }
+  .page-schedule > .page-header { margin-bottom: 0; }
+  .page-schedule > .schedule-semesters { margin-bottom: 2px; }
+  .page-schedule > .schedule-content {
+    flex: 1 1 0;
+    min-height: 0;
+    overflow: hidden;
+    align-items: stretch;
+  }
+  .page-schedule .schedule-content > .calendar-card {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    margin: 0;
+    padding: 6px;
+  }
+  .page-schedule .hourly-scroll {
+    flex: 1;
+    min-height: 0;
+    height: 100%;
+    max-height: none;
+    overscroll-behavior: contain;
+  }
+  .page-schedule .hourly-calendar {
+    min-width: 0;
+    grid-template-columns: 64px repeat(6, minmax(0, 1fr));
+  }
+  .page-schedule .hourly-heading { min-width: 0; font-size: 15px; }
+  .page-schedule .hourly-event { gap: 6px; padding: 9px 7px; }
+  .page-schedule .hourly-event strong { font-size: 15px; overflow-wrap: anywhere; }
+  .page-schedule .schedule-content > .month-calendar {
+    position: static;
+    align-self: start;
+    max-height: 100%;
+    overflow-y: auto;
+    margin: 0;
+  }
+  .page-schedule > .hint-line { display: none; }
+  .page-schedule:has(.exam-schedule-body) > .exam-schedule { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+  .page-schedule:has(.exam-schedule-body) .exam-schedule-body { flex: 1; min-height: 0; max-height: none; overflow: auto; }
+}

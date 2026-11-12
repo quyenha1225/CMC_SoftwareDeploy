@@ -1,5 +1,6 @@
 // SMS Frontend Demo - dữ liệu giả lập, không sử dụng thông tin cá nhân thật.
 export const ROLE_NAMES = {
+  affairs: "Công tác sinh viên",
   student: "Sinh viên",
   lecturer: "Giảng viên",
   training: "Phòng Đào tạo",
@@ -11,29 +12,30 @@ export const ACCOUNTS = [
     name: "Nguyễn Minh Anh",
     caption: "Sinh viên • SV240102",
     initials: "MA",
-    email: "minhanh.demo@campus.edu.vn",
+    email: "minhanh@campus.edu.vn",
   },
   {
     role: "lecturer",
     name: "Trần Quốc Huy",
     caption: "Giảng viên • GV012",
     initials: "QH",
-    email: "huy.demo@campus.edu.vn",
+    email: "huy@campus.edu.vn",
   },
   {
     role: "training",
     name: "Lê Thu Hà",
     caption: "Chuyên viên đào tạo",
     initials: "TH",
-    email: "th.demo@campus.edu.vn",
+    email: "th@campus.edu.vn",
   },
   {
     role: "principal",
     name: "Phạm Anh Tuấn",
     caption: "Ban giám hiệu",
     initials: "AT",
-    email: "tuan.demo@campus.edu.vn",
+    email: "tuan@campus.edu.vn",
   },
+  { role: "affairs", name: "Nguyễn Thu Trang", caption: "Chuyên viên CTSV", initials: "TT", email: "ctsv@campus.edu.vn" },
 ];
 export const SEMESTER_TERMS = {
   "2026-1": {
@@ -299,7 +301,7 @@ export const sampleStudents = [
     status: "STUDYING",
     year: "K2024",
     phone: "09xx xxx 215",
-    email: "minhanh.demo@campus.edu.vn",
+    email: "minhanh@campus.edu.vn",
     address: "Hà Nội",
     dob: "2006-05-12",
   },
@@ -311,7 +313,7 @@ export const sampleStudents = [
     status: "STUDYING",
     year: "K2024",
     phone: "09xx xxx 320",
-    email: "baongoc.demo@campus.edu.vn",
+    email: "baongoc@campus.edu.vn",
     address: "Hà Nội",
     dob: "2006-08-16",
   },
@@ -323,7 +325,7 @@ export const sampleStudents = [
     status: "STUDYING",
     year: "K2024",
     phone: "09xx xxx 474",
-    email: "giahung.demo@campus.edu.vn",
+    email: "giahung@campus.edu.vn",
     address: "Hải Phòng",
     dob: "2006-02-09",
   },
@@ -335,7 +337,7 @@ export const sampleStudents = [
     status: "STUDYING",
     year: "K2024",
     phone: "09xx xxx 689",
-    email: "thutrang.demo@campus.edu.vn",
+    email: "thutrang@campus.edu.vn",
     address: "Bắc Ninh",
     dob: "2006-10-11",
   },
@@ -347,7 +349,7 @@ export const sampleStudents = [
     status: "SUSPENDED",
     year: "K2024",
     phone: "09xx xxx 884",
-    email: "nhatminh.demo@campus.edu.vn",
+    email: "nhatminh@campus.edu.vn",
     address: "Hưng Yên",
     dob: "2006-03-20",
   },
@@ -359,7 +361,7 @@ export const sampleStudents = [
     status: "STUDYING",
     year: "K2024",
     phone: "09xx xxx 100",
-    email: "maiphuong.demo@campus.edu.vn",
+    email: "maiphuong@campus.edu.vn",
     address: "Hà Nội",
     dob: "2006-01-07",
   },
@@ -393,6 +395,7 @@ export const notices = [
   },
 ];
 export const initialState = {
+  applications: [],
   students: sampleStudents,
   studentApprovals: [],
   sections: baseSections,
@@ -517,14 +520,14 @@ export const initialState = {
       studentId: "SV240102",
       amount: 3000000,
       date: "02/11/2026",
-      method: "Chuyển khoản (demo)",
-      note: "Khoản thu giả lập",
+      method: "Chuyển khoản",
+      note: "Khoản nộp học phí",
     },
   ],
   announcements: notices,
   profile: {
     phone: "09xx xxx 215",
-    email: "minhanh.demo@campus.edu.vn",
+    email: "minhanh@campus.edu.vn",
     address: "Hà Nội",
   },
   users: [
@@ -545,20 +548,20 @@ export const initialState = {
     {
       id: "U003",
       name: "Lê Thu Hà",
-      login: "pdt.demo",
+      login: "pdt",
       role: "training",
       status: "ACTIVE",
     },
     {
       id: "U004",
       name: "Phạm Anh Tuấn",
-      login: "bgh.demo",
+      login: "bgh",
       role: "principal",
       status: "ACTIVE",
     },
   ],
 };
-export const getCourse = (id) => COURSE_LIST.find((c) => c.id === id);
+export const getCourse = (id, state) => (state?.courses || COURSE_LIST).find((c) => c.id === id);
 export const getSection = (state, id) =>
   state.sections.find((c) => c.id === id);
 export const semesterLabel = (semester) => {
@@ -568,7 +571,7 @@ export const semesterLabel = (semester) => {
   const academicYear = `${year}–${Number(year) + 1}`;
   return `Học kỳ ${termName} · Năm học ${academicYear}`;
 };
-export const semesterDates = (semester) => SEMESTER_TERMS[semester];
+export const semesterDates = (semester, state) => state?.semesters?.find(item => item.id === semester) || SEMESTER_TERMS[semester];
 export const getGradeSheet = (state, id) =>
   state.gradeSheets.find((s) => s.sectionId === id) || {
     sectionId: id,
@@ -587,7 +590,7 @@ export const gradeTotal = (g) =>
       ) / 10
     : null;
 export const courseLabel = (state, id) =>
-  getCourse(getSection(state, id)?.courseId)?.name || "Học phần";
+  getCourse(getSection(state, id)?.courseId, state)?.name || "Học phần";
 export const money = (n) =>
   new Intl.NumberFormat("vi-VN", {
     style: "currency",

@@ -188,3 +188,58 @@
   .login-side {
     padding: 0 5px;
   }}
+.public-site.login-site .login-main {
+  grid-template-columns: minmax(320px, 460px) minmax(0, 1fr);
+  gap: clamp(28px, 4vw, 64px);
+  padding: 54px max(28px, calc((100vw - 1420px) / 2));
+  background: radial-gradient(ellipse at 90% 20%, #e5eee1, transparent 55%), #f7f8f2;
+}
+.public-site.login-site .login-side {
+  position: relative; isolation: isolate; align-self: stretch; max-width: none;
+  min-height: 620px; overflow: hidden; border-radius: 26px;
+  border: 1px solid #d5e4d8; box-shadow: 0 20px 50px #204e3614;
+  background: #214f40;
+}
+.login-campus-photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; z-index: -2; }
+.public-site.login-site .login-side::before {
+  content: ""; position: absolute; inset: 0; z-index: -1;
+  background: linear-gradient(180deg, #0c342b87, #10392a0d 35%, #0d3029cf 72%, #0b2f28f5);
+}
+.login-visual-content { display: flex; flex-direction: column; justify-content: space-between; height: 100%; min-height: inherit; padding: clamp(26px, 3vw, 48px); box-sizing: border-box; }
+.login-eduportal-brand { display: flex; align-items: center; gap: 18px; color: #fffdf2; }
+.login-brand-symbol { display: grid; place-items: center; width: 78px; height: 78px; flex-shrink: 0; border: 1px solid #ffffff65; border-radius: 20px; background: #ffffff19; backdrop-filter: blur(12px); }
+.login-eduportal-brand strong { display: block; font-size: clamp(34px, 3vw, 48px); line-height: 1.1; letter-spacing: -.03em; }
+.login-eduportal-brand strong span { color: #d8bf7e; }
+.login-eduportal-brand small { display: block; margin-top: 9px; font-size: 12px; letter-spacing: .15em; color: #f0f3df; }
+.public-site.login-site .login-visual-message { padding-top: 100px; max-width: 540px; }
+.public-site.login-site .login-visual-message .section-kicker { color: #dce9cf; font-size: 13px; }
+.public-site.login-site .login-side h2 { color: #fffdf1; font-size: clamp(34px, 3.3vw, 50px); line-height: 1.17; margin: 18px 0; text-wrap: balance; }
+.public-site.login-site .login-side p { color: #e0eadd; font-size: 17px; line-height: 1.75; max-width: 440px; }
+.public-site.login-site .login-side-rule { width: 62px; background: #d1b46e; margin: 25px 0 18px; }
+.login-visual-message > span:last-child { color: #d4e2d1; font-size: 12px; letter-spacing: .13em; }
+@media (max-width: 900px) {
+  .public-site.login-site .login-main { grid-template-columns: minmax(280px, 1fr) minmax(0, 1fr); gap: 24px; padding: 32px 24px; }
+  .public-site.login-site .login-side { min-height: 600px; }
+  .login-brand-symbol { width: 58px; height: 58px; border-radius: 15px; }
+  .login-eduportal-brand { gap: 12px; flex-wrap: wrap; }
+  .login-eduportal-brand small { font-size: 10px; }
+}
+@media (max-width: 680px) {
+  .public-site.login-site .login-main { grid-template-columns: minmax(0, 1fr); padding: 24px 18px 40px; }
+  .public-site.login-site .login-side { min-height: 480px; padding: 0; }
+  .login-visual-content { padding: 28px; }
+  .public-site.login-site .login-side h2 { font-size: 34px; }
+}
+.recovery-main { max-width: 550px; margin: 60px auto; padding: 0 20px; }
+.auth-text-button { display: block; margin-top: 16px; border: 0; padding: 8px 0; background: transparent; color: #246a55; text-decoration: underline; font: inherit; cursor: pointer; }
+.login-extra-actions { display: flex; justify-content: space-between; gap: 18px; flex-wrap: wrap; margin-top: 8px; }
+
+.v6-login-main .v6-fields { grid-template-columns: 1fr; }
+.v6-login-main .login-card { animation: login-enter .65s ease both; }
+.v6-login-main .login-side { animation: login-enter .85s ease both; }
+.v6-login-main .login-campus-photo { animation: campus-drift 18s ease-in-out infinite alternate; }
+.v6-login-main .login-submit { margin-top: 24px; transition: transform .2s, box-shadow .2s; }
+.v6-login-main .login-submit:hover { transform: translateY(-2px); box-shadow: 0 10px 24px #215d4030; }
+@keyframes login-enter { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes campus-drift { from { transform: scale(1); } to { transform: scale(1.07); } }
+@media(prefers-reduced-motion:reduce) { .v6-login-main .login-card,.v6-login-main .login-side,.v6-login-main .login-campus-photo { animation: none; } }

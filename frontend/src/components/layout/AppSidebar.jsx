@@ -115,13 +115,13 @@ export default function AppSidebar({
               <Icon name="sparkle" size={22} />
             </div>
             <b>Cần hỗ trợ?</b>
-            <p>Gửi yêu cầu đến Phòng Đào tạo trong hệ thống demo.</p>
+            <p>Gửi yêu cầu hỗ trợ đến nhà trường.</p>
             <button onClick={() => onNavigate("requests")}>
               Tạo yêu cầu <Icon name="arrow" size={15} />
             </button>
           </div>
           <div className="sidebar-footer">
-            <span className="green-dot" /> Bản demo · v1.0.0
+            <span className="green-dot" /> EduPortal
           </div>
         </div>
       </aside>

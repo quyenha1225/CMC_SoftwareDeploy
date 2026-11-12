@@ -1,3 +1,4 @@
+import Pagination, { usePagination } from "../../components/common/Pagination.jsx";
 import React, { useState } from "react";
 import "./ReviewGrades.css";
 import Icon from "../../components/common/Icon.jsx";
@@ -90,6 +91,7 @@ export default function ReviewGrades({ role, state, update, notify }) {
       "success",
     );
   }
+  const pagination = usePagination(relevant, role);
   return (
     <>
       <PageHeader
@@ -140,12 +142,12 @@ export default function ReviewGrades({ role, state, update, notify }) {
               </tr>
             </thead>
             <tbody>
-              {relevant.map((g) => {
+              {pagination.rows.map((g) => {
                 const sec = getSection(state, g.sectionId);
                 return (
                   <tr key={g.sectionId}>
                     <td>
-                      <b>{getCourse(sec?.courseId)?.name}</b>
+                      <b>{getCourse(sec?.courseId, state)?.name}</b>
                       <small className="cell-sub">{sec?.code}</small>
                     </td>
                     <td>{sec?.teacher}</td>
@@ -172,6 +174,8 @@ export default function ReviewGrades({ role, state, update, notify }) {
               })}
             </tbody>
           </table>
+      <Pagination {...pagination} />
+
           {relevant.length === 0 && (
             <Empty title="Chưa có bảng điểm cần xử lý" />
           )}

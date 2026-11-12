@@ -60,7 +60,7 @@ export default function AppHeader({
       </div>
       <div className="topbar-right">
         <div className="demo-label">
-          <span className="green-dot" /> Bản demo Frontend
+          <span className="green-dot" /> Cổng học vụ
         </div>
         <div className="head-search">
           <Icon name="search" size={18} />
@@ -108,7 +108,7 @@ export default function AppHeader({
           <select
             value={role}
             onChange={(event) => onRoleChange(event.target.value)}
-            aria-label="Chọn vai trò demo"
+            aria-label="Vai trò làm việc"
           >
             {Object.entries(ROLE_NAMES).map(([key, name]) => (
               <option value={key} key={key}>

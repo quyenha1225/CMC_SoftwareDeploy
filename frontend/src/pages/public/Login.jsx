@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import campusPhoto from "../../assets/campus.jpg";
 import "./Login.css";
 import Icon from "../../components/common/Icon.jsx";
 import { ACCOUNTS, ROLE_NAMES } from "../../data/portalData.js";
@@ -6,7 +7,7 @@ import SiteFooter from "../../components/landing/SiteFooter.jsx";
 import PublicHeader from "../../components/landing/PublicHeader.jsx";
 import "../../styles/public-site.css";
 
-export default function Login({ onBack, onLogin }) {
+export default function Login({ onBack, onLogin, onForgotPassword }) {
   const [role, setRole] = useState("student");
   const [email, setEmail] = useState(ACCOUNTS[0].email);
   const [password, setPassword] = useState("");
@@ -36,7 +37,10 @@ export default function Login({ onBack, onLogin }) {
               Vai trò
               <select
                 value={role}
-                onChange={(event) => setRole(event.target.value)}
+                onChange={(event) => {
+                  setRole(event.target.value);
+                  setEmail(ACCOUNTS.find(account => account.role === event.target.value)?.email || "");
+                }}
               >
                 {Object.entries(ROLE_NAMES).map(([key, name]) => (
                   <option value={key} key={key}>
@@ -79,15 +83,18 @@ export default function Login({ onBack, onLogin }) {
               Đăng nhập <Icon name="arrow" size={17} />
             </button>
           </form>
-          <div className="login-demo-note">
-            <Icon name="info" size={17} />
-            <p>
-              Giao diện đăng nhập đang ở chế độ demo. Email và mật khẩu không
-              được gửi đi hoặc xác thực.
-            </p>
+          <div className="login-extra-actions">
+            <button className="auth-text-button" onClick={onForgotPassword}>Quên mật khẩu?</button>
           </div>
         </section>
         <aside className="login-side">
+          <img className="login-campus-photo" src={campusPhoto} alt="Khuôn viên trường đại học giữa những hàng cây xanh" />
+          <div className="login-visual-content">
+          <div className="login-eduportal-brand" aria-label="EduPortal — Cổng thông tin đào tạo">
+            <span className="login-brand-symbol"><Icon name="graduation" size={42} strokeWidth={1.6} /></span>
+            <div><strong>EduPortal<span>.</span></strong><small>CỔNG THÔNG TIN ĐÀO TẠO</small></div>
+          </div>
+          <div className="login-visual-message">
           <span className="section-kicker">CỔNG THÔNG TIN HỌC VỤ</span>
           <h2>
             Một điểm đến
@@ -100,6 +107,8 @@ export default function Login({ onBack, onLogin }) {
           </p>
           <div className="login-side-rule" />
           <span>TRƯỜNG HVQ JISS · HÀ ĐÔNG</span>
+          </div>
+          </div>
         </aside>
       </main>
       <SiteFooter />

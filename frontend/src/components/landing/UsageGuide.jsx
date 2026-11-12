@@ -39,8 +39,7 @@ export default function UsageGuide({ onLogin }) {
       <div className="guide-callout">
         <Icon name="info" size={18} />
         <p>
-          Thông tin phiên làm việc hiện được lưu trên trình duyệt. Tài khoản và
-          xác thực chính thức sẽ được cung cấp theo hướng dẫn của nhà trường.
+          Liên hệ bộ phận hỗ trợ khi cần hướng dẫn về tài khoản hoặc thông tin học vụ.
         </p>
         <button onClick={onLogin}>
           Đăng nhập <Icon name="arrow" size={16} />
