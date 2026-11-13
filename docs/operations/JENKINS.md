@@ -64,3 +64,11 @@ SonarQube/Registry/SSH cần dịch vụ và credential thật. Không commit c�
 Checkout can succeed while Prepare fails because the service account has a different PATH from the interactive user. Windows pipeline commands use `scripts/jenkins-python.cmd`: `PYTHON_EXE`, then `python`, then `py -3`, then the common all-users Python313 path. Python 3.10+ is required.
 
 In Manage Jenkins > Nodes > select the build node > Configure > Node Properties > Environment variables, set `PYTHON_EXE` to the absolute path of an accessible `python.exe` (no quotes or arguments). Prefer an all-users installation. Restart the agent/service after changing its system PATH. A Python installed under an Admin user profile is not guaranteed accessible to the Jenkins service account. Commit/push the wrapper and Jenkinsfile changes before rebuilding an SCM-based job.
+
+## CI duration and native Node crashes
+
+Each Python CI subprocess logs elapsed time and decimal/hex exit status. Frontend installation keeps `npm ci` and the lockfile, with `--prefer-offline --no-fund` to reuse the npm cache. Lint uses a content-based ESLint cache; test, audit and release gates remain enabled. Warm runs can be faster; first installation, image build and security database downloads still take time.
+
+A native stacktrace during `npm run lint` is not an ESLint rule violation or evidence of a Sonar webhook problem. Check the preceding error, Node version, Windows Event Viewer and available host memory. Do not mark the stage successful or retry silently. Avoid running `npm ci` in the same directory as a running Vite server: Windows can lock native module files; Jenkins should use its dedicated workspace.
+
+A Sonar webhook with Last delivery = Never is configured but unverified. Run a fresh analysis after saving it, check HTTP 200 delivery and matching HMAC secret in Jenkins. SonarQube 26.11 may block private webhook targets; local-only configuration must explicitly permit the intended internal callback.
