@@ -8,6 +8,7 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 from docker import ROOT, Runtime, initialize, invoke, smoke, backup, restore_test
 
 REPORTS=ROOT/'artifacts/reports'
@@ -18,8 +19,15 @@ MAVEN=[MVN] if WIN else ['sh',MVN]
 NPM='npm.cmd' if WIN else 'npm'
 
 def run(command,directory=None,**kwargs):
+    # Log only the executable: command arguments can include sensitive values.
+    started = time.monotonic()
+    print('CI start: ' + str(command[0]), flush=True)
     result=subprocess.run(command,cwd=directory or ROOT,**kwargs)
-    if result.returncode:raise RuntimeError('CI command failed: '+str(command[0]))
+    elapsed = time.monotonic() - started
+    print(f'CI finish: {command[0]} elapsed={elapsed:.1f}s exit={result.returncode}', flush=True)
+    if result.returncode:
+        code = result.returncode & 0xffffffff
+        raise RuntimeError(f'CI command failed: {command[0]} (exit {result.returncode}, hex 0x{code:08X}). See preceding output; subsequent gates remain blocked.')
     return result
 
 def docker_cli():return ['docker']+(['--host','npipe:////./pipe/dockerDesktopLinuxEngine'] if WIN else [])
@@ -55,7 +63,7 @@ def main(step):
     elif step=='frontend':
         for filename in ['junit.xml','lcov.info','coverage-summary.json']:
             (ROOT/'frontend/coverage'/filename).unlink(missing_ok=True)
-        for command in [[NPM,'ci'],[NPM,'run','lint'],[NPM,'run','test:ci'],[NPM,'run','build']]:run(command,ROOT/'frontend')
+        for command in [[NPM,'ci','--prefer-offline','--no-fund'],[NPM,'run','lint','--','--cache','--cache-strategy','content','--cache-location','.eslintcache'],[NPM,'run','test:ci'],[NPM,'run','build']]:run(command,ROOT/'frontend')
     elif step=='sonar':
         if not os.getenv('SONAR_HOST_URL') or not os.getenv('SONAR_AUTH_TOKEN'):raise RuntimeError('Configure the Jenkins SonarQube server/credential first.')
         env={**os.environ,'SONAR_TOKEN':os.environ['SONAR_AUTH_TOKEN']}

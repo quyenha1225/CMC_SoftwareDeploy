@@ -65,6 +65,23 @@ class OperationsTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder, patch.object(ci,'ROOT',Path(folder)), patch.object(ci,'run',side_effect=[None,RuntimeError('lint failed')]) as command:
             with self.assertRaises(RuntimeError):ci.main('frontend')
             self.assertEqual(command.call_count,2)
+    def test_frontend_keeps_checks_and_uses_content_cache(self):
+        with tempfile.TemporaryDirectory() as folder, patch.object(ci, 'ROOT', Path(folder)), patch.object(ci, 'run') as execute:
+            ci.main('frontend')
+        commands = [call.args[0] for call in execute.call_args_list]
+        self.assertEqual(len(commands), 4)
+        self.assertIn('--prefer-offline', commands[0])
+        self.assertIn('--cache-strategy', commands[1])
+        self.assertIn('content', commands[1])
+        self.assertEqual(commands[2][2], 'test:ci')
+        self.assertEqual(commands[3][2], 'build')
+
+    def test_command_error_preserves_native_exit_code(self):
+        result = subprocess.CompletedProcess(['node'], 3221225477)
+        with patch.object(ci.subprocess, 'run', return_value=result):
+            with self.assertRaisesRegex(RuntimeError, '0xC0000005'):
+                ci.run(['node'])
+
     def test_pull_requests_cannot_publish(self):
         with patch.dict(os.environ,{'CHANGE_ID':'7'}):
             with self.assertRaises(RuntimeError):ci.main('publish')

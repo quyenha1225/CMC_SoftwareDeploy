@@ -14,3 +14,5 @@ frontend/coverage/
 
 **/__pycache__/
 infrastructure/migration/target/
+
+frontend/.eslintcache
