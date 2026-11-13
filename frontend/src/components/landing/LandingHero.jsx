@@ -9,7 +9,7 @@ export default function LandingHero({ onLogin }) {
       <div className="landing-hero-copy">
         <span className="section-kicker">TRƯỜNG HVQ JISS · HÀ ĐÔNG</span>
         <h1>
-          Học tập vững nền tảng.
+          HỌC TẬP VỮNG NỀN TẢNG 
           <br />
           <span>Vươn xa bằng tri thức.</span>
         </h1>
