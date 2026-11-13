@@ -59,7 +59,21 @@ def main(step):
     elif step=='sonar':
         if not os.getenv('SONAR_HOST_URL') or not os.getenv('SONAR_AUTH_TOKEN'):raise RuntimeError('Configure the Jenkins SonarQube server/credential first.')
         env={**os.environ,'SONAR_TOKEN':os.environ['SONAR_AUTH_TOKEN']}
-        run([*MAVEN,'-B','-ntp','org.sonarsource.scanner.maven:sonar-maven-plugin:5.1.0.4751:sonar', '-Dsonar.projectBaseDir='+str(ROOT), '-Dsonar.projectKey=cmc-sms','-Dsonar.sources=backend/src/main/java,frontend/src','-Dsonar.tests=backend/src/test/java,frontend/tests','-Dsonar.java.binaries=backend/target/classes','-Dsonar.coverage.jacoco.xmlReportPaths=backend/target/site/jacoco/jacoco.xml','-Dsonar.javascript.lcov.reportPaths=frontend/coverage/lcov.info'],ROOT/'backend',env=env)
+        # Maven resolves module paths against backend/, even with a project base override.
+        # Absolute paths keep both Java and frontend scope independent of that module base.
+        paths = {
+            'sonar.sources': ['backend/src/main/java', 'frontend/src'],
+            'sonar.tests': ['backend/src/test/java', 'frontend/tests'],
+            'sonar.java.binaries': ['backend/target/classes'],
+            'sonar.coverage.jacoco.xmlReportPaths': ['backend/target/site/jacoco/jacoco.xml'],
+            'sonar.javascript.lcov.reportPaths': ['frontend/coverage/lcov.info'],
+        }
+        properties = ['-D' + key + '=' + ','.join((ROOT / path).resolve().as_posix() for path in values)
+                      for key, values in paths.items()]
+        run([*MAVEN, '-B', '-ntp',
+             'org.sonarsource.scanner.maven:sonar-maven-plugin:5.1.0.4751:sonar',
+             '-Dsonar.projectBaseDir=' + ROOT.as_posix(), '-Dsonar.projectKey=cmc-sms',
+             '-Dsonar.sourceEncoding=UTF-8', *properties], ROOT/'backend', env=env)
     elif step=='build':
         tag=os.environ.get('IMAGE_TAG','local')
         if not re.fullmatch(r'[a-zA-Z0-9_.-]+',tag):raise RuntimeError('Invalid image tag')

@@ -15,6 +15,19 @@ import deploy
 from docker import initialize,settings
 
 class OperationsTests(unittest.TestCase):
+    def test_sonar_uses_absolute_paths_from_maven_module(self):
+        with patch.dict(os.environ, {'SONAR_HOST_URL': 'http://sonar.invalid', 'SONAR_AUTH_TOKEN': 'test-placeholder'}), patch.object(ci, 'run') as execute:
+            ci.main('sonar')
+        command = execute.call_args.args[0]
+        properties = dict(item[2:].split('=', 1) for item in command if item.startswith('-D'))
+        for key in ['sonar.sources', 'sonar.tests', 'sonar.java.binaries', 'sonar.coverage.jacoco.xmlReportPaths', 'sonar.javascript.lcov.reportPaths']:
+            for value in properties[key].split(','):
+                self.assertTrue(Path(value).is_absolute(), (key, value))
+                self.assertTrue(Path(value).is_relative_to(ci.ROOT))
+                self.assertNotIn('/backend/backend/', value)
+        self.assertEqual(properties['sonar.sources'], ','.join((ci.ROOT / value).as_posix() for value in ['backend/src/main/java', 'frontend/src']))
+        self.assertEqual(execute.call_args.kwargs['env']['SONAR_TOKEN'], 'test-placeholder')
+
     def manifest(self):
         return {'commit':'a'*40,'images':{name:'registry.example/team/sms-'+name+'@sha256:'+'b'*64 for name in ['backend','frontend','migration']}}
     def check_manifest(self,value):
