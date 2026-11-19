@@ -215,3 +215,12 @@ body:has(.v6-layout) { font-family:"Segoe UI",system-ui,-apple-system,BlinkMacSy
 .proposal-history-row { display: grid; gap: 6px; padding: 14px 0; border-bottom: 1px solid #dce8e5; }
 .proposal-history-row span { color: #667d77; font-size: .875rem; }
 .proposal-history-row p { margin: 0; }
+
+.email-detail { display: grid; gap: 14px; }
+.email-detail h3 { margin: 8px 0 0; color: #29463c; font-size: 1rem; }
+.email-detail-intro, .email-detail-caption { margin: 0; color: #647a73; line-height: 1.6; }
+.email-detail-notice { margin: 0; padding: 11px 14px; border-radius: 9px; background: #fff7e6; color: #805b18; line-height: 1.5; }
+.email-message-preview { white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; padding: 16px; border-radius: 10px; background: #f3f7f4; color: #315745; font: inherit; line-height: 1.7; }
+.email-detail-technical { border-top: 1px solid #dce8e5; padding-top: 12px; }
+.email-detail-technical summary { cursor: pointer; color: #536f65; font-weight: 600; }
+.email-detail-technical .campus-facts { margin-top: 10px; }

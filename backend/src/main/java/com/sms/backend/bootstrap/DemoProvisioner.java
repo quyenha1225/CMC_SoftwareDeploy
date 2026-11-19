@@ -49,7 +49,11 @@ public final class DemoProvisioner {
             try {
                 for (String name : names) {
                     String plain = passwords.getProperty(name);
-                    if (plain == null || !plain.matches("[A-Za-z0-9_!@.-]{12,72}")) {
+                    int minimumLength = name.equals("ctsv_demo") ? 8 : 12;
+                    if (plain == null
+                            || plain.length() < minimumLength
+                            || plain.length() > 72
+                            || !plain.matches("[A-Za-z0-9_!@.-]+")) {
                         throw new IllegalStateException("Invalid local demo password format.");
                     }
                     try (var select =

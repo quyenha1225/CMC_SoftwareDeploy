@@ -261,6 +261,24 @@ CREATE TABLE IF NOT EXISTS tuition_rates (
     CONSTRAINT fk_tuition_rates_semester FOREIGN KEY (semester_id) REFERENCES semesters(id)
 );
 
+CREATE TABLE IF NOT EXISTS tuition_rate_proposals (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    semester_id BIGINT NOT NULL,
+    current_price DECIMAL(14,2) NOT NULL,
+    proposed_price DECIMAL(14,2) NOT NULL,
+    reason VARCHAR(1000) NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'SUBMITTED',
+    submitted_by BIGINT NOT NULL,
+    submitted_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    reviewed_by BIGINT NULL,
+    reviewed_at DATETIME NULL,
+    decision_note VARCHAR(1000) NULL,
+    PRIMARY KEY (id),
+    CONSTRAINT fk_tuition_rate_proposals_semester FOREIGN KEY (semester_id) REFERENCES semesters(id),
+    CONSTRAINT fk_tuition_rate_proposals_submitter FOREIGN KEY (submitted_by) REFERENCES users(id),
+    CONSTRAINT fk_tuition_rate_proposals_reviewer FOREIGN KEY (reviewed_by) REFERENCES users(id)
+);
+
 CREATE TABLE IF NOT EXISTS invoices (
     id BIGINT NOT NULL AUTO_INCREMENT,
     student_id BIGINT NOT NULL,

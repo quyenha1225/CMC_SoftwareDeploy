@@ -1,0 +1,20 @@
+CREATE TABLE tuition_rate_proposals (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    semester_id BIGINT NOT NULL,
+    current_price DECIMAL(12,2) NOT NULL,
+    proposed_price DECIMAL(12,2) NOT NULL,
+    reason VARCHAR(1000) NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'SUBMITTED',
+    submitted_by BIGINT NOT NULL,
+    submitted_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    reviewed_by BIGINT NULL,
+    reviewed_at DATETIME NULL,
+    decision_note VARCHAR(1000) NULL,
+    PRIMARY KEY (id),
+    KEY ix_tuition_rate_proposals_status (status, submitted_at),
+    CONSTRAINT fk_tuition_rate_proposals_semester FOREIGN KEY (semester_id) REFERENCES semesters(id),
+    CONSTRAINT fk_tuition_rate_proposals_submitter FOREIGN KEY (submitted_by) REFERENCES users(id),
+    CONSTRAINT fk_tuition_rate_proposals_reviewer FOREIGN KEY (reviewed_by) REFERENCES users(id),
+    CONSTRAINT chk_tuition_rate_proposals_status CHECK (status IN ('SUBMITTED','APPROVED','RETURNED','REJECTED')),
+    CONSTRAINT chk_tuition_rate_proposals_price CHECK (current_price >= 0 AND proposed_price > 0)
+);

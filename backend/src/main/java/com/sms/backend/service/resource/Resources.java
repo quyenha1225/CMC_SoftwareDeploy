@@ -56,7 +56,24 @@ public class Resources {
                 "Đợt nhập học",
                 "code,title,cohort_id,opens_at,closes_at,status",
                 "PRINCIPAL");
-        add("tuition_rates", "Đơn giá học phí", "semester_id,price_per_credit", "CTSV");
+        define(
+                "tuition_rates",
+                "Đơn giá học phí",
+                "SELECT tr.*,s.code semester_code FROM tuition_rates tr JOIN semesters s ON s.id=tr.semester_id",
+                "tr",
+                "s.code",
+                List.of("semester_id", "price_per_credit", "semester_code"),
+                "",
+                "CTSV,PRINCIPAL,TRAINING_OFFICE");
+        define(
+                "tuition_rate_proposals",
+                "Yêu cầu đơn giá học phí",
+                "SELECT p.*,s.code semester_code,su.full_name submitter_name,ru.full_name reviewer_name FROM tuition_rate_proposals p JOIN semesters s ON s.id=p.semester_id JOIN users su ON su.id=p.submitted_by LEFT JOIN users ru ON ru.id=p.reviewed_by",
+                "p",
+                "s.code",
+                List.of("semester_id", "semester_code", "current_price", "proposed_price", "reason", "status", "submitted_by", "submitted_at", "reviewed_by", "reviewed_at", "decision_note", "submitter_name", "reviewer_name"),
+                "",
+                "TRAINING_OFFICE,PRINCIPAL,CTSV");
         add("ctsv_funds", "Quỹ CTSV", "code,name,channel,active", "CTSV");
         define(
                 "lecturers",
@@ -287,7 +304,19 @@ public class Resources {
         define(
                 "emails",
                 "Email thông báo",
-                "SELECT e.* FROM outbound_emails e",
+                "SELECT e.*,a.application_code,r.report_code,q.request_code,"
+                        + "COALESCE(au.full_name,qu.full_name,mu.full_name) AS recipient_name,"
+                        + "COALESCE(qs.student_code,ms.student_code) AS student_code,mb.school_email "
+                        + "FROM outbound_emails e "
+                        + "LEFT JOIN admission_applications a ON a.id=e.admission_application_id "
+                        + "LEFT JOIN users au ON au.id=a.applicant_user_id "
+                        + "LEFT JOIN ctsv_semester_reports r ON r.id=e.semester_report_id "
+                        + "LEFT JOIN student_requests q ON q.id=e.student_request_id "
+                        + "LEFT JOIN students qs ON qs.id=q.student_id "
+                        + "LEFT JOIN users qu ON qu.id=qs.user_id "
+                        + "LEFT JOIN student_school_mailboxes mb ON mb.id=e.mailbox_id "
+                        + "LEFT JOIN students ms ON ms.id=mb.student_id "
+                        + "LEFT JOIN users mu ON mu.id=ms.user_id",
                 "e",
                 "e.recipient_email",
                 List.of(),
@@ -465,6 +494,8 @@ public class Resources {
                                 review.equals("pending") ? "'SUBMITTED'" : "'CONFIRMED','REJECTED'";
                         case "reports" ->
                                 review.equals("pending") ? "'SUBMITTED'" : "'APPROVED','RETURNED'";
+                        case "tuition_rate_proposals" ->
+                                review.equals("pending") ? "'SUBMITTED'" : "'APPROVED','RETURNED','REJECTED'";
                         default -> throw error(404, "Không có hàng đợi xét duyệt này.");
                     };
             where += " AND " + s.alias() + ".status IN (" + states + ")";

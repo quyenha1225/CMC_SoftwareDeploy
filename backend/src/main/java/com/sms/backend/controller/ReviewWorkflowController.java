@@ -4,6 +4,7 @@ import static com.sms.backend.repository.Db.*;
 
 import com.sms.backend.security.Actor;
 import com.sms.backend.service.finance.InvoiceProposals;
+import com.sms.backend.service.finance.TuitionRateProposals;
 import com.sms.backend.service.resource.Resources;
 
 import org.springframework.web.bind.annotation.*;
@@ -16,11 +17,23 @@ public class ReviewWorkflowController {
     private final Resources resources;
     private final InvoiceProposals proposals;
     private final Actor actor;
+    private final TuitionRateProposals tuitionRates;
 
-    public ReviewWorkflowController(Resources resources, InvoiceProposals proposals, Actor actor) {
+    public ReviewWorkflowController(Resources resources, InvoiceProposals proposals, Actor actor, TuitionRateProposals tuitionRates) {
         this.resources = resources;
         this.proposals = proposals;
         this.actor = actor;
+        this.tuitionRates = tuitionRates;
+    }
+
+    @PostMapping("/tuition-rate-proposals")
+    Map<String, Object> submitTuitionRate(@RequestBody Map<String, Object> input) {
+        return map("id", tuitionRates.submit(input));
+    }
+
+    @PostMapping("/tuition-rate-proposals/{id}/{action}")
+    void decideTuitionRate(@PathVariable long id, @PathVariable String action, @RequestBody Map<String, Object> input) {
+        tuitionRates.decide(id, action, Objects.toString(input.get("note"), ""));
     }
 
     @GetMapping("/reviews/{key}")

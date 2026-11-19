@@ -68,14 +68,7 @@ public class OutboxWorker {
         message.setFrom(from);
         message.setTo(row.get("recipient_email").toString());
         message.setSubject(row.get("subject").toString());
-        message.setText(
-                row.get("body_text") != null
-                        ? row.get("body_text").toString()
-                        : row.get("subject")
-                                + "\n\n"
-                                + "Vui lòng đăng nhập EduPortal để xem nội dung và trạng thái xử"
-                                + " lý. Không trả lời email này bằng mật khẩu hoặc giấy tờ cá"
-                                + " nhân.");
+        message.setText(body(row));
         try {
             mail.send(message);
         } catch (MailException e) {
@@ -106,5 +99,28 @@ public class OutboxWorker {
                             "SENT".equals(finalResult) ? java.time.LocalDateTime.now() : null,
                             id);
                 });
+    }
+
+    private String body(Map<String, Object> row) {
+        String saved = Objects.toString(row.get("body_text"), "").trim();
+        if (!saved.isEmpty()) return saved;
+        String subject = Objects.toString(row.get("subject"), "Thông báo EduPortal");
+        String template = Objects.toString(row.get("template_code"), "");
+        String message =
+                switch (template) {
+                    case "ADMISSION_RECEIVED" ->
+                            "Nhà trường đã tiếp nhận hồ sơ trực tuyến của bạn. "
+                                    + "Vui lòng đăng nhập EduPortal để theo dõi tiến độ xử lý hồ sơ.";
+                    case "ADMISSION_STATUS" ->
+                            "Hồ sơ của bạn đã được cập nhật trạng thái. "
+                                    + "Vui lòng đăng nhập EduPortal để xem nội dung và việc cần thực hiện tiếp theo.";
+                    default ->
+                            "Vui lòng đăng nhập EduPortal để xem nội dung và trạng thái xử lý thông báo.";
+                };
+        return "Chào bạn,\n\n"
+                + subject
+                + "\n\n"
+                + message
+                + "\n\nKhông gửi mật khẩu hoặc giấy tờ cá nhân qua email phản hồi.";
     }
 }

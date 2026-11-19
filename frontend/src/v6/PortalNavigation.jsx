@@ -16,7 +16,7 @@ const icons = {
 
 export function pageTitle(key, role, resources) {
   if (key === 'overview') return 'Tổng quan';
-  const reviewTitles={admissions:'Xét duyệt hồ sơ',grade_sheets:'Xét duyệt bảng điểm',invoice_proposals:'Xét duyệt học phí',adjustments:'Duyệt điều chỉnh học phí',remittances:'Duyệt bàn giao',reports:'Duyệt báo cáo'};
+  const reviewTitles={admissions:'Xét duyệt hồ sơ',grade_sheets:'Xét duyệt bảng điểm',invoice_proposals:'Xét duyệt học phí',tuition_rate_proposals:'Duyệt đơn giá học phí',adjustments:'Duyệt điều chỉnh học phí',remittances:'Duyệt bàn giao',reports:'Duyệt báo cáo'};
   if(role==='PRINCIPAL' && reviewTitles[key]) return reviewTitles[key];
   if(role==='TRAINING_OFFICE' && key==='grade_sheets') return 'Kiểm tra & trình bảng điểm';
   if (role === 'STUDENT' && titles[key]) return titles[key];
