@@ -136,7 +136,7 @@ def main(step):
         scan_report(command,REPORTS/(prefix+'-filesystem.json'))
         for service in ['backend','frontend','migration']:
             target='sms-'+service+':'+os.getenv('IMAGE_TAG','local')
-            archive=ROOT/'artifacts'/('scan-'+service+'.tar')
+            archive=ROOT/'artifacts'/('scan-'+step+'-'+service+'.tar')
             run(docker_cli()+['save','-o',str(archive),target])
             try:
                 scan_report(docker_cli()+['run','--rm','-v',str(archive)+':/image.tar:ro','-v','sms_trivy_cache:/root/.cache/',image,'image','--timeout','15m','--no-progress','--input','/image.tar','--scanners',scanner,'--severity',severity,'--exit-code','1','--format','json'],REPORTS/(prefix+'-'+service+'.json'))
