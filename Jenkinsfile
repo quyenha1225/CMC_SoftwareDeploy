@@ -1,29 +1,37 @@
 
-def executeStep(String step) {
-    withEnv(["IMAGE_TAG=${env.IMAGE_TAG ?: 'local'}"]) {
-        if (isUnix()) {
-            sh "python3 scripts/ci.py ${step}"
-        } else {
-            bat "python scripts\\ci.py ${step}"
-        }
+def runPythonScript(String arguments) {
+    if (isUnix()) {
+        sh "python3 ${arguments}"
+    } else {
+        bat "\"${env.PYTHON_EXE}\" ${arguments}"
     }
 }
 
 def executeStep(String step) {
+    withEnv(["IMAGE_TAG=${env.IMAGE_TAG ?: 'local'}"]) {
+        runPythonScript("scripts/ci.py ${step}")
+    }
+}
+
+def runLocalCommand(String command) {
     if (isUnix()) {
-        sh "python3 scripts/ci.py ${step}"
+        sh command
     } else {
-        bat """
-            "C:\\Users\\Admin\\AppData\\Local\\Programs\\Python\\Python312\\python.exe" scripts\\ci.py ${step}
-        """
+        bat command
     }
 }
 
 pipeline {
-    agent { label 'sms-docker' }
+    agent {
+        label 'sms-docker'
+    }
 
     environment {
         DOCKER_BUILDKIT = '1'
+
+        // Python 3.12 trên máy Windows của bạn.
+        // Nếu chuyển máy Jenkins, cần cập nhật đường dẫn này.
+        PYTHON_EXE = 'C:\\Users\\Admin\\AppData\\Local\\Programs\\Python\\Python312\\python.exe'
     }
 
     options {
@@ -48,6 +56,7 @@ pipeline {
     }
 
     stages {
+
         stage('Checkout') {
             steps {
                 checkout scm
@@ -72,6 +81,28 @@ pipeline {
             }
         }
 
+        stage('Check Environment') {
+            steps {
+                script {
+                    if (isUnix()) {
+                        sh '''
+                            python3 --version
+                            docker --version
+                            docker compose version
+                            java -version
+                        '''
+                    } else {
+                        bat '''
+                            "%PYTHON_EXE%" --version
+                            docker --version
+                            docker compose version
+                            java -version
+                        '''
+                    }
+                }
+            }
+        }
+
         stage('Prepare') {
             steps {
                 executeStep('prepare')
@@ -80,6 +111,7 @@ pipeline {
 
         stage('Tests') {
             parallel {
+
                 stage('Backend Test') {
                     steps {
                         executeStep('backend')
@@ -107,8 +139,12 @@ pipeline {
         stage('SonarQube Analysis') {
             when {
                 allOf {
-                    expression { params.RUN_SONAR }
-                    not { changeRequest() }
+                    expression {
+                        params.RUN_SONAR
+                    }
+                    not {
+                        changeRequest()
+                    }
                 }
             }
 
@@ -122,8 +158,12 @@ pipeline {
         stage('SonarQube Quality Gate') {
             when {
                 allOf {
-                    expression { params.RUN_SONAR }
-                    not { changeRequest() }
+                    expression {
+                        params.RUN_SONAR
+                    }
+                    not {
+                        changeRequest()
+                    }
                 }
             }
 
@@ -142,21 +182,22 @@ pipeline {
 
         stage('Build Docker Images') {
             steps {
-                // ci.py build đã build đủ backend, frontend và migration.
-                // Build context là thư mục gốc repository.
+                // Build backend, frontend và migration.
+                // Build context được giữ ở thư mục gốc repository.
                 executeStep('build')
             }
         }
 
         stage('MySQL Integration Tests') {
             steps {
-                // Dùng database CI riêng, không đụng database local.
+                // Database CI riêng, không sử dụng database local.
                 executeStep('mysql')
             }
         }
 
         stage('Security Scan') {
             parallel {
+
                 stage('Dependency and Image Scan') {
                     steps {
                         executeStep('security')
@@ -172,38 +213,33 @@ pipeline {
         }
 
         stage('Deploy Local Docker') {
-    when {
-        allOf {
-            expression {
-                def currentBranch = (
-    env.BRANCH_NAME ?: env.GIT_BRANCH ?: ''
-).replaceFirst(/^origin\//, '')
+            when {
+                allOf {
+                    expression {
+                        def currentBranch = (
+                            env.BRANCH_NAME ?: env.GIT_BRANCH ?: ''
+                        ).replaceFirst(/^origin\//, '')
 
-if (currentBranch in ['quyen/admin', 'develop']) {
-    echo 'CI/CD completed: Local Docker deployment executed.'
-} else {
-    echo "CI completed. Deployment skipped for branch: ${currentBranch}"
-}
+                        return currentBranch in ['quyen/admin', 'develop']
+                    }
 
-                return currentBranch in ['quyen/admin', 'develop']
+                    not {
+                        changeRequest()
+                    }
+                }
             }
-            not { changeRequest() }
-        }
-    }
 
             steps {
                 script {
-                    // Tạo .env và secrets lần đầu nếu máy Jenkins chưa có.
+
+                    // Khởi tạo cấu hình local nếu chưa có.
                     if (!fileExists('.env')) {
-                        runLocalCommand(
-                            isUnix()
-                                ? 'python3 scripts/docker.py init'
-                                : 'python scripts\\docker.py init'
-                        )
+                        runPythonScript('scripts/docker.py init')
                     }
 
                     withEnv(["IMAGE_TAG=${env.IMAGE_TAG}"]) {
-                        // Nếu stack cũ đang chạy, backup trước khi migration/deploy.
+
+                        // Kiểm tra stack hiện tại.
                         def running = isUnix()
                             ? sh(
                                 script: 'docker compose -f compose.yaml ps --status running -q db backend',
@@ -214,17 +250,14 @@ if (currentBranch in ['quyen/admin', 'develop']) {
                                 returnStdout: true
                             ).trim()
 
+                        // Backup trước khi cập nhật nếu database và backend đang chạy.
                         if (running.readLines().size() >= 2) {
                             echo 'Existing local stack detected. Creating backup.'
-                            runLocalCommand(
-                                isUnix()
-                                    ? 'python3 scripts/docker.py backup'
-                                    : 'python scripts\\docker.py backup'
-                            )
+
+                            runPythonScript('scripts/docker.py backup')
                         }
 
-                        // Chạy image đã build và kiểm thử ở các stage trước.
-                        // Compose tự khởi động DB và migration theo depends_on.
+                        // Khởi chạy các image đã được build ở stage trước.
                         runLocalCommand(
                             'docker compose -f compose.yaml up -d --no-build --wait --wait-timeout 300 frontend backend'
                         )
@@ -234,13 +267,10 @@ if (currentBranch in ['quyen/admin', 'develop']) {
                             'docker compose -f compose.yaml --profile tools run --rm provision'
                         )
 
-                        // Kiểm tra frontend, backend readiness và SQL integrity.
-                        runLocalCommand(
-                            isUnix()
-                                ? 'python3 scripts/docker.py --production smoke'
-                                : 'python scripts\\docker.py --production smoke'
-                        )
+                        // Kiểm tra frontend, backend và SQL integrity.
+                        runPythonScript('scripts/docker.py --production smoke')
 
+                        // Hiển thị trạng thái các container.
                         runLocalCommand(
                             'docker compose -f compose.yaml ps'
                         )
@@ -251,6 +281,7 @@ if (currentBranch in ['quyen/admin', 'develop']) {
     }
 
     post {
+
         always {
             junit(
                 testResults: 'backend/target/surefire-reports/*.xml,frontend/coverage/junit.xml',
@@ -258,7 +289,7 @@ if (currentBranch in ['quyen/admin', 'develop']) {
             )
 
             archiveArtifacts(
-                artifacts: 'artifacts/reports/**/*,backend/target/site/jacoco/**,frontend/coverage/**',
+                artifacts: 'artifacts/reports/**/*,backend/target/site/jacoco/**/*,frontend/coverage/**/*',
                 allowEmptyArchive: true
             )
         }
@@ -267,10 +298,14 @@ if (currentBranch in ['quyen/admin', 'develop']) {
             echo "CI completed for ${env.IMAGE_TAG ?: 'unknown commit'}."
 
             script {
-                if (env.BRANCH_NAME == 'develop') {
+                def currentBranch = (
+                    env.BRANCH_NAME ?: env.GIT_BRANCH ?: ''
+                ).replaceFirst(/^origin\//, '')
+
+                if (currentBranch in ['quyen/admin', 'develop']) {
                     echo 'Local Docker deployment completed.'
                 } else {
-                    echo 'Validation completed. Deployment is restricted to develop.'
+                    echo "CI completed. Deployment skipped for branch: ${currentBranch}"
                 }
             }
         }
