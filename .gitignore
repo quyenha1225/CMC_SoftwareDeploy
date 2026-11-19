@@ -16,3 +16,10 @@ frontend/coverage/
 infrastructure/migration/target/
 
 frontend/.eslintcache
+
+backend/boot.log
+scripts/__pycache__/
+*.pyc
+scrip_password/
+CMC_SoftwareDeploy/
+CMC_SoftwareDeploy.zip
