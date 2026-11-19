@@ -1,0 +1,4 @@
+# Thêm vào CUỐI file .env (KHÔNG phải .env.example, KHÔNG commit token thật)
+ALERT_TELEGRAM_BOT_TOKEN=
+ALERT_TELEGRAM_CHAT_ID=
+ALERTMANAGER_PORT=9093

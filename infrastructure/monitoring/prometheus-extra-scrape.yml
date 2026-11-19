@@ -1,0 +1,25 @@
+# DÁN thêm vào mục scrape_configs: của infrastructure/monitoring/prometheus.yml
+  - job_name: sms-cadvisor
+    static_configs:
+      - targets: ['cadvisor:8080']
+  - job_name: sms-node
+    static_configs:
+      - targets: ['node-exporter:9100']
+  - job_name: sms-frontend-probe
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets: ['http://frontend:8080/healthz']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox:9115
+
+# VÀ đảm bảo rule_files: có cả 2 file (giữ dòng alerts.yml cũ):
+# rule_files:
+#   - /etc/prometheus/alerts.yml
+#   - /etc/prometheus/alerts-infra.yml

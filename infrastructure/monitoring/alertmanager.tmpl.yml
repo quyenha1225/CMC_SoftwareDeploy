@@ -1,0 +1,14 @@
+route:
+  receiver: telegram
+  group_by: [alertname]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+receivers:
+  - name: telegram
+    telegram_configs:
+      - bot_token: __TG_TOKEN__
+        chat_id: __TG_CHAT_ID__
+        send_resolved: true
+        parse_mode: ''
+        message: '{{ range .Alerts }}[{{ .Status }}] {{ .Labels.alertname }} ({{ .Labels.severity }}){{ "\n" }}{{ .Annotations.summary }}{{ "\n" }}{{ end }}'

@@ -1,0 +1,91 @@
+# Giám sát mở rộng: container, ổ đĩa, dung lượng volume, frontend.
+# Chạy: docker compose -f compose.yaml -f compose.monitoring.yaml --profile monitoring up -d
+services:
+  prometheus:
+    volumes:
+      - ./infrastructure/monitoring/alerts-infra.yml:/etc/prometheus/alerts-infra.yml:ro
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    profiles: [monitoring]
+    restart: unless-stopped
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    networks: [observability]
+    logging:
+      driver: json-file
+      options: {max-size: 10m, max-file: '3'}
+
+  node-exporter:
+    image: prom/node-exporter:v1.9.1
+    profiles: [monitoring]
+    restart: unless-stopped
+    command: [--path.rootfs=/host, --collector.textfile.directory=/textfile]
+    volumes:
+      - /:/host:ro
+      - metrics_textfile:/textfile:ro
+    networks: [observability]
+    security_opt: [no-new-privileges:true]
+    logging:
+      driver: json-file
+      options: {max-size: 10m, max-file: '3'}
+
+  volume-size:
+    image: alpine:3.22
+    profiles: [monitoring]
+    restart: unless-stopped
+    command: [sh, /volume-size.sh]
+    volumes:
+      - ./infrastructure/monitoring/volume-size.sh:/volume-size.sh:ro
+      - metrics_textfile:/textfile
+      - mysql_data:/vols/mysql_data:ro
+      - private_files:/vols/private_files:ro
+      - prometheus_data:/vols/prometheus_data:ro
+      - grafana_data:/vols/grafana_data:ro
+    network_mode: none
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    logging:
+      driver: json-file
+      options: {max-size: 10m, max-file: '3'}
+
+  blackbox:
+    image: prom/blackbox-exporter:v0.26.0
+    profiles: [monitoring]
+    restart: unless-stopped
+    volumes:
+      - ./infrastructure/monitoring/blackbox.yml:/etc/blackbox_exporter/config.yml:ro
+    networks: [app, observability]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    logging:
+      driver: json-file
+      options: {max-size: 10m, max-file: '3'}
+
+  alertmanager:
+    image: prom/alertmanager:v0.28.1
+    profiles: [monitoring]
+    restart: unless-stopped
+    entrypoint: [sh, /alertmanager-entrypoint.sh]
+    environment:
+      ALERT_TELEGRAM_BOT_TOKEN: ${ALERT_TELEGRAM_BOT_TOKEN:-}
+      ALERT_TELEGRAM_CHAT_ID: ${ALERT_TELEGRAM_CHAT_ID:-}
+    ports: ['127.0.0.1:${ALERTMANAGER_PORT:-9093}:9093']
+    volumes:
+      - ./infrastructure/monitoring/alertmanager-entrypoint.sh:/alertmanager-entrypoint.sh:ro
+      - ./infrastructure/monitoring/alertmanager.tmpl.yml:/etc/alertmanager/alertmanager.tmpl.yml:ro
+      - ./infrastructure/monitoring/alertmanager.null.yml:/etc/alertmanager/alertmanager.null.yml:ro
+    # monitoring_edge không phải mạng internal nên gửi được ra api.telegram.org;
+    # Prometheus cũng nằm trong mạng này nên gọi được alertmanager:9093.
+    networks: [monitoring_edge]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    logging:
+      driver: json-file
+      options: {max-size: 10m, max-file: '3'}
+
+volumes:
+  metrics_textfile: {}
