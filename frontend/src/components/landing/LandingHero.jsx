@@ -19,7 +19,7 @@ export default function LandingHero({ onLogin }) {
         </p>
         <div className="landing-actions">
           <button className="button-solid" onClick={onLogin}>
-            Vào cổng đào tạo <Icon name="arrow" size={17} />
+            VÀO CỔNG ĐÀO TẠO <Icon name="arrow" size={17} />
           </button>
           <a className="button-text" href="#training">
             Tìm hiểu chương trình <Icon name="chevron" size={15} />
