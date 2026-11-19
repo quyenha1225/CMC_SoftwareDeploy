@@ -170,12 +170,24 @@ pipeline {
         }
 
         stage('Deploy Local Docker') {
-            when {
-                allOf {
-                    branch 'develop'
-                    not { changeRequest() }
-                }
+    when {
+        allOf {
+            expression {
+                def currentBranch = (
+    env.BRANCH_NAME ?: env.GIT_BRANCH ?: ''
+).replaceFirst(/^origin\//, '')
+
+if (currentBranch in ['quyen/admin', 'develop']) {
+    echo 'CI/CD completed: Local Docker deployment executed.'
+} else {
+    echo "CI completed. Deployment skipped for branch: ${currentBranch}"
+}
+
+                return currentBranch in ['quyen/admin', 'develop']
             }
+            not { changeRequest() }
+        }
+    }
 
             steps {
                 script {
