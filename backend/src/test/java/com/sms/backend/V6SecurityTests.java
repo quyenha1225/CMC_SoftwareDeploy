@@ -141,6 +141,212 @@ class V6SecurityTests {
         return id;
     }
 
+    long makeRateSemester() {
+        var now = java.time.LocalDate.now();
+        long year =
+                db.insert(
+                        "academic_years",
+                        map(
+                                "name", "RATE-YEAR-" + UUID.randomUUID(),
+                                "starts_on", now.minusMonths(1),
+                                "ends_on", now.plusMonths(12)));
+        return db.insert(
+                "semesters",
+                map(
+                        "academic_year_id", year,
+                        "code", "RATE-TERM",
+                        "starts_on", now.minusDays(1),
+                        "ends_on", now.plusMonths(3),
+                        "status", "OPEN"));
+    }
+
+    long submitRateProposal(long semester, String price, String reason) throws Exception {
+        mvc.perform(
+                        post("/api/tuition-rate-proposals")
+                                .with(user("pdt"))
+                                .with(csrf())
+                                .contentType("application/json")
+                                .content(
+                                        "{\"semester_id\":"
+                                                + semester
+                                                + ",\"proposed_price\":\""
+                                                + price
+                                                + "\",\"reason\":\""
+                                                + reason
+                                                + "\"}"))
+                .andExpect(status().isOk());
+        return db.number("SELECT MAX(id) FROM tuition_rate_proposals");
+    }
+
+    @Test
+    void tuitionRateProposalCanBeSubmittedAndApprovedWithoutExistingRate() throws Exception {
+        long semester = makeRateSemester();
+        String input =
+                "{\"semester_id\":"
+                        + semester
+                        + ",\"proposed_price\":\"125000\",\"reason\":\"  Điều chỉnh theo năm học  \"}";
+        mvc.perform(
+                        post("/api/tuition-rate-proposals")
+                                .with(user("student"))
+                                .with(csrf())
+                                .contentType("application/json")
+                                .content(input))
+                .andExpect(status().isForbidden());
+        mvc.perform(
+                        post("/api/tuition-rate-proposals")
+                                .with(user("pdt"))
+                                .with(csrf())
+                                .contentType("application/json")
+                                .content(input))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").isNumber());
+        long proposal = db.number("SELECT MAX(id) FROM tuition_rate_proposals");
+        org.junit.jupiter.api.Assertions.assertEquals(
+                "Điều chỉnh theo năm học",
+                db.one("SELECT reason FROM tuition_rate_proposals WHERE id=?", proposal)
+                        .get("reason"));
+        org.junit.jupiter.api.Assertions.assertEquals(
+                0,
+                new java.math.BigDecimal(
+                                db.one(
+                                                "SELECT current_price FROM tuition_rate_proposals"
+                                                        + " WHERE id=?",
+                                                proposal)
+                                        .get("current_price")
+                                        .toString())
+                        .compareTo(java.math.BigDecimal.ZERO));
+        mvc.perform(
+                        post("/api/tuition-rate-proposals/" + proposal + "/APPROVE")
+                                .with(user("principal"))
+                                .with(csrf())
+                                .contentType("application/json")
+                                .content("{\"note\":\"  Đồng ý  \"}"))
+                .andExpect(status().isOk());
+        org.junit.jupiter.api.Assertions.assertEquals(
+                0,
+                new java.math.BigDecimal(
+                                db.one("SELECT price_per_credit FROM tuition_rates WHERE semester_id=?", semester)
+                                        .get("price_per_credit")
+                                        .toString())
+                        .compareTo(new java.math.BigDecimal("125000")));
+        org.junit.jupiter.api.Assertions.assertEquals(
+                "APPROVED",
+                db.one("SELECT status FROM tuition_rate_proposals WHERE id=?", proposal)
+                        .get("status"));
+        org.junit.jupiter.api.Assertions.assertEquals(
+                1,
+                db.number(
+                        "SELECT COUNT(*) FROM audit_logs WHERE entity_type='tuition_rate_proposals'"
+                                + " AND entity_id=?",
+                        String.valueOf(proposal)));
+        mvc.perform(get("/api/reviews/tuition_rate_proposals?view=pending").with(user("principal")))
+                .andExpect(status().isOk());
+        mvc.perform(get("/api/reviews/tuition_rate_proposals?view=history").with(user("principal")))
+                .andExpect(status().isOk());
+        mvc.perform(get("/api/resources/tuition_rate_proposals").with(user("principal")))
+                .andExpect(status().isOk());
+        mvc.perform(
+                        post("/api/tuition-rate-proposals/" + proposal + "/REJECT")
+                                .with(user("principal"))
+                                .with(csrf())
+                                .contentType("application/json")
+                                .content("{}"))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    void tuitionRateProposalValidatesInputsAndHandlesExistingRatesAndDecisions()
+            throws Exception {
+        long semester = makeRateSemester();
+        db.insert("tuition_rates", map("semester_id", semester, "price_per_credit", 100000));
+        String base = "{\"semester_id\":" + semester + ",\"proposed_price\":\"%s\",\"reason\":\"%s\"}";
+        mvc.perform(
+                        post("/api/tuition-rate-proposals")
+                                .with(user("pdt"))
+                                .with(csrf())
+                                .contentType("application/json")
+                                .content(base.formatted("not-a-price", "Valid reason")))
+                .andExpect(status().isBadRequest());
+        mvc.perform(
+                        post("/api/tuition-rate-proposals")
+                                .with(user("pdt"))
+                                .with(csrf())
+                                .contentType("application/json")
+                                .content(base.formatted("0", "No")))
+                .andExpect(status().isBadRequest());
+        mvc.perform(
+                        post("/api/tuition-rate-proposals")
+                                .with(user("pdt"))
+                                .with(csrf())
+                                .contentType("application/json")
+                                .content(
+                                        "{\"semester_id\":999999,\"proposed_price\":\"120000\",\"reason\":\"Valid reason\"}"))
+                .andExpect(status().isNotFound());
+
+        long approved = submitRateProposal(semester, "120000", "Increase rate");
+        mvc.perform(
+                        post("/api/tuition-rate-proposals/" + approved + "/UNKNOWN")
+                                .with(user("principal"))
+                                .with(csrf())
+                                .contentType("application/json")
+                                .content("{}"))
+                .andExpect(status().isBadRequest());
+        mvc.perform(
+                        post("/api/tuition-rate-proposals/" + approved + "/APPROVE")
+                                .with(user("principal"))
+                                .with(csrf())
+                                .contentType("application/json")
+                                .content("{\"note\":\" Reviewed \"}"))
+                .andExpect(status().isOk());
+        org.junit.jupiter.api.Assertions.assertEquals(
+                0,
+                new java.math.BigDecimal(
+                                db.one("SELECT price_per_credit FROM tuition_rates WHERE semester_id=?", semester)
+                                        .get("price_per_credit")
+                                        .toString())
+                        .compareTo(new java.math.BigDecimal("120000")));
+
+        long returned = submitRateProposal(semester, "130000", "Another increase");
+        mvc.perform(
+                        post("/api/tuition-rate-proposals/" + returned + "/RETURN")
+                                .with(user("principal"))
+                                .with(csrf())
+                                .contentType("application/json")
+                                .content("{\"note\":\"  Revise  \"}"))
+                .andExpect(status().isOk());
+        org.junit.jupiter.api.Assertions.assertEquals(
+                "RETURNED",
+                db.one("SELECT status FROM tuition_rate_proposals WHERE id=?", returned)
+                        .get("status"));
+        org.junit.jupiter.api.Assertions.assertEquals(
+                "Revise",
+                db.one("SELECT decision_note FROM tuition_rate_proposals WHERE id=?", returned)
+                        .get("decision_note"));
+
+        long stale = submitRateProposal(semester, "140000", "Stale proposal");
+        db.run("UPDATE tuition_rates SET price_per_credit=125000 WHERE semester_id=?", semester);
+        mvc.perform(
+                        post("/api/tuition-rate-proposals/" + stale + "/APPROVE")
+                                .with(user("principal"))
+                                .with(csrf())
+                                .contentType("application/json")
+                                .content("{}"))
+                .andExpect(status().isConflict());
+
+        long rejected = submitRateProposal(semester, "150000", "Rejected proposal");
+        mvc.perform(
+                        post("/api/tuition-rate-proposals/" + rejected + "/REJECT")
+                                .with(user("principal"))
+                                .with(csrf())
+                                .contentType("application/json")
+                                .content("{}"))
+                .andExpect(status().isOk());
+        org.junit.jupiter.api.Assertions.assertEquals(
+                "REJECTED",
+                db.one("SELECT status FROM tuition_rate_proposals WHERE id=?", rejected)
+                        .get("status"));
+    }
+
     @Test
     void resourceQueriesMatchV6Schema() throws Exception {
         for (String key :
@@ -155,6 +361,7 @@ class V6SecurityTests {
                         "curricula",
                         "admission_periods",
                         "tuition_rates",
+                        "tuition_rate_proposals",
                         "ctsv_funds",
                         "lecturers",
                         "sections",

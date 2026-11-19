@@ -101,7 +101,7 @@ public class OutboxWorker {
                 });
     }
 
-    private String body(Map<String, Object> row) {
+    String body(Map<String, Object> row) {
         String saved = Objects.toString(row.get("body_text"), "").trim();
         if (!saved.isEmpty()) return saved;
         String subject = Objects.toString(row.get("subject"), "Thông báo EduPortal");

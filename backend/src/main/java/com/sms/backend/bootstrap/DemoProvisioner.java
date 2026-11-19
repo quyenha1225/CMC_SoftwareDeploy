@@ -50,13 +50,7 @@ public final class DemoProvisioner {
             try {
                 for (String name : names) {
                     String plain = passwords.getProperty(name);
-                    int minimumLength = name.equals("ctsv_demo") ? 8 : 12;
-                    if (plain == null
-                            || plain.length() < minimumLength
-                            || plain.length() > 72
-                            || !plain.matches("[A-Za-z0-9_!@.-]+")) {
-                        throw new IllegalStateException("Invalid local demo password format.");
-                    }
+                    validatePassword(name, plain);
                     try (var select =
                             connection.prepareStatement(
                                     "SELECT id,password_hash,enabled FROM users WHERE username=?"
@@ -67,22 +61,12 @@ public final class DemoProvisioner {
                                 if (!name.equals("principal"))
                                     throw new IllegalStateException("Demo seed incomplete.");
                                 createPrincipal(connection, encoder.encode(plain));
-                            } else if (rows.getBoolean("enabled")) {
-                                if (!encoder.matches(plain, rows.getString("password_hash"))) {
-                                    if (!syncPasswords) {
-                                        throw new IllegalStateException(
-                                                "Enabled account password differs; no password was"
-                                                        + " reset.");
-                                    }
-                                    try (var update =
-                                            connection.prepareStatement(
-                                                    "UPDATE users SET password_hash=? WHERE id=?")) {
-                                        update.setString(1, encoder.encode(plain));
-                                        update.setLong(2, rows.getLong("id"));
-                                        update.executeUpdate();
-                                    }
-                                }
-                            } else {
+                            } else if (shouldUpdatePassword(
+                                    rows.getBoolean("enabled"),
+                                    plain,
+                                    rows.getString("password_hash"),
+                                    syncPasswords,
+                                    encoder)) {
                                 try (var update =
                                         connection.prepareStatement(
                                                 "UPDATE users SET enabled=TRUE,password_hash=?"
@@ -103,6 +87,31 @@ public final class DemoProvisioner {
                 throw failure;
             }
         }
+    }
+
+    static void validatePassword(String username, String password) {
+        int minimumLength = username.equals("ctsv_demo") ? 8 : 12;
+        if (password == null
+                || password.length() < minimumLength
+                || password.length() > 72
+                || !password.matches("[A-Za-z0-9_!@.-]+")) {
+            throw new IllegalStateException("Invalid local demo password format.");
+        }
+    }
+
+    static boolean shouldUpdatePassword(
+            boolean enabled,
+            String plain,
+            String passwordHash,
+            boolean syncPasswords,
+            BCryptPasswordEncoder encoder) {
+        if (!enabled) return true;
+        if (encoder.matches(plain, passwordHash)) return false;
+        if (!syncPasswords) {
+            throw new IllegalStateException(
+                    "Enabled account password differs; no password was reset.");
+        }
+        return true;
     }
 
     private static void createPrincipal(Connection connection, String hash) throws Exception {
