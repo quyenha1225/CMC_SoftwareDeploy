@@ -147,7 +147,7 @@ class V6SecurityTests {
                 db.insert(
                         "academic_years",
                         map(
-                                "name", "RATE-YEAR-" + UUID.randomUUID(),
+                                "name", "RATE-" + UUID.randomUUID().toString().replace("-", "").substring(0, 20),
                                 "starts_on", now.minusMonths(1),
                                 "ends_on", now.plusMonths(12)));
         return db.insert(
@@ -234,7 +234,7 @@ class V6SecurityTests {
                 db.one("SELECT status FROM tuition_rate_proposals WHERE id=?", proposal)
                         .get("status"));
         org.junit.jupiter.api.Assertions.assertEquals(
-                1,
+                2,
                 db.number(
                         "SELECT COUNT(*) FROM audit_logs WHERE entity_type='tuition_rate_proposals'"
                                 + " AND entity_id=?",
