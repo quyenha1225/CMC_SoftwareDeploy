@@ -177,6 +177,8 @@ python scripts/docker.py smoke
 
 `init` sinh `.env`, thư mục `.secrets/` và tài khoản thực hành. Script từ chối ghi đè cấu hình đã có. **Nếu máy đã có `.env` và `.secrets/`, bỏ qua `init`**, bắt đầu từ `config` và `up`; không xóa chúng để chạy lại.
 
+Muốn Docker dùng cùng mật khẩu với 15 actor của bản host, chuyển file `backend/.local/actor-credentials-sms_v6_original.json` sang máy mới qua kênh an toàn **trước khi chạy `init`**. Khi file có mặt, `init` đưa các mật khẩu đó vào secret cục bộ `demo_accounts`; `up` sẽ provision cùng tài khoản vào database Docker và ghi bảng đăng nhập cục bộ. File actor chứa mật khẩu, không đưa lên Git. Nếu đã chạy `init` trước khi chuyển file, không xóa volume/database đang dùng; secret Docker hiện tại không tự đổi.
+
 `up` build frontend/backend/migration, khởi động MySQL, chạy Flyway và kích hoạt tài khoản trong database thực hành Docker. Không cần tự nhập `01_SCHEMA_ALL.sql` vào database container. Không chạy chồng bộ SQL cũ lên database đã được Flyway quản lý.
 
 ### Địa chỉ và đăng nhập

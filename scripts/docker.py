@@ -59,6 +59,20 @@ def initialize(path,ci=False):
     values['smtp_password']=''
     accounts=['principal','principal_demo','training_demo','ctsv_demo',*[f'lecturer_demo_{i:02}' for i in range(1,4)],*[f'student_demo_{i:03}' for i in range(1,7)],'applicant_demo_03','applicant_demo_04']
     passwords={name:secrets.token_urlsafe(18)+'Aa1!' for name in accounts}
+    credentials_source=ROOT/'backend/.local/actor-credentials-sms_v6_original.json'
+    if not ci and credentials_source.is_file():
+        try:
+            rows=json.loads(credentials_source.read_text(encoding='utf-8'))
+            supplied={row['username']:row['password'] for row in rows}
+        except (ValueError,TypeError,KeyError) as failure:
+            raise RuntimeError('Host actor credentials JSON is invalid; Docker secrets were not initialized.') from failure
+        if set(supplied)!=set(accounts):
+            raise RuntimeError('Host actor credentials must contain exactly the 15 Docker demo usernames.')
+        for username,password in supplied.items():
+            minimum=8 if username=='ctsv_demo' else 12
+            if not isinstance(password,str) or not minimum<=len(password)<=72 or not re.fullmatch(r'[A-Za-z0-9_!@.-]+',password):
+                raise RuntimeError('A host actor password does not meet Docker demo account requirements.')
+        passwords=supplied
     values['demo_accounts']='\n'.join(name+'='+passwords[name] for name in accounts)+'\n'
     for name,value in values.items():
         target=folder/name
@@ -70,7 +84,8 @@ def initialize(path,ci=False):
     path.parent.mkdir(parents=True,exist_ok=True);path.write_text(text,encoding='utf-8')
     destination=ROOT/'backend/.local/docker-credentials.md' if not ci else path.parent/'credentials.md'
     destination.parent.mkdir(parents=True,exist_ok=True)
-    destination.write_text('# Docker local accounts\n\nDifferent passwords from the existing host database.\n\n| Username | Password |\n|---|---|\n'+'\n'.join(f'| `{name}` | `{passwords[name]}` |' for name in accounts)+'\n\nGrafana admin password is in the protected grafana_password secret file.\n',encoding='utf-8')
+    account_note='Uses the local host actor credentials supplied before initialization.\n' if not ci and credentials_source.is_file() else 'Generated local demo credentials.\n'
+    destination.write_text('# Docker local accounts\n\n'+account_note+'\n| Username | Password |\n|---|---|\n'+'\n'.join(f'| `{name}` | `{passwords[name]}` |' for name in accounts)+'\n\nGrafana admin password is in the protected grafana_password secret file.\n',encoding='utf-8')
     print('Initialized non-secret environment and protected secret files. Credentials: '+str(destination))
 
 def smoke(runtime,login=True):
