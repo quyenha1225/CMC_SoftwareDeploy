@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 import subprocess
 import urllib.error
+import urllib.parse
 import urllib.request
 from docker import ROOT,Runtime
 
@@ -46,13 +47,17 @@ checks.append('Production/TLS Compose renders without build, with secure cookies
 if args.monitoring:
     targets=get('http://127.0.0.1:'+runtime.config.get('PROMETHEUS_PORT','9090')+'/api/v1/targets')['data']['activeTargets']
     if not targets or any(target['health']!='up' for target in targets):raise RuntimeError('Metrics scrape failed')
+    if not any(target['labels'].get('job')=='cadvisor' for target in targets):raise RuntimeError('cAdvisor scrape target missing')
+    prometheus='http://127.0.0.1:'+runtime.config.get('PROMETHEUS_PORT','9090')
+    query=urllib.parse.quote('container_memory_working_set_bytes{id=~"/docker/[a-f0-9]+"}')
+    if not get(prometheus+'/api/v1/query?query='+query)['data']['result']:raise RuntimeError('cAdvisor container metrics missing')
     grafana='http://127.0.0.1:'+runtime.config.get('GRAFANA_PORT','3000')
     if get(grafana+'/api/health')['database']!='ok':raise RuntimeError('Grafana unhealthy')
     password=(runtime.secret_dir/'grafana_password').read_text().strip()
     headers={'Authorization':'Basic '+base64.b64encode(('admin:'+password).encode()).decode()}
     dashboards=get(grafana+'/api/search?query=SMS',headers)
     if not any(item['uid']=='sms-operations' for item in dashboards):raise RuntimeError('Dashboard missing')
-    checks.append('Prometheus UP, Grafana healthy, SMS dashboard provisioned')
+    checks.append('Prometheus UP, Grafana healthy, SMS dashboard provisioned, cAdvisor container metrics available')
 for name in ['.env','.secrets/jwt_secret','backend/.local/docker-credentials.md']:
     if subprocess.run(['git','check-ignore','-q',name],cwd=ROOT).returncode:raise RuntimeError('Runtime secret path not ignored')
 checks.append('Runtime environment/secrets/credentials excluded from Git')

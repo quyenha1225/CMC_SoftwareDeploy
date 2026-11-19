@@ -62,6 +62,16 @@ Xem log nhanh:
 python scripts/docker.py logs
 ```
 
+Theo dõi trạng thái và tài nguyên container từ PowerShell:
+
+```powershell
+docker --context desktop-linux compose --env-file .env -f compose.yaml ps
+docker --context desktop-linux stats --no-stream
+docker --context desktop-linux compose --env-file .env -f compose.yaml logs --tail=100 -f backend
+```
+
+`docker stats` hiển thị CPU, bộ nhớ, mạng và I/O của container đang chạy; Docker Desktop có cùng thông tin tại **Containers → sms_local → Stats**. Nhấn `Ctrl+C` để kết thúc lệnh theo dõi log. Prometheus/Grafana thu thập metrics ứng dụng; cAdvisor đọc raw cgroup metrics, không mount Docker socket và không publish cổng. Dashboard dùng Docker ID để phân biệt CPU/bộ nhớ container; dùng `docker ps` để tra ID với tên service. Mạng hiển thị theo interface của Docker VM.
+
 Dừng hoặc chạy lại container đã có, không xóa dữ liệu:
 
 ```powershell
@@ -76,17 +86,39 @@ Các lệnh Docker trực tiếp trong tài liệu dùng context `desktop-linux`
 Sau khi hệ thống Docker chạy được:
 
 ```powershell
-docker --context desktop-linux compose --env-file .env -f compose.yaml --profile monitoring up -d prometheus grafana
+docker --context desktop-linux compose --env-file .env -f compose.yaml --profile monitoring up -d prometheus grafana cadvisor
 python scripts/verify_runtime.py --monitoring
 ```
 
 - Prometheus: http://localhost:9090
 - Grafana: http://localhost:3000; username `admin`, mật khẩu trong `.secrets/grafana_password`.
-- Dashboard **SMS operations** theo dõi tình trạng backend, request, thời gian phản hồi, lỗi, JVM và kết nối database.
+- Dashboard **SMS operations** theo dõi backend, request, độ trễ, lỗi, JVM, kết nối database, CPU/bộ nhớ từng container theo Docker ID và mạng Docker VM theo interface.
+- Trang Prometheus **Status → Targets** hoặc `/targets` dùng để xác nhận target backend và cAdvisor đang `UP`.
 
 Giám sát local không đồng nghĩa đã gửi cảnh báo email/chat. Receiver cần được cấu hình riêng. Grafana và Prometheus cũng không thay thế SonarQube.
 
-## 4. Sao lưu, kiểm tra phục hồi và cập nhật
+## 4. Tạo và kiểm tra Docker volume
+
+Compose tự tạo named volume khi chạy `up`; các volume ứng dụng gồm `mysql_data` và `private_files`. Khi bật monitoring sẽ có thêm `prometheus_data` và `grafana_data`. Với tên project mặc định `sms_local`, liệt kê và inspect volume như sau:
+
+```powershell
+docker --context desktop-linux volume ls --filter label=com.docker.compose.project=sms_local
+docker --context desktop-linux volume inspect sms_local_mysql_data sms_local_private_files
+```
+
+Nếu đã bật monitoring, có thể inspect thêm `sms_local_prometheus_data` và `sms_local_grafana_data`. Nếu đổi `COMPOSE_PROJECT_NAME`, thay tiền tố `sms_local` theo tên project đó. Trong Docker Desktop, xem các volume tại **Volumes**; volume Compose có nhãn project để nhận biết ứng dụng sở hữu.
+
+Để trình bày thao tác tạo volume độc lập, dùng volume thử nghiệm không gắn với dữ liệu ứng dụng:
+
+```powershell
+docker --context desktop-linux volume create sms_demo_volume
+docker --context desktop-linux volume inspect sms_demo_volume
+docker --context desktop-linux volume rm sms_demo_volume
+```
+
+Chỉ xóa volume demo vừa tạo. Không xóa `sms_local_mysql_data`, `sms_local_private_files` hoặc dùng `docker compose down -v` trên môi trường có dữ liệu; `stop`/`down` không kèm `-v` giữ dữ liệu.
+
+## 5. Sao lưu, kiểm tra phục hồi và cập nhật
 
 Trước khi cập nhật bản đang dùng:
 
@@ -117,7 +149,7 @@ python scripts/docker.py restart-test
 
 **Không dùng `docker compose down -v`, không xóa volume MySQL trong Docker Desktop.** `.secrets/` chứa cả khóa ký và khóa mã hóa dữ liệu; cần giữ và sao lưu an toàn, không tự tạo lại khi database còn dữ liệu.
 
-## 5. Chạy trực tiếp để phát triển — không cần Docker cho ứng dụng
+## 6. Chạy trực tiếp để phát triển — không cần Docker cho ứng dụng
 
 Chế độ này dùng MySQL cài trên Windows, độc lập với database Docker. Máy hiện tại dùng database `sms_v6_original`. Máy mới cần chuẩn bị V6 theo [hướng dẫn database](data/v6/README.md), không nhập đè vào database hiện có hoặc trộn schema v2/V6.
 
@@ -139,7 +171,7 @@ npm.cmd run dev -- --host 127.0.0.1
 
 Frontend thường ở http://127.0.0.1:5173; dùng URL Vite thực tế in ra. `/api` được proxy sang backend. Không dùng tài khoản Docker để suy ra mật khẩu của database host; xem hồ sơ tài khoản cục bộ đúng môi trường.
 
-## 6. Kiểm thử bằng dòng lệnh
+## 7. Kiểm thử bằng dòng lệnh
 
 ```powershell
 python scripts/ci.py prepare
@@ -160,7 +192,7 @@ python scripts/ci.py secrets
 
 Các container CI là tạm thời và được dọn sau kiểm thử. CI đạt không tự cập nhật website `sms_local:8088`. Báo cáo nằm trong `artifacts/reports/`, `backend/target/` và `frontend/coverage/`; Jenkins lưu các báo cáo được cho phép khi chạy job.
 
-## 7. Chạy bằng Jenkins trên Windows
+## 8. Chạy bằng Jenkins trên Windows
 
 ### Chuẩn bị agent
 
@@ -193,7 +225,7 @@ Khi quản trị viên đã chạy một server SonarQube:
 
 Hướng dẫn đầy đủ về GitHub webhook, credentials, Registry và stage: [Jenkins/CI/CD](docs/operations/JENKINS.md). GitHub không truy cập được endpoint `localhost` của máy bạn; webhook GitHub cần địa chỉ có thể truy cập từ bên ngoài.
 
-## 8. Ý nghĩa cấu hình và trạng thái triển khai
+## 9. Ý nghĩa cấu hình và trạng thái triển khai
 
 | Tệp | Mục đích |
 |---|---|
@@ -209,7 +241,7 @@ Chưa có VPS/domain/Registry được thiết lập trong phạm vi local. Có 
 
 SMTP/outbox mặc định tắt để tránh gửi vào địa chỉ thực hành. Chỉ bật khi có tài khoản gửi hợp lệ, cấu hình bí mật đúng môi trường và hộp thư người nhận đã được xác minh. Script `backend/Configure-Gmail.ps1` phục vụ cấu hình host; Docker dùng biến cấu hình và secret tương ứng. Chưa tích hợp tự cấp hộp thư Google hoặc thanh toán trực tuyến.
 
-## 9. Xử lý lỗi thường gặp
+## 10. Xử lý lỗi thường gặp
 
 | Hiện tượng | Kiểm tra / cách xử lý |
 |---|---|
@@ -223,7 +255,7 @@ SMTP/outbox mặc định tắt để tránh gửi vào địa chỉ thực hàn
 | Login không được | Dùng đúng tài khoản/mật khẩu của môi trường Docker hoặc host |
 | Jenkins báo skipped/no test reports | Tìm lỗi đầu tiên phía trên; test có thể chưa được chạy |
 
-## 10. Tài liệu chi tiết
+## 11. Tài liệu chi tiết
 
 - [Vận hành Docker và CI/CD](docs/operations/README.md)
 - [Runbook triển khai, backup và xử lý sự cố](docs/operations/RUNBOOK.md)

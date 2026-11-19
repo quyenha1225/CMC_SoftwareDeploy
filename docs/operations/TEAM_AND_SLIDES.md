@@ -15,8 +15,8 @@
 1. Bài toán, sáu actor, ba chuỗi nghiệp vụ và ERD.
 2. React/Vite, Java 21/Spring Boot, MySQL 8, Docker, Jenkins và công cụ chất lượng.
 3. Nhánh/PR/Webhook, các stage CI/CD và điều kiện dừng khi fail.
-4. Image/container/network/volume; Nginx :8088, Jenkins :8080, không IIS.
-5. Actuator/Prometheus/Grafana, backup, restore, xử lý sự cố.
+4. Image/container/network/volume; demo Docker Desktop Logs/Stats, `docker stats`, và inspect named volume; Nginx :8088, Jenkins :8080, không IIS.
+5. Actuator/Prometheus/Grafana/cAdvisor; dashboard metrics ứng dụng và container, mở Prometheus `/targets`, demo tạo/inspect/xóa `sms_demo_volume`, backup, restore, xử lý sự cố.
 6. RBAC, sở hữu hồ sơ/điểm, CSRF/JWT, private files và scan.
 7. Demo nhập học, đăng ký/lịch/điểm, học phí/bàn giao với MySQL thật.
 8. Kết quả đã chạy và phần còn chờ Registry/VPS/Sonar/Webhook; chatbot là mở rộng, không giả vờ đã có RAG/tài liệu chính thức.

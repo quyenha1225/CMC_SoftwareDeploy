@@ -141,6 +141,17 @@ services:
     networks: [observability, monitoring_edge]
     depends_on: [prometheus]
     logging: *logging
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.52.1
+    profiles: [monitoring]
+    restart: unless-stopped
+    command: [--raw_cgroup_prefix_whitelist=/docker, --housekeeping_interval=30s]
+    volumes:
+      - /:/rootfs:ro
+      - /sys:/sys:ro
+      - /var/lib/docker:/var/lib/docker:ro
+    networks: [observability]
+    logging: *logging
 networks:
   app: {}
   monitoring_edge: {}

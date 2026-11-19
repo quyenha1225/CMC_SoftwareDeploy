@@ -36,10 +36,34 @@ Dừng ứng dụng bằng `docker --context desktop-linux compose stop`. Không
 ## Giám sát
 
 ```powershell
-docker --context desktop-linux compose --env-file .env --profile monitoring up -d prometheus grafana
+docker --context desktop-linux compose --env-file .env --profile monitoring up -d prometheus grafana cadvisor
+docker --context desktop-linux compose --env-file .env ps
+docker --context desktop-linux stats --no-stream
+docker --context desktop-linux compose --env-file .env logs --tail=100 -f backend
 ```
 
-Prometheus http://localhost:9090; Grafana http://localhost:3000. Chỉ bind loopback. Grafana username `admin`, mật khẩu ở `.secrets/grafana_password`. Dashboard **SMS operations** tự provision: availability, request rate, p95, 5xx, JVM, CPU, DB pool, 401/403. Rule cảnh báo có sẵn; chưa gửi ra email/chat khi chưa cấu hình receiver.
+Prometheus http://localhost:9090; Grafana http://localhost:3000. Chỉ bind loopback. Grafana username `admin`, mật khẩu ở `.secrets/grafana_password`. Dashboard **SMS operations** tự provision: availability, request rate, p95, 5xx, JVM, CPU, DB pool, 401/403, CPU/bộ nhớ từng container theo Docker ID và mạng Docker VM theo interface. cAdvisor đọc raw cgroups, không mount Docker socket. Rule cảnh báo có sẵn; chưa gửi ra email/chat khi chưa cấu hình receiver.
+
+`docker stats` và Docker Desktop **Containers → Stats** theo dõi CPU, bộ nhớ, mạng và I/O từng container đang chạy. Grafana theo dõi metrics ứng dụng từ backend, raw cgroup CPU/bộ nhớ từ cAdvisor và lưu lượng mạng Docker VM theo interface; mở Prometheus `/targets` để xác nhận cả hai target ở trạng thái `UP`. Dashboard cAdvisor hiện phân biệt container bằng Docker ID vì Docker Desktop containerd snapshotter không cung cấp nhãn service; tra ID bằng `docker ps`.
+
+## Tạo và kiểm tra volume
+
+Compose tự tạo các named volume lúc `up`: `mysql_data`, `private_files`, `prometheus_data` và `grafana_data` (hai volume monitoring chỉ xuất hiện sau khi bật profile). Project mặc định là `sms_local`, nên có thể liệt kê và kiểm tra volume bằng:
+
+```powershell
+docker --context desktop-linux volume ls --filter label=com.docker.compose.project=sms_local
+docker --context desktop-linux volume inspect sms_local_mysql_data sms_local_private_files
+```
+
+Đổi tiền tố volume nếu `COMPOSE_PROJECT_NAME` được đặt khác. Cũng có thể xem volume trong Docker Desktop → **Volumes**. Để minh họa tạo volume thủ công, dùng volume demo độc lập rồi xóa đúng volume đó:
+
+```powershell
+docker --context desktop-linux volume create sms_demo_volume
+docker --context desktop-linux volume inspect sms_demo_volume
+docker --context desktop-linux volume rm sms_demo_volume
+```
+
+Không xóa volume dữ liệu ứng dụng hoặc dùng `docker compose down -v` trên local/staging/production. `docker compose stop` và `down` không có `-v` không xóa named volume.
 
 Backend management :9092 và MySQL :3306 không publish ra host. Nginx chỉ cho health tổng qua `/api/actuator/health`; chặn các đường management khác. `/api/hello` vẫn yêu cầu đăng nhập, không được nới quyền để làm smoke.
 

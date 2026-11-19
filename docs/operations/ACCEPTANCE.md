@@ -6,17 +6,17 @@ Nguồn yêu cầu: `SMS_Dac_Ta_Yeu_Cau_Van_Hanh_He_Thong_Docker_Jenkins_CICD.do
 
 | Yêu cầu | Thành phần thực hiện | Trạng thái |
 |---|---|---|
-| Docker FE/BE/MySQL, không IIS | Dockerfiles, Nginx, compose.yaml, volume/network/healthcheck | Chạy local :8088 |
+| Docker FE/BE/MySQL, không IIS | Dockerfiles, Nginx, compose.yaml, named volume/network/healthcheck; hướng dẫn inspect volume và tạo volume demo | Chạy local :8088 |
 | MySQL 8, migration version | Runner Java/Flyway chỉ MySQL, db/migration/core và demo | Kiểm tra cài trắng; core production không có sinh viên/khoản thu |
 | Không nhúng secret | .dockerignore, .secrets/configtree, init riêng; 15 mật khẩu demo riêng | Kiểm tra Git ignore và secret scan |
-| Tests/lint/coverage | JUnit/H2, Vitest/RTL, ESLint, JaCoCo, Python tests | Xem báo cáo thực thi và lưu ý bên dưới |
+| Tests/lint/coverage | JUnit/H2, Vitest/RTL, ESLint, JaCoCo, Python tests | Có cấu hình; trạng thái xác minh workstation hiện tại bên dưới |
 | MySQL integration/E2E | scripts/ci.py mysql + mysql_workflows.py | Luồng thật trên namespace CI cô lập |
 | Build/push bằng SHA/digest | Jenkinsfile, ci.py, registry_login.py | Có cấu hình và kiểm tra gate; chưa push Registry thật |
 | Webhook/Jenkins | Jenkinsfile + hướng dẫn plugins/credentials/branch protection | Chưa có job/build link/webhook delivery thực |
 | SonarQube Quality Gate | Jenkins stage bắt buộc trước publish, scanner/coverage config | Chưa chạy server/token Sonar thật |
 | Deploy/approval/rollback | compose.prod/tls, deploy.py, known_hosts và approver | Cấu hình + tests chống tag mutable/schema lệch; chưa deploy VPS thật |
 | Backup/restore | SQL + private archive + checksum + container phục hồi cô lập | Đã kiểm tra SQL và tệp fixture phục hồi đúng hash |
-| Monitoring | Prometheus, Grafana dashboard provision, alert rules | Chạy local; chưa cấu hình receiver gửi cảnh báo ra ngoài |
+| Monitoring | Prometheus/Grafana dashboard và alert rules; cAdvisor raw cgroup CPU/bộ nhớ theo Docker ID; Docker Desktop/`docker stats` theo dõi chi tiết từng container | Chạy local; chưa cấu hình receiver gửi cảnh báo ra ngoài; mạng Grafana hiển thị theo interface Docker VM |
 | Docs/ERD/API/runbook | Thư mục docs/operations | Đã bổ sung |
 
 ## Luồng nghiệp vụ FR-01 đến FR-11
@@ -35,17 +35,17 @@ Nguồn yêu cầu: `SMS_Dac_Ta_Yeu_Cau_Van_Hanh_He_Thong_Docker_Jenkins_CICD.do
 | FR-10 | Race cùng reference chỉ một khoản thu; race khác reference không vượt nợ; phân bổ theo chứng từ/quỹ |
 | FR-11 | CTSV không tự xác nhận bàn giao; BGH quyết định, có sự kiện/lịch sử |
 
-## Kết quả thực thi
+## Kết quả xác minh hiện tại
 
-Báo cáo máy đọc được: `artifacts/reports/operations-summary.json` và các báo cáo cùng thư mục (không commit dữ liệu bí mật). Các con số chỉ ghi là đạt sau khi collector xác nhận báo cáo đầy đủ.
+Ngày 19/11/2026, kiểm tra trực tiếp trên Docker Desktop local:
 
-- Backend: 33 bài đạt; 1 bài UI tùy chọn bỏ qua ở Maven vì E2E đã chạy riêng trên MySQL/container.
-- Frontend: 4 bài adapter API + 5 bài Vitest/RTL; có coverage/JUnit.
-- Công cụ vận hành: 10 bài, gồm chặn mutable tags, thiếu migration image, publish từ PR/thiếu Quality Gate, bảo toàn secrets, che secret kể cả khi scan lỗi và chặn rollback khi DDL thay đổi.
-- Trình duyệt: 6 vai trò, 422 lượt kiểm tra màn hình và 120 hộp thoại trong lượt đã ghi nhận; không phải 422 trang khác nhau.
-- MySQL: cài trắng, 15 login, 16 điều kiện toàn vẹn, core production không seed, các luồng nghiệp vụ/race conditions, restore 57 bảng và tệp private, restart giữ dữ liệu.
-- Trivy quét 3 image tự build (backend/frontend/migration) và source: gate chặn Critical; secret scan riêng ở mọi severity, báo cáo đã loại giá trị match/env.
-- Runtime: non-root/read-only FE/BE, DB/API không publish, CSP/nosniff trên trang HTML, metrics không qua Nginx, dashboard/targets hoạt động.
+- `python -B scripts/verify_runtime.py --monitoring`: PASS 7 nhóm; báo cáo hiện tại nằm tại `artifacts/reports/runtime-verification.json`.
+- Prometheus backend và cAdvisor targets ở trạng thái `up`; cAdvisor có raw cgroup series theo Docker ID; Grafana health `ok`; dashboard `sms-operations` được nạp; có 3 alert rules.
+- Bốn named volume Compose hiện diện: MySQL, private files, Prometheus và Grafana. `docker stats --no-stream` trả số liệu CPU/bộ nhớ cho các container đang chạy.
+- `python -B -m unittest discover -s scripts/tests -v`: 10/10 bài vận hành đạt.
+- Backend `mvn verify` chưa chạy xong vì Maven Central không phân giải được để tải dependency/plugin JaCoCo. Frontend lint/test/build chưa chạy được vì dependencies chưa cài (`eslint` không có trong `node_modules`). Đây là giới hạn kết nối/cài đặt của workstation, chưa phải kết luận source fail.
+
+Các báo cáo chi tiết lịch sử từng được nhắc như `operations-summary.json`, browser/MySQL integration và Trivy không có trong `artifacts/reports` hiện tại; không dùng các số liệu đó làm minh chứng nghiệm thu của lần này. Khi có mạng/dependencies hoặc Jenkins agent, chạy lại các gate backend/frontend, MySQL integration và security scan rồi lưu artifacts tương ứng.
 
 ESLint hiện 0 lỗi nhưng còn cảnh báo unused code của các màn cũ; không đồng nghĩa toàn bộ code không có cảnh báo. Flyway/MySQL có cảnh báo display width/phiên bản; các migration được thử trực tiếp trên MySQL 8.4 trong CI, không giả định H2 đại diện đầy đủ MySQL.
 
