@@ -9,11 +9,13 @@ def executeStep(String step) {
     }
 }
 
-def runLocalCommand(String command) {
+def executeStep(String step) {
     if (isUnix()) {
-        sh command
+        sh "python3 scripts/ci.py ${step}"
     } else {
-        bat command
+        bat """
+            "C:\\Users\\Admin\\AppData\\Local\\Programs\\Python\\Python312\\python.exe" scripts\\ci.py ${step}
+        """
     }
 }
 
