@@ -17,6 +17,42 @@ import urllib.error
 import urllib.request
 
 ROOT = Path(__file__).resolve().parents[1]
+DEMO_ACCOUNTS = ['principal','principal_demo','training_demo','ctsv_demo',*[f'lecturer_demo_{i:02}' for i in range(1,4)],*[f'student_demo_{i:03}' for i in range(1,7)],'applicant_demo_03','applicant_demo_04']
+
+def host_actor_passwords():
+    source=ROOT/'backend/.local/actor-credentials-sms_v6_original.json'
+    if not source.is_file():return None
+    try:
+        rows=json.loads(source.read_text(encoding='utf-8'))
+        supplied={row['username']:row['password'] for row in rows}
+    except (ValueError,TypeError,KeyError) as failure:
+        raise RuntimeError('Host actor credentials JSON is invalid; Docker secrets were not changed.') from failure
+    if set(supplied)!=set(DEMO_ACCOUNTS):
+        raise RuntimeError('Host actor credentials must contain exactly the 15 Docker demo usernames.')
+    for username,password in supplied.items():
+        minimum=8 if username=='ctsv_demo' else 12
+        if not isinstance(password,str) or not minimum<=len(password)<=72 or not re.fullmatch(r'[A-Za-z0-9_!@.-]+',password):
+            raise RuntimeError('A host actor password does not meet Docker demo account requirements.')
+    return supplied
+
+def write_demo_credentials(passwords,secret_dir):
+    secret_dir.mkdir(parents=True,exist_ok=True)
+    target=secret_dir/'demo_accounts'
+    target.write_text(''.join(name+'='+passwords[name]+'\n' for name in DEMO_ACCOUNTS),encoding='utf-8')
+    target.chmod(0o444)
+    destination=ROOT/'backend/.local/docker-credentials.md'
+    destination.parent.mkdir(parents=True,exist_ok=True)
+    destination.write_text('# Docker local accounts\n\nUses the local host actor credentials supplied before initialization.\n\n| Username | Password |\n|---|---|\n'+'\n'.join(f'| `{name}` | `{passwords[name]}` |' for name in DEMO_ACCOUNTS)+'\n\nGrafana admin password is in the protected grafana_password secret file.\n',encoding='utf-8')
+
+def ensure_demo_credentials(runtime):
+    target=runtime.secret_dir/'demo_accounts'
+    if target.is_file():return False
+    passwords=host_actor_passwords()
+    if passwords is None:
+        raise RuntimeError('Missing '+str(target)+'. Copy backend/.local/actor-credentials-sms_v6_original.json to this machine, then rerun init/up.')
+    write_demo_credentials(passwords,runtime.secret_dir)
+    print('Created the missing local Docker demo account secret from the supplied host actor credentials.')
+    return True
 
 def invoke(command, *, capture=False, data=None, destination=None, check=True):
     if destination:
@@ -57,22 +93,11 @@ def initialize(path,ci=False):
     values['jwt_secret']=base64.b64encode(secrets.token_bytes(64)).decode()
     values['identity_key']=base64.b64encode(secrets.token_bytes(32)).decode()
     values['smtp_password']=''
-    accounts=['principal','principal_demo','training_demo','ctsv_demo',*[f'lecturer_demo_{i:02}' for i in range(1,4)],*[f'student_demo_{i:03}' for i in range(1,7)],'applicant_demo_03','applicant_demo_04']
+    accounts=DEMO_ACCOUNTS
     passwords={name:secrets.token_urlsafe(18)+'Aa1!' for name in accounts}
     credentials_source=ROOT/'backend/.local/actor-credentials-sms_v6_original.json'
     if not ci and credentials_source.is_file():
-        try:
-            rows=json.loads(credentials_source.read_text(encoding='utf-8'))
-            supplied={row['username']:row['password'] for row in rows}
-        except (ValueError,TypeError,KeyError) as failure:
-            raise RuntimeError('Host actor credentials JSON is invalid; Docker secrets were not initialized.') from failure
-        if set(supplied)!=set(accounts):
-            raise RuntimeError('Host actor credentials must contain exactly the 15 Docker demo usernames.')
-        for username,password in supplied.items():
-            minimum=8 if username=='ctsv_demo' else 12
-            if not isinstance(password,str) or not minimum<=len(password)<=72 or not re.fullmatch(r'[A-Za-z0-9_!@.-]+',password):
-                raise RuntimeError('A host actor password does not meet Docker demo account requirements.')
-        passwords=supplied
+        passwords=host_actor_passwords()
     values['demo_accounts']='\n'.join(name+'='+passwords[name] for name in accounts)+'\n'
     for name,value in values.items():
         target=folder/name
@@ -184,8 +209,9 @@ def main():
     if args.command=='config':runtime.run('config','--quiet')
     elif args.command in ['up','ci']:
         if args.production:raise RuntimeError('Use reviewed digest deployment, not local up.')
+        sync_demo_passwords=args.command=='up' and not args.ci and ensure_demo_credentials(runtime)
         runtime.run('up','-d','--build','--wait','--wait-timeout','300','frontend','backend')
-        runtime.run('run','--rm','provision')
+        runtime.run(*(['run','--rm','-e','SMS_DEMO_SYNC_PASSWORDS=true','provision'] if sync_demo_passwords else ['run','--rm','provision']))
         smoke(runtime)
         if args.command=='ci':
             try:

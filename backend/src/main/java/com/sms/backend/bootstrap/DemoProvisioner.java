@@ -21,6 +21,7 @@ public final class DemoProvisioner {
             throw new IllegalStateException(
                     "Demo provisioning is allowed only on local demo databases.");
         }
+        boolean syncPasswords = "true".equals(System.getenv("SMS_DEMO_SYNC_PASSWORDS"));
         var passwords = new Properties();
         try (Reader reader = Files.newBufferedReader(Path.of("/run/secrets/demo_accounts"))) {
             passwords.load(reader);
@@ -68,9 +69,18 @@ public final class DemoProvisioner {
                                 createPrincipal(connection, encoder.encode(plain));
                             } else if (rows.getBoolean("enabled")) {
                                 if (!encoder.matches(plain, rows.getString("password_hash"))) {
-                                    throw new IllegalStateException(
-                                            "Enabled account password differs; no password was"
-                                                    + " reset.");
+                                    if (!syncPasswords) {
+                                        throw new IllegalStateException(
+                                                "Enabled account password differs; no password was"
+                                                        + " reset.");
+                                    }
+                                    try (var update =
+                                            connection.prepareStatement(
+                                                    "UPDATE users SET password_hash=? WHERE id=?")) {
+                                        update.setString(1, encoder.encode(plain));
+                                        update.setLong(2, rows.getLong("id"));
+                                        update.executeUpdate();
+                                    }
                                 }
                             } else {
                                 try (var update =
