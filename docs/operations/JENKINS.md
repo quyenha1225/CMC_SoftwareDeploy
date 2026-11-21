@@ -51,6 +51,8 @@ Jenkins cần endpoint HTTPS GitHub truy cập được. Cấu hình GitHub Sett
 
 Trên Windows, pipeline mặc định dùng Docker Desktop Linux Engine. Có thể chỉ định Engine khác bằng `SMS_DOCKER_CONTEXT` hoặc `SMS_DOCKER_HOST` trong môi trường agent. Jenkins kiểm tra kết nối Engine ở stage **Check Environment** và dùng cùng endpoint cho build, Compose, test và log. Nếu Docker CLI có cài nhưng Engine chưa chạy hoặc tài khoản dịch vụ không truy cập được, pipeline dừng tại đây và gửi cảnh báo CI/CD nếu credential đã sẵn sàng.
 
+Windows agent tự tạo và khởi động builder `sms-jenkins-linux` bằng driver `docker-container` ở stage **Prepare**. Builder dùng cache riêng, tắt `unpigz` trong tiến trình BuildKit và nạp image vào cùng Docker Engine bằng `--load` cho MySQL integration, Trivy và deploy. Khi đổi sang một Docker endpoint khác, đặt `SMS_CI_BUILDER` thành tên riêng cho endpoint đó trong môi trường agent.
+
 ```powershell
 python scripts/ci.py prepare
 python scripts/ci.py backend

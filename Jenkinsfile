@@ -23,6 +23,9 @@ def runLocalCommand(String command) {
 }
 
 def configureDocker() {
+    if (!isUnix() && !env.SMS_CI_BUILDER) {
+        env.SMS_CI_BUILDER = 'sms-jenkins-linux'
+    }
     if (env.SMS_DOCKER_CONTEXT) {
         env.DOCKER_CONTEXT = env.SMS_DOCKER_CONTEXT
     } else if (env.SMS_DOCKER_HOST) {

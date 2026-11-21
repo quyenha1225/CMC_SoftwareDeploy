@@ -65,11 +65,47 @@ def scan_report(command,path):
     path.write_text(json.dumps(report,indent=2),encoding='utf-8')
     if result.returncode:raise RuntimeError('Security gate failed: '+path.name)
 
+def ci_build_command():
+    docker = docker_command()
+    builder = os.getenv('SMS_CI_BUILDER')
+    if not builder:
+        return docker + ['build']
+    if not re.fullmatch(r'[a-zA-Z0-9][a-zA-Z0-9_.-]*', builder):
+        raise RuntimeError('Invalid SMS_CI_BUILDER name')
+
+    record_check('Start the dedicated Docker BuildKit builder: ' + builder)
+    if len(docker) > 1:
+        endpoint = docker[-1]
+    else:
+        endpoint = os.getenv('DOCKER_CONTEXT') or os.getenv('DOCKER_HOST')
+        if not endpoint:
+            endpoint = subprocess.check_output(docker + ['context', 'show'], cwd=ROOT, text=True).strip()
+
+    buildx = docker + ['buildx']
+    inspected = subprocess.run(buildx + ['inspect', builder], cwd=ROOT, capture_output=True, text=True)
+    if inspected.returncode:
+        run(buildx + ['create', '--name', builder, '--driver', 'docker-container',
+                      '--driver-opt', 'env.CONTAINERD_DISABLE_PIGZ=1', endpoint])
+    else:
+        driver = re.findall(r'^Driver:\s+(.+)$', inspected.stdout, re.MULTILINE)
+        endpoints = re.findall(r'^Endpoint:\s+(.+)$', inspected.stdout, re.MULTILINE)
+        if driver != ['docker-container'] or endpoints != [endpoint]:
+            raise RuntimeError(f'Builder {builder} is not a docker-container builder for {endpoint}. '
+                               'Use a different SMS_CI_BUILDER name for this Docker endpoint.')
+        if not re.search(r'^Driver Options:.*\benv\.CONTAINERD_DISABLE_PIGZ="1"(?:\s|$)',
+                         inspected.stdout, re.MULTILINE):
+            raise RuntimeError(f'Builder {builder} is missing the CI decompression setting. '
+                               'Choose an unused SMS_CI_BUILDER name to create it with the correct settings.')
+    run(buildx + ['inspect', '--bootstrap', builder])
+    return buildx + ['build', '--builder', builder, '--load']
+
+
 def main(step):
     record_check(step)
     if step=='prepare':
         run([sys.executable,'-m','unittest','discover','-s','scripts/tests','-v'])
         for command in [['java','-version'],['node','--version'],[NPM,'--version'],docker_command()+['version'],docker_command()+['compose','version']]:run(command)
+        ci_build_command()
         java=subprocess.run(['java','-version'],capture_output=True,text=True)
         if not re.search(r'version "21[.]',java.stderr+java.stdout):raise RuntimeError('JDK 21 is required')
         version=subprocess.check_output(['node','--version'],text=True).strip().lstrip('v')
@@ -115,9 +151,10 @@ def main(step):
     elif step=='build':
         tag=os.environ.get('IMAGE_TAG','local')
         if not re.fullmatch(r'[a-zA-Z0-9_.-]+',tag):raise RuntimeError('Invalid image tag')
+        build = ci_build_command()
         for service,path in [('backend','backend/Dockerfile'),('frontend','frontend/Dockerfile'),('migration','infrastructure/migration/Dockerfile')]:
             record_check('Docker image build: ' + service)
-            run(docker_command()+['build','--label','org.opencontainers.image.revision='+tag,'-f',path,'-t','sms-'+service+':'+tag,'.'])
+            run(build+['--label','org.opencontainers.image.revision='+tag,'-f',path,'-t','sms-'+service+':'+tag,'.'])
     elif step=='mysql':
         (REPORTS/'mysql-integration.json').unlink(missing_ok=True)
         env_file=ROOT/'artifacts/ci/.env'

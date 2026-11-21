@@ -15,6 +15,42 @@ import deploy
 from docker import docker_command,initialize,settings
 
 class OperationsTests(unittest.TestCase):
+    def test_ci_creates_and_loads_images_from_the_dedicated_builder(self):
+        endpoint = 'npipe:////./pipe/dockerDesktopLinuxEngine'
+        with patch.dict(os.environ, {'SMS_CI_BUILDER': 'sms-jenkins-linux', 'DOCKER_HOST': endpoint}, clear=True), \
+                patch.object(ci.subprocess, 'run', return_value=subprocess.CompletedProcess([], 1)) as inspect, \
+                patch.object(ci, 'run') as execute:
+            ci.main('build')
+        inspect.assert_called_once_with(
+            ['docker', 'buildx', 'inspect', 'sms-jenkins-linux'], cwd=ci.ROOT, capture_output=True, text=True)
+        commands = [call.args[0] for call in execute.call_args_list]
+        self.assertEqual(commands[0], ['docker', 'buildx', 'create', '--name', 'sms-jenkins-linux',
+                                       '--driver', 'docker-container',
+                                       '--driver-opt', 'env.CONTAINERD_DISABLE_PIGZ=1', endpoint])
+        self.assertEqual(commands[1], ['docker', 'buildx', 'inspect', '--bootstrap', 'sms-jenkins-linux'])
+        self.assertEqual(len(commands[2:]), 3)
+        for command, service in zip(commands[2:], ('backend', 'frontend', 'migration')):
+            self.assertEqual(command[:6], ['docker', 'buildx', 'build', '--builder', 'sms-jenkins-linux', '--load'])
+            self.assertIn('sms-' + service + ':local', command)
+
+    def test_ci_rejects_a_builder_bound_to_another_engine(self):
+        inspected = subprocess.CompletedProcess([], 0, stdout='Driver: docker-container\nEndpoint: other-engine\n')
+        with patch.dict(os.environ, {'SMS_CI_BUILDER': 'sms-jenkins-linux', 'DOCKER_CONTEXT': 'desktop-linux'}, clear=True), \
+                patch.object(ci.subprocess, 'run', return_value=inspected), patch.object(ci, 'run') as execute:
+            with self.assertRaisesRegex(RuntimeError, 'not a docker-container builder for desktop-linux'):
+                ci.ci_build_command()
+        execute.assert_not_called()
+
+    def test_ci_reuses_the_configured_builder(self):
+        inspected = subprocess.CompletedProcess([], 0, stdout=(
+            'Driver: docker-container\nEndpoint: desktop-linux\n'
+            'Driver Options: env.CONTAINERD_DISABLE_PIGZ="1"\n'
+        ))
+        with patch.dict(os.environ, {'SMS_CI_BUILDER': 'sms-jenkins-linux', 'DOCKER_CONTEXT': 'desktop-linux'}, clear=True), \
+                patch.object(ci.subprocess, 'run', return_value=inspected), patch.object(ci, 'run') as execute:
+            ci.ci_build_command()
+        execute.assert_called_once_with(['docker', 'buildx', 'inspect', '--bootstrap', 'sms-jenkins-linux'])
+
     def test_docker_uses_agent_environment_before_windows_default(self):
         with patch.object(os, 'name', 'nt'), patch.dict(os.environ, {}, clear=True):
             self.assertEqual(docker_command(), ['docker', '--host', 'npipe:////./pipe/dockerDesktopLinuxEngine'])
