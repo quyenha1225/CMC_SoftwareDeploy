@@ -150,8 +150,8 @@ pipeline {
     parameters {
         booleanParam(
             name: 'RUN_SONAR',
-            defaultValue: false,
-            description: 'Bật khi Jenkins đã cấu hình SonarQube server tên sonarqube.'
+            defaultValue: true,
+            description: 'Chạy SonarQube trên build nhánh. Có thể tắt khi chạy thủ công.'
         )
     }
 
