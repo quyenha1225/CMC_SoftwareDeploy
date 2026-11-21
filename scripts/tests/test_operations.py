@@ -12,9 +12,20 @@ from unittest.mock import patch
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 import ci
 import deploy
-from docker import initialize,settings
+from docker import docker_command,initialize,settings
 
 class OperationsTests(unittest.TestCase):
+    def test_docker_uses_agent_environment_before_windows_default(self):
+        with patch.object(os, 'name', 'nt'), patch.dict(os.environ, {}, clear=True):
+            self.assertEqual(docker_command(), ['docker', '--host', 'npipe:////./pipe/dockerDesktopLinuxEngine'])
+            with patch.dict(os.environ, {'DOCKER_HOST': 'npipe:////./pipe/custom'}):
+                self.assertEqual(docker_command(), ['docker'])
+
+    def test_docker_supports_sms_host_and_explicit_context(self):
+        with patch.dict(os.environ, {'SMS_DOCKER_HOST': 'unix:///run/ci/docker.sock'}, clear=True):
+            self.assertEqual(docker_command(), ['docker', '--host', 'unix:///run/ci/docker.sock'])
+            self.assertEqual(docker_command('ci-linux'), ['docker', '--context', 'ci-linux'])
+
     def test_sonar_uses_absolute_paths_from_maven_module(self):
         with patch.dict(os.environ, {'SONAR_HOST_URL': 'http://sonar.invalid', 'SONAR_AUTH_TOKEN': 'test-placeholder'}), patch.object(ci, 'run') as execute:
             ci.main('sonar')

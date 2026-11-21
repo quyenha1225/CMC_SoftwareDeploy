@@ -22,6 +22,17 @@ def runLocalCommand(String command) {
     }
 }
 
+def configureDocker() {
+    if (env.SMS_DOCKER_CONTEXT) {
+        env.DOCKER_CONTEXT = env.SMS_DOCKER_CONTEXT
+    } else if (env.SMS_DOCKER_HOST) {
+        env.DOCKER_CONTEXT = ''
+        env.DOCKER_HOST = env.SMS_DOCKER_HOST
+    } else if (!isUnix() && !env.DOCKER_CONTEXT && !env.DOCKER_HOST) {
+        env.DOCKER_HOST = 'npipe:////./pipe/dockerDesktopLinuxEngine'
+    }
+}
+
 def executeParallelStep(String stageName, String step) {
     try {
         executeStep(step)
@@ -50,6 +61,8 @@ def notifyDiscord(String stageName = '', String step = '', String result = '') {
                 detail = env.SMS_DEPLOY_CHECK ?: ''
             } else if (stageName == 'SonarQube Quality Gate') {
                 detail = env.SMS_QUALITY_GATE_CHECK ?: ''
+            } else if (stageName == 'Check Environment') {
+                detail = env.SMS_ENVIRONMENT_CHECK ?: ''
             }
             withEnv(["SMS_BUILD_RESULT=${result}",
                      "SMS_FAILED_STAGE=${stageName}", "SMS_FAILED_CHECK=${detail}"]) {
@@ -86,7 +99,7 @@ payload = {
 try:
     request = Request(env["DISCORD_WEBHOOK_URL"].strip(),
                       data=json.dumps(payload).encode("utf-8"),
-                      headers={"Content-Type": "application/json"},
+                      headers={"Content-Type": "application/json", "User-Agent": "SMS-Jenkins/1.0"},
                       method="POST")
     with urlopen(request, timeout=8) as response:
         print(f"Discord notification delivered (HTTP {response.status}).")
@@ -101,8 +114,10 @@ except (OSError, ValueError):
         }
     } catch (org.jenkinsci.plugins.workflow.steps.FlowInterruptedException interrupted) {
         throw interrupted
+    } catch (org.jenkinsci.plugins.credentialsbinding.impl.CredentialNotFoundException missing) {
+        echo 'CI/CD Discord credential sms-discord-webhook is missing or is not accessible to this job. Add it as Secret text.'
     } catch (Exception ignored) {
-        echo 'Discord notification skipped. Check the sms-discord-webhook credential and the agent.'
+        echo 'CI/CD Discord notifier could not run. Check Secret text binding, Python and the Jenkins agent.'
     }
 }
 
@@ -185,6 +200,8 @@ pipeline {
 
             steps {
                 script {
+                    configureDocker()
+                    env.SMS_ENVIRONMENT_CHECK = 'Python, Docker CLI, Docker Compose and Java'
                     if (isUnix()) {
                         sh '''
                             python3 --version
@@ -200,6 +217,14 @@ pipeline {
                             java -version
                         '''
                     }
+                    env.SMS_ENVIRONMENT_CHECK = 'Connect to the configured Docker Engine (Linux containers)'
+                    def dockerOs = (isUnix()
+                        ? sh(script: 'docker info --format "{{.OSType}}"', returnStdout: true)
+                        : bat(script: '@docker info --format "{{.OSType}}"', returnStdout: true)).trim()
+                    if (dockerOs != 'linux') {
+                        error("The Docker Engine must be in Linux container mode. Detected: ${dockerOs}")
+                    }
+                    env.SMS_DOCKER_READY = 'true'
                 }
             }
         }
@@ -219,6 +244,7 @@ pipeline {
         }
 
         stage('Tests') {
+            failFast true
             parallel {
 
                 stage('Backend Test') {
@@ -350,6 +376,7 @@ pipeline {
         }
 
         stage('Security Scan') {
+            failFast true
             parallel {
 
                 stage('Dependency and Image Scan') {
@@ -490,7 +517,9 @@ pipeline {
             echo 'Pipeline failed. Check the failed stage and archived reports.'
 
             script {
-                if (isUnix()) {
+                if (env.SMS_DOCKER_READY != 'true') {
+                    echo 'Docker logs unavailable because the Docker Engine preflight did not pass.'
+                } else if (isUnix()) {
                     sh(
                         script: 'docker compose -f compose.yaml logs --tail=100',
                         returnStatus: true

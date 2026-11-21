@@ -9,7 +9,7 @@ import shutil
 import subprocess
 import sys
 import time
-from docker import ROOT, Runtime, initialize, invoke, smoke, backup, restore_test
+from docker import ROOT, Runtime, initialize, invoke, smoke, backup, restore_test, docker_command
 
 REPORTS=ROOT/'artifacts/reports'
 REPORTS.mkdir(parents=True,exist_ok=True)
@@ -52,8 +52,6 @@ def run(command,directory=None,*,track_maven=False,**kwargs):
         raise RuntimeError(f'CI command failed: {command[0]} (exit {result.returncode}, hex 0x{code:08X}). See preceding output; subsequent gates remain blocked.')
     return result
 
-def docker_cli():return ['docker']+(['--host','npipe:////./pipe/dockerDesktopLinuxEngine'] if WIN else [])
-
 def scan_report(command,path):
     result=subprocess.run(command,cwd=ROOT,capture_output=True)
     if result.stderr:print(result.stderr.decode('utf-8','replace'),file=sys.stderr)
@@ -71,7 +69,7 @@ def main(step):
     record_check(step)
     if step=='prepare':
         run([sys.executable,'-m','unittest','discover','-s','scripts/tests','-v'])
-        for command in [['java','-version'],['node','--version'],[NPM,'--version'],docker_cli()+['version'],docker_cli()+['compose','version']]:run(command)
+        for command in [['java','-version'],['node','--version'],[NPM,'--version'],docker_command()+['version'],docker_command()+['compose','version']]:run(command)
         java=subprocess.run(['java','-version'],capture_output=True,text=True)
         if not re.search(r'version "21[.]',java.stderr+java.stdout):raise RuntimeError('JDK 21 is required')
         version=subprocess.check_output(['node','--version'],text=True).strip().lstrip('v')
@@ -119,7 +117,7 @@ def main(step):
         if not re.fullmatch(r'[a-zA-Z0-9_.-]+',tag):raise RuntimeError('Invalid image tag')
         for service,path in [('backend','backend/Dockerfile'),('frontend','frontend/Dockerfile'),('migration','infrastructure/migration/Dockerfile')]:
             record_check('Docker image build: ' + service)
-            run(docker_cli()+['build','--label','org.opencontainers.image.revision='+tag,'-f',path,'-t','sms-'+service+':'+tag,'.'])
+            run(docker_command()+['build','--label','org.opencontainers.image.revision='+tag,'-f',path,'-t','sms-'+service+':'+tag,'.'])
     elif step=='mysql':
         (REPORTS/'mysql-integration.json').unlink(missing_ok=True)
         env_file=ROOT/'artifacts/ci/.env'
@@ -172,7 +170,7 @@ def main(step):
         if result.returncode:raise RuntimeError('Dependency audit failed or could not complete')
         image=os.getenv('TRIVY_IMAGE','aquasec/trivy:0.64.1')
         skips=['backend/target','frontend/dist','.git','.secrets','backend/.local','backend/private-files','frontend/node_modules','frontend/.npm-cache','backups','artifacts']
-        command=docker_cli()+['run','--rm','-v',str(ROOT)+':/work:ro','-v','sms_trivy_cache:/root/.cache/','-w','/work',image,'fs','--timeout','15m','--no-progress','--scanners',scanner,'--severity',severity,'--exit-code','1']
+        command=docker_command()+['run','--rm','-v',str(ROOT)+':/work:ro','-v','sms_trivy_cache:/root/.cache/','-w','/work',image,'fs','--timeout','15m','--no-progress','--scanners',scanner,'--severity',severity,'--exit-code','1']
         for path in skips:command+=['--skip-dirs','/work/'+path]
         command+=['--skip-files','.env','--skip-files','backend/.env.local','--skip-files','frontend/.env.local','--format','json','.']
         record_check('Trivy filesystem scan: ' + scanner)
@@ -181,9 +179,9 @@ def main(step):
             record_check('Trivy image scan: ' + service + ' (' + scanner + ')')
             target='sms-'+service+':'+os.getenv('IMAGE_TAG','local')
             archive=ROOT/'artifacts'/('scan-'+step+'-'+service+'.tar')
-            run(docker_cli()+['save','-o',str(archive),target])
+            run(docker_command()+['save','-o',str(archive),target])
             try:
-                scan_report(docker_cli()+['run','--rm','-v',str(archive)+':/image.tar:ro','-v','sms_trivy_cache:/root/.cache/',image,'image','--timeout','15m','--no-progress','--input','/image.tar','--scanners',scanner,'--severity',severity,'--exit-code','1','--format','json'],REPORTS/(prefix+'-'+service+'.json'))
+                scan_report(docker_command()+['run','--rm','-v',str(archive)+':/image.tar:ro','-v','sms_trivy_cache:/root/.cache/',image,'image','--timeout','15m','--no-progress','--input','/image.tar','--scanners',scanner,'--severity',severity,'--exit-code','1','--format','json'],REPORTS/(prefix+'-'+service+'.json'))
             finally:archive.unlink(missing_ok=True)
     elif step=='publish':
         # Publish only the exact local images already tested/scanned. Registry login is external.
@@ -195,8 +193,8 @@ def main(step):
         if not re.fullmatch(r'[0-9a-f]{40}',tag):raise RuntimeError('Publishing requires full commit SHA')
         for service in ['backend','frontend','migration']:
             target=repository+'/sms-'+service+':'+tag
-            run(docker_cli()+['tag','sms-'+service+':'+tag,target]);run(docker_cli()+['push',target])
-            digests=json.loads(subprocess.check_output(docker_cli()+['image','inspect',target,'--format','{{json .RepoDigests}}'],text=True))
+            run(docker_command()+['tag','sms-'+service+':'+tag,target]);run(docker_command()+['push',target])
+            digests=json.loads(subprocess.check_output(docker_command()+['image','inspect',target,'--format','{{json .RepoDigests}}'],text=True))
             digest=next(value for value in digests if value.startswith(repository+'/sms-'+service+'@sha256:'))
             manifest['images'][service]=digest
         (REPORTS/'release.json').write_text(json.dumps(manifest,indent=2))

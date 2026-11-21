@@ -35,6 +35,7 @@ PR từ fork không được nhận Sonar credential; không publish/deploy từ
 | github-read | GitHub App/token | Cấu hình repository trong Multibranch, quyền đọc tối thiểu |
 | registry-push | Username/password | Registry token chỉ push repository cần thiết |
 | sonar-token | Secret text | Gắn vào SonarQube server của Jenkins |
+| sms-discord-webhook | Secret text | URL webhook của kênh CI/CD. Job dùng credential này để báo ngay khi stage lỗi. |
 | vps-ssh | SSH private key | Deploy user, không gửi key vào chat/Git |
 | vps-known-hosts | Secret file | Host key đã xác minh ngoài kênh; StrictHostKeyChecking=yes |
 | REGISTRY_NAMESPACE | Job parameter | Ví dụ ghcr.io/ten-nhom; chưa có thì không bật publish release |
@@ -47,6 +48,8 @@ Registry password truyền qua stdin, không nằm trong lệnh. Jenkins Credent
 Jenkins cần endpoint HTTPS GitHub truy cập được. Cấu hình GitHub Settings → Webhooks → `https://<ci-domain>/github-webhook/`, application/json, push/PR theo plugin, secret/chữ ký được plugin/relay kiểm tra. Không dùng localhost làm URL của GitHub. Có thể dùng Poll SCM tạm thời; không ghi nhận AC webhook đã đạt khi chưa có delivery 2xx/build link đúng SHA.
 
 ## Chạy từng bước tại máy
+
+Trên Windows, pipeline mặc định dùng Docker Desktop Linux Engine. Có thể chỉ định Engine khác bằng `SMS_DOCKER_CONTEXT` hoặc `SMS_DOCKER_HOST` trong môi trường agent. Jenkins kiểm tra kết nối Engine ở stage **Check Environment** và dùng cùng endpoint cho build, Compose, test và log. Nếu Docker CLI có cài nhưng Engine chưa chạy hoặc tài khoản dịch vụ không truy cập được, pipeline dừng tại đây và gửi cảnh báo CI/CD nếu credential đã sẵn sàng.
 
 ```powershell
 python scripts/ci.py prepare

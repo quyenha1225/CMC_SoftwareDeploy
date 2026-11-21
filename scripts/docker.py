@@ -68,13 +68,21 @@ def invoke(command, *, capture=False, data=None, destination=None, check=True):
 def settings(path):
     return dict(line.split('=',1) for line in path.read_text(encoding='utf-8-sig').splitlines() if '=' in line and not line.startswith('#'))
 
+def docker_command(context=None):
+    context = context or os.getenv('SMS_DOCKER_CONTEXT')
+    if context:
+        return ['docker', '--context', context]
+    endpoint = os.getenv('SMS_DOCKER_HOST')
+    if not endpoint and os.name == 'nt' and not (os.getenv('DOCKER_CONTEXT') or os.getenv('DOCKER_HOST')):
+        endpoint = 'npipe:////./pipe/dockerDesktopLinuxEngine'
+    return ['docker', '--host', endpoint] if endpoint else ['docker']
+
+
 class Runtime:
     def __init__(self,env_file=None,context=None,production=False):
         self.env_file=Path(env_file or ROOT/'.env').resolve()
         self.config=settings(self.env_file)
-        self.context=context or os.getenv('SMS_DOCKER_CONTEXT','')
-        endpoint=os.getenv('SMS_DOCKER_HOST','npipe:////./pipe/dockerDesktopLinuxEngine' if os.name=='nt' else '')
-        self.docker=['docker']+(['--context',self.context] if self.context else ['--host',endpoint] if endpoint else [])
+        self.docker=docker_command(context)
         self.compose=self.docker+['compose','--project-directory',str(ROOT),'--env-file',str(self.env_file),'-f',str(ROOT/('compose.prod.yaml' if production else 'compose.yaml'))]
         self.secret_dir=Path(self.config.get('SMS_SECRETS_DIR',str(ROOT/'.secrets')))
         if not self.secret_dir.is_absolute():self.secret_dir=ROOT/self.secret_dir
