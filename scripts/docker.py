@@ -78,12 +78,21 @@ class Runtime:
         self.compose=self.docker+['compose','--project-directory',str(ROOT),'--env-file',str(self.env_file),'-f',str(ROOT/('compose.prod.yaml' if production else 'compose.yaml'))]
         self.secret_dir=Path(self.config.get('SMS_SECRETS_DIR',str(ROOT/'.secrets')))
         if not self.secret_dir.is_absolute():self.secret_dir=ROOT/self.secret_dir
+        if self.secret_dir.is_dir():
+            ensure_discord_secret(self.secret_dir)
     def run(self,*args,**kwargs):return invoke(self.compose+list(args),**kwargs)
     def sql(self,query):
         return self.run('exec','-T','db','sh','-c','export MYSQL_PWD="$(cat /run/secrets/mysql_root_password)"; exec mysql -uroot --default-character-set=utf8mb4 --batch --raw --skip-column-names "$MYSQL_DATABASE"',data=query.encode('utf-8'),capture=True)
     def url(self):
         port=self.run('port','frontend','8080',capture=True).splitlines()[0].rsplit(':',1)[1]
         return 'http://127.0.0.1:'+port
+
+def ensure_discord_secret(folder):
+    try:
+        with (folder/'discord_webhook_url').open('x', encoding='utf-8'):
+            pass
+    except FileExistsError:
+        pass
 
 def initialize(path,ci=False):
     if path.exists():raise RuntimeError('Environment already exists; existing secrets were not replaced.')
@@ -103,6 +112,7 @@ def initialize(path,ci=False):
         target=folder/name
         if target.exists():raise RuntimeError('Secret exists without environment file; review before retry.')
         target.write_text(value,encoding='utf-8');target.chmod(0o444)
+    ensure_discord_secret(folder)
     text=(ROOT/'.env.example').read_text()
     if ci:text=text.replace('COMPOSE_PROJECT_NAME=sms_local','COMPOSE_PROJECT_NAME=sms_ci_'+secrets.token_hex(4)).replace('APP_PORT=8088','APP_PORT=0')
     text+='\nSMS_SECRETS_DIR='+folder.as_posix()+'\nIMAGE_TAG='+os.getenv('IMAGE_TAG','local')+'\n'

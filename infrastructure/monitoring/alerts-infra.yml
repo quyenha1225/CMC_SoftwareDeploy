@@ -7,6 +7,18 @@ groups:
         labels: {severity: critical}
         annotations:
           summary: "Frontend /healthz không phản hồi"
+      - alert: SMSBackendNotReady
+        expr: probe_success{job="sms-backend-readiness-probe"} == 0 and on() up{job="sms-backend"} == 1
+        for: 2m
+        labels: {severity: critical}
+        annotations:
+          summary: "Backend còn xuất metrics nhưng readiness lỗi. Kiểm tra MySQL và backend."
+      - alert: SMSHealthProbeUnavailable
+        expr: up{job=~"sms-frontend-probe|sms-backend-readiness-probe"} == 0
+        for: 2m
+        labels: {severity: warning}
+        annotations:
+          summary: "Prometheus không thu được kết quả kiểm tra HTTP từ Blackbox Exporter."
       - alert: DiskSpaceLow
         expr: 100 * min(node_filesystem_avail_bytes{fstype!~"tmpfs|overlay|squashfs"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay|squashfs"}) < 15
         for: 10m
@@ -20,8 +32,10 @@ groups:
         annotations:
           summary: "Volume mysql_data vượt 5 GiB (chỉnh ngưỡng cho phù hợp)"
       - alert: VolumeSizeExporterStale
-        expr: absent(sms_volume_bytes)
+        expr: |
+          absent(sms_volume_bytes{job="sms-node",volume="mysql_data"})
+          or (time() - node_textfile_mtime_seconds{job="sms-node",file=~"(.*/)?volumes[.]prom"} > 180)
         for: 5m
         labels: {severity: warning}
         annotations:
-          summary: "Không còn số liệu dung lượng volume"
+          summary: "Số liệu dung lượng volume bị thiếu hoặc file volumes.prom ngừng cập nhật."

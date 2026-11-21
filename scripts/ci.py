@@ -18,11 +18,33 @@ MVN=str(ROOT/'backend'/('mvnw.cmd' if WIN else 'mvnw'))
 MAVEN=[MVN] if WIN else ['sh',MVN]
 NPM='npm.cmd' if WIN else 'npm'
 
-def run(command,directory=None,**kwargs):
+def record_check(label):
+    destination = os.getenv('SMS_CI_DETAIL_FILE')
+    if destination:
+        try:
+            path = Path(destination)
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(label + '\n', encoding='utf-8')
+        except OSError:
+            print('CI could not record the current check for Discord.', file=sys.stderr)
+
+def run(command,directory=None,*,track_maven=False,**kwargs):
     # Log only the executable: command arguments can include sensitive values.
     started = time.monotonic()
     print('CI start: ' + str(command[0]), flush=True)
-    result=subprocess.run(command,cwd=directory or ROOT,**kwargs)
+    if track_maven and os.getenv('SMS_CI_DETAIL_FILE'):
+        with subprocess.Popen(command,cwd=directory or ROOT,stdout=subprocess.PIPE,
+                              stderr=subprocess.STDOUT,**kwargs) as result:
+            for line in result.stdout:
+                sys.stdout.buffer.write(line)
+                sys.stdout.buffer.flush()
+                goal=re.search(rb'--- ([a-z0-9-]+):[a-zA-Z0-9.\-]+:([a-z0-9-]+) \(',line)
+                if goal:
+                    record_check('Backend Maven goal: ' + ':'.join(
+                        part.decode('ascii') for part in goal.groups()))
+            result.wait()
+    else:
+        result=subprocess.run(command,cwd=directory or ROOT,**kwargs)
     elapsed = time.monotonic() - started
     print(f'CI finish: {command[0]} elapsed={elapsed:.1f}s exit={result.returncode}', flush=True)
     if result.returncode:
@@ -46,6 +68,7 @@ def scan_report(command,path):
     if result.returncode:raise RuntimeError('Security gate failed: '+path.name)
 
 def main(step):
+    record_check(step)
     if step=='prepare':
         run([sys.executable,'-m','unittest','discover','-s','scripts/tests','-v'])
         for command in [['java','-version'],['node','--version'],[NPM,'--version'],docker_cli()+['version'],docker_cli()+['compose','version']]:run(command)
@@ -59,11 +82,20 @@ def main(step):
         sha=subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip()
         dirty=bool(subprocess.check_output(['git','status','--porcelain'],cwd=ROOT,text=True))
         (REPORTS/'build.json').write_text(json.dumps({'commit':sha,'dirty':dirty,'build_url':os.getenv('BUILD_URL','local')},indent=2))
-    elif step=='backend':run([*MAVEN,'-B','-ntp','clean','verify'],ROOT/'backend')
+    elif step=='backend':
+        record_check('Backend Java: Maven clean verify (compile, tests, verification)')
+        run([*MAVEN,'-B','-ntp','clean','verify'],ROOT/'backend',track_maven=True)
     elif step=='frontend':
         for filename in ['junit.xml','lcov.info','coverage-summary.json']:
             (ROOT/'frontend/coverage'/filename).unlink(missing_ok=True)
-        for command in [[NPM,'ci','--prefer-offline','--no-fund'],[NPM,'run','lint','--','--cache','--cache-strategy','content','--cache-location','.eslintcache'],[NPM,'run','test:ci'],[NPM,'run','build']]:run(command,ROOT/'frontend')
+        for label, command in [
+            ('Frontend dependency install (npm ci)', [NPM,'ci','--prefer-offline','--no-fund']),
+            ('Frontend ESLint', [NPM,'run','lint','--','--cache','--cache-strategy','content','--cache-location','.eslintcache']),
+            ('Frontend API and unit tests (npm run test:ci)', [NPM,'run','test:ci']),
+            ('Frontend production build', [NPM,'run','build']),
+        ]:
+            record_check(label)
+            run(command,ROOT/'frontend')
     elif step=='sonar':
         if not os.getenv('SONAR_HOST_URL') or not os.getenv('SONAR_AUTH_TOKEN'):raise RuntimeError('Configure the Jenkins SonarQube server/credential first.')
         env={**os.environ,'SONAR_TOKEN':os.environ['SONAR_AUTH_TOKEN']}
@@ -86,6 +118,7 @@ def main(step):
         tag=os.environ.get('IMAGE_TAG','local')
         if not re.fullmatch(r'[a-zA-Z0-9_.-]+',tag):raise RuntimeError('Invalid image tag')
         for service,path in [('backend','backend/Dockerfile'),('frontend','frontend/Dockerfile'),('migration','infrastructure/migration/Dockerfile')]:
+            record_check('Docker image build: ' + service)
             run(docker_cli()+['build','--label','org.opencontainers.image.revision='+tag,'-f',path,'-t','sms-'+service+':'+tag,'.'])
     elif step=='mysql':
         (REPORTS/'mysql-integration.json').unlink(missing_ok=True)
@@ -94,24 +127,32 @@ def main(step):
         runtime=Runtime(env_file)
         if not runtime.config['COMPOSE_PROJECT_NAME'].startswith('sms_ci_'):raise RuntimeError('Integration tests require an isolated CI project')
         try:
+            record_check('MySQL integration: start database, migrations and application containers')
             runtime.run('up','-d','--no-build','--wait','--wait-timeout','300','frontend','backend')
+            record_check('MySQL integration: provision test accounts')
             runtime.run('run','--rm','provision')
+            record_check('MySQL integration: HTTP, role login and SQL smoke checks')
             results=smoke(runtime)
+            record_check('MySQL integration: business workflow checks')
             from mysql_workflows import verify_workflows
             workflows=verify_workflows(runtime)
             # Browser checks run against the same isolated MySQL fixture, not host data.
             credentials=__import__('docker').settings(runtime.secret_dir/'demo_accounts')
             actors={'PRINCIPAL':'principal','TRAINING_OFFICE':'training_demo','CTSV':'ctsv_demo','LECTURER':'lecturer_demo_01','STUDENT':'student_demo_001','APPLICANT':'applicant_demo_03'}
             for role,username in actors.items():
+                record_check('Browser integration: ' + role)
                 browser_env={**os.environ,'SMS_UI_BASE_URL':runtime.url(),'SMS_UI_ROLE':role,'SMS_UI_USERNAME':username,'SMS_UI_PASSWORD':credentials[username],'SMS_UI_DEBUG_PORT':'9231'}
                 with open(REPORTS/('browser-'+role+'.log'),'wb') as output:
                     run(['node','tests/browser-full-ui.mjs'],ROOT/'frontend',env=browser_env,stdout=output,stderr=subprocess.STDOUT)
+            record_check('MySQL integration: backup and restore')
             snapshot=backup(runtime);restore_test(runtime,snapshot)
+            record_check('MySQL integration: restart and persistence')
             before=runtime.sql('SELECT COUNT(*) FROM students UNION ALL SELECT COUNT(*) FROM payments')
             runtime.run('restart','db');runtime.run('up','-d','--wait','--wait-timeout','180','backend','frontend')
             if before!=runtime.sql('SELECT COUNT(*) FROM students UNION ALL SELECT COUNT(*) FROM payments'):raise RuntimeError('Persistence check failed')
             smoke(runtime)
             (REPORTS/'mysql-integration.json').write_text(json.dumps({'passed':True,'created_at':dt.datetime.now().isoformat(),'image_tag':os.getenv('IMAGE_TAG','local'),'checks':results,'workflows':workflows,'restore':True,'restart_persistence':True},indent=2))
+            record_check('MySQL integration: collect logs and remove CI containers')
         finally:
             runtime.run('logs','--no-color','--tail','200','backend','migrate',destination=REPORTS/'mysql-runtime.log',check=False)
             # Only the generated, disposable CI namespace is removed, never local/production volumes.
@@ -125,6 +166,7 @@ def main(step):
         tracked=subprocess.check_output(['git','ls-files'],cwd=ROOT,text=True).splitlines()
         prohibited=[p for p in tracked if '/.local/' in p or p.startswith(('.secrets/','backups/')) or (Path(p).name.startswith('.env') and Path(p).name!='.env.example')]
         if prohibited:raise RuntimeError('Sensitive runtime files are tracked in Git')
+        record_check('Frontend dependency audit (npm audit)')
         with open(REPORTS/'npm-audit.json','wb') as out:
             result=subprocess.run([NPM,'audit','--json','--audit-level=critical'],cwd=ROOT/'frontend',stdout=out)
         if result.returncode:raise RuntimeError('Dependency audit failed or could not complete')
@@ -133,8 +175,10 @@ def main(step):
         command=docker_cli()+['run','--rm','-v',str(ROOT)+':/work:ro','-v','sms_trivy_cache:/root/.cache/','-w','/work',image,'fs','--timeout','15m','--no-progress','--scanners',scanner,'--severity',severity,'--exit-code','1']
         for path in skips:command+=['--skip-dirs','/work/'+path]
         command+=['--skip-files','.env','--skip-files','backend/.env.local','--skip-files','frontend/.env.local','--format','json','.']
+        record_check('Trivy filesystem scan: ' + scanner)
         scan_report(command,REPORTS/(prefix+'-filesystem.json'))
         for service in ['backend','frontend','migration']:
+            record_check('Trivy image scan: ' + service + ' (' + scanner + ')')
             target='sms-'+service+':'+os.getenv('IMAGE_TAG','local')
             archive=ROOT/'artifacts'/('scan-'+step+'-'+service+'.tar')
             run(docker_cli()+['save','-o',str(archive),target])

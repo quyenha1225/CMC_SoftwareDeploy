@@ -1,0 +1,62 @@
+rule_files: [alerts-infra.yml]
+evaluation_interval: 1m
+tests:
+  - interval: 1m
+    input_series:
+      - series: 'up{job="sms-backend"}'
+        values: '1 1 1 1 1 0'
+      - series: 'probe_success{job="sms-backend-readiness-probe"}'
+        values: '1 0 0 0 1 0'
+    alert_rule_test:
+      - {alertname: SMSBackendNotReady, eval_time: 2m, exp_alerts: []}
+      - alertname: SMSBackendNotReady
+        eval_time: 3m
+        exp_alerts:
+          - exp_labels: {job: sms-backend-readiness-probe, severity: critical}
+            exp_annotations:
+              summary: "Backend còn xuất metrics nhưng readiness lỗi. Kiểm tra MySQL và backend."
+      - {alertname: SMSBackendNotReady, eval_time: 4m, exp_alerts: []}
+      - {alertname: SMSBackendNotReady, eval_time: 5m, exp_alerts: []}
+
+  - interval: 1m
+    input_series:
+      - series: 'up{job="sms-frontend-probe"}'
+        values: '1 0 0 0 1'
+    alert_rule_test:
+      - {alertname: SMSHealthProbeUnavailable, eval_time: 2m, exp_alerts: []}
+      - alertname: SMSHealthProbeUnavailable
+        eval_time: 3m
+        exp_alerts:
+          - exp_labels: {job: sms-frontend-probe, severity: warning}
+            exp_annotations:
+              summary: "Prometheus không thu được kết quả kiểm tra HTTP từ Blackbox Exporter."
+      - {alertname: SMSHealthProbeUnavailable, eval_time: 4m, exp_alerts: []}
+
+  - interval: 1m
+    input_series:
+      - series: 'sms_volume_bytes{job="sms-node",volume="mysql_data"}'
+        values: '1024x10'
+      - series: 'node_textfile_mtime_seconds{job="sms-node",file="/textfile/volumes.prom"}'
+        values: '0x9 600'
+    alert_rule_test:
+      - {alertname: VolumeSizeExporterStale, eval_time: 8m, exp_alerts: []}
+      - alertname: VolumeSizeExporterStale
+        eval_time: 9m
+        exp_alerts:
+          - exp_labels: {job: sms-node, file: /textfile/volumes.prom, severity: warning}
+            exp_annotations:
+              summary: "Số liệu dung lượng volume bị thiếu hoặc file volumes.prom ngừng cập nhật."
+      - {alertname: VolumeSizeExporterStale, eval_time: 10m, exp_alerts: []}
+
+  - interval: 1m
+    input_series:
+      - series: 'sms_volume_bytes{job="sms-node",volume="grafana_data"}'
+        values: '1024x6'
+    alert_rule_test:
+      - {alertname: VolumeSizeExporterStale, eval_time: 4m, exp_alerts: []}
+      - alertname: VolumeSizeExporterStale
+        eval_time: 5m
+        exp_alerts:
+          - exp_labels: {job: sms-node, volume: mysql_data, severity: warning}
+            exp_annotations:
+              summary: "Số liệu dung lượng volume bị thiếu hoặc file volumes.prom ngừng cập nhật."

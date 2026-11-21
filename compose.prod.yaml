@@ -71,12 +71,13 @@ services:
       - {source: identity_key, target: SMS_IDENTITY_KEY}
       - {source: bootstrap_password, target: SMS_BOOTSTRAP_PASSWORD}
       - {source: smtp_password, target: SMS_SMTP_PASSWORD}
+      - {source: discord_webhook_url, target: DISCORD_WEBHOOK_URL}
     volumes: [private_files:/app/private-files]
     tmpfs: ['/tmp:uid=10001,gid=10001,mode=1770']
     read_only: true
     cap_drop: [ALL]
     security_opt: [no-new-privileges:true]
-    networks: [app, data, observability]
+    networks: [app, data, observability, alerting]
     depends_on:
       migrate: {condition: service_completed_successfully}
     logging: *logging
@@ -127,6 +128,7 @@ services:
 networks:
   app: {}
   monitoring_edge: {}
+  alerting: {}
   data: {internal: true}
   observability: {internal: true}
 volumes:
@@ -143,3 +145,4 @@ secrets:
   bootstrap_password: {file: '${SMS_SECRETS_DIR:-./.secrets}/bootstrap_password'}
   smtp_password: {file: '${SMS_SECRETS_DIR:-./.secrets}/smtp_password'}
   grafana_password: {file: '${SMS_SECRETS_DIR:-./.secrets}/grafana_password'}
+  discord_webhook_url: {file: '${SMS_SECRETS_DIR:-./.secrets}/discord_webhook_url'}

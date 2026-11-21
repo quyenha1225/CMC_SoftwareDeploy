@@ -48,7 +48,7 @@ def remote(manifest_path):
     options=['-i',os.environ['DEPLOY_KEY'],'-o','BatchMode=yes','-o','StrictHostKeyChecking=yes','-o','UserKnownHostsFile='+os.environ['DEPLOY_KNOWN_HOSTS']]
     bundle=ROOT/'artifacts/release-bundle.tar.gz';bundle.parent.mkdir(exist_ok=True)
     with tarfile.open(bundle,'w:gz') as archive:
-        for item in ['compose.prod.yaml','compose.tls.yaml','scripts/docker.py','scripts/deploy.py','infrastructure']:
+        for item in ['compose.prod.yaml','compose.tls.yaml','compose.monitoring.yaml','scripts/docker.py','scripts/deploy.py','infrastructure']:
             archive.add(ROOT/item,arcname=item)
         archive.add(manifest_path,arcname='artifacts/reports/release.json')
     location='/opt/sms/'+target

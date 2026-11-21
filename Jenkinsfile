@@ -8,7 +8,8 @@ def runPythonScript(String arguments) {
 }
 
 def executeStep(String step) {
-    withEnv(["IMAGE_TAG=${env.IMAGE_TAG ?: 'local'}"]) {
+    def detailFile = "${pwd(tmp: true)}/sms-${env.BUILD_NUMBER}-${step}.txt"
+    withEnv(["IMAGE_TAG=${env.IMAGE_TAG ?: 'local'}", "SMS_CI_DETAIL_FILE=${detailFile}"]) {
         runPythonScript("scripts/ci.py ${step}")
     }
 }
@@ -18,6 +19,90 @@ def runLocalCommand(String command) {
         sh command
     } else {
         bat command
+    }
+}
+
+def executeParallelStep(String stageName, String step) {
+    try {
+        executeStep(step)
+    } catch (org.jenkinsci.plugins.workflow.steps.FlowInterruptedException interrupted) {
+        throw interrupted
+    } catch (Exception failure) {
+        notifyDiscord(stageName, step, 'FAILURE')
+        throw failure
+    }
+}
+
+def notifyDiscord(String stageName = '', String step = '', String result = '') {
+    result = result ?: currentBuild.currentResult
+    if (!stageName && result == 'SUCCESS' && env.SMS_DEPLOY_COMPLETED != 'true') {
+        return
+    }
+    try {
+        withCredentials([string(credentialsId: 'sms-discord-webhook', variable: 'DISCORD_WEBHOOK_URL')]) {
+            def detail = ''
+            if (step) {
+                def detailFile = "${pwd(tmp: true)}/sms-${env.BUILD_NUMBER}-${step}.txt"
+                if (fileExists(detailFile)) {
+                    detail = readFile(detailFile).trim()
+                }
+            } else if (stageName == 'Deploy Local Docker') {
+                detail = env.SMS_DEPLOY_CHECK ?: ''
+            } else if (stageName == 'SonarQube Quality Gate') {
+                detail = env.SMS_QUALITY_GATE_CHECK ?: ''
+            }
+            withEnv(["SMS_BUILD_RESULT=${result}",
+                     "SMS_FAILED_STAGE=${stageName}", "SMS_FAILED_CHECK=${detail}"]) {
+                def notifier = "sms-discord-${stageName.replaceAll('[^A-Za-z0-9]+', '-') ?: 'summary'}.py"
+                dir(pwd(tmp: true)) {
+                    writeFile file: notifier, text: '''
+import json
+import os
+from urllib.error import HTTPError
+from urllib.request import Request, urlopen
+
+env = os.environ
+fields = [
+    f"{env.get('JOB_NAME', 'Jenkins')} #{env.get('BUILD_NUMBER', '?')}",
+    "Branch: " + (env.get("BRANCH_NAME") or env.get("GIT_BRANCH") or "unknown"),
+    "Commit: " + (env.get("IMAGE_TAG") or "unknown"),
+]
+if env.get("SMS_FAILED_STAGE"):
+    fields.append("Stage: " + env["SMS_FAILED_STAGE"])
+if env.get("SMS_FAILED_CHECK"):
+    fields.append("Check: " + env["SMS_FAILED_CHECK"])
+if env.get("SMS_DEPLOY_COMPLETED") == "true":
+    fields.append("Local Docker deployment and smoke checks passed")
+if env.get("BUILD_URL"):
+    fields.append("Console: " + env["BUILD_URL"].rstrip("/") + "/console")
+
+payload = {
+    "username": "SMS Jenkins",
+    "allowed_mentions": {"parse": []},
+    "embeds": [{"title": "Jenkins " + env["SMS_BUILD_RESULT"] +
+                         (" - " + env["SMS_FAILED_STAGE"] if env.get("SMS_FAILED_STAGE") else ""),
+                "description": chr(10).join(fields)[:4000]}],
+}
+try:
+    request = Request(env["DISCORD_WEBHOOK_URL"].strip(),
+                      data=json.dumps(payload).encode("utf-8"),
+                      headers={"Content-Type": "application/json"},
+                      method="POST")
+    with urlopen(request, timeout=8) as response:
+        print(f"Discord notification delivered (HTTP {response.status}).")
+except HTTPError as error:
+    print(f"Discord notification failed (HTTP {error.code}).")
+except (OSError, ValueError):
+    print("Discord notification failed. Check webhook configuration and network access.")
+'''
+                    runPythonScript(notifier)
+                }
+            }
+        }
+    } catch (org.jenkinsci.plugins.workflow.steps.FlowInterruptedException interrupted) {
+        throw interrupted
+    } catch (Exception ignored) {
+        echo 'Discord notification skipped. Check the sms-discord-webhook credential and the agent.'
     }
 }
 
@@ -58,6 +143,14 @@ pipeline {
     stages {
 
         stage('Checkout') {
+            post {
+                unsuccessful {
+                    script {
+                        notifyDiscord('Checkout')
+                    }
+                }
+            }
+
             steps {
                 checkout scm
 
@@ -82,6 +175,14 @@ pipeline {
         }
 
         stage('Check Environment') {
+            post {
+                unsuccessful {
+                    script {
+                        notifyDiscord('Check Environment')
+                    }
+                }
+            }
+
             steps {
                 script {
                     if (isUnix()) {
@@ -104,6 +205,14 @@ pipeline {
         }
 
         stage('Prepare') {
+            post {
+                unsuccessful {
+                    script {
+                        notifyDiscord('Prepare', 'prepare')
+                    }
+                }
+            }
+
             steps {
                 executeStep('prepare')
             }
@@ -114,19 +223,31 @@ pipeline {
 
                 stage('Backend Test') {
                     steps {
-                        executeStep('backend')
+                        script {
+                            executeParallelStep('Backend Test', 'backend')
+                        }
                     }
                 }
 
                 stage('Frontend Test') {
                     steps {
-                        executeStep('frontend')
+                        script {
+                            executeParallelStep('Frontend Test', 'frontend')
+                        }
                     }
                 }
             }
         }
 
         stage('Validate Docker Compose') {
+            post {
+                unsuccessful {
+                    script {
+                        notifyDiscord('Validate Docker Compose')
+                    }
+                }
+            }
+
             steps {
                 withEnv(["IMAGE_TAG=${env.IMAGE_TAG}"]) {
                     runLocalCommand(
@@ -137,6 +258,14 @@ pipeline {
         }
 
         stage('SonarQube Analysis') {
+            post {
+                unsuccessful {
+                    script {
+                        notifyDiscord('SonarQube Analysis', 'sonar')
+                    }
+                }
+            }
+
             when {
                 allOf {
                     expression {
@@ -156,6 +285,14 @@ pipeline {
         }
 
         stage('SonarQube Quality Gate') {
+            post {
+                unsuccessful {
+                    script {
+                        notifyDiscord('SonarQube Quality Gate')
+                    }
+                }
+            }
+
             when {
                 allOf {
                     expression {
@@ -171,6 +308,7 @@ pipeline {
                 timeout(time: 10, unit: 'MINUTES') {
                     script {
                         def gate = waitForQualityGate()
+                        env.SMS_QUALITY_GATE_CHECK = "Quality gate status: ${gate.status}"
 
                         if (gate.status != 'OK') {
                             error("SonarQube Quality Gate: ${gate.status}")
@@ -181,6 +319,14 @@ pipeline {
         }
 
         stage('Build Docker Images') {
+            post {
+                unsuccessful {
+                    script {
+                        notifyDiscord('Build Docker Images', 'build')
+                    }
+                }
+            }
+
             steps {
                 // Build backend, frontend và migration.
                 // Build context được giữ ở thư mục gốc repository.
@@ -189,6 +335,14 @@ pipeline {
         }
 
         stage('MySQL Integration Tests') {
+            post {
+                unsuccessful {
+                    script {
+                        notifyDiscord('MySQL Integration Tests', 'mysql')
+                    }
+                }
+            }
+
             steps {
                 // Database CI riêng, không sử dụng database local.
                 executeStep('mysql')
@@ -200,19 +354,31 @@ pipeline {
 
                 stage('Dependency and Image Scan') {
                     steps {
-                        executeStep('security')
+                        script {
+                            executeParallelStep('Dependency and Image Scan', 'security')
+                        }
                     }
                 }
 
                 stage('Secret Scan') {
                     steps {
-                        executeStep('secrets')
+                        script {
+                            executeParallelStep('Secret Scan', 'secrets')
+                        }
                     }
                 }
             }
         }
 
         stage('Deploy Local Docker') {
+            post {
+                unsuccessful {
+                    script {
+                        notifyDiscord('Deploy Local Docker')
+                    }
+                }
+            }
+
             when {
                 allOf {
                     expression {
@@ -233,13 +399,17 @@ pipeline {
                 script {
 
                     // Khởi tạo cấu hình local nếu chưa có.
+                    env.SMS_DEPLOY_CHECK = 'Initialize or validate local Docker configuration'
                     if (!fileExists('.env')) {
                         runPythonScript('scripts/docker.py init')
+                    } else {
+                        runPythonScript('scripts/docker.py config')
                     }
 
                     withEnv(["IMAGE_TAG=${env.IMAGE_TAG}"]) {
 
                         // Kiểm tra stack hiện tại.
+                        env.SMS_DEPLOY_CHECK = 'Inspect the local Docker stack'
                         def running = isUnix()
                             ? sh(
                                 script: 'docker compose -f compose.yaml ps --status running -q db backend',
@@ -252,25 +422,31 @@ pipeline {
 
                         // Backup trước khi cập nhật nếu database và backend đang chạy.
                         if (running.readLines().size() >= 2) {
+                            env.SMS_DEPLOY_CHECK = 'Back up local database and files'
                             echo 'Existing local stack detected. Creating backup.'
 
                             runPythonScript('scripts/docker.py backup')
                         }
 
                         // Khởi chạy các image đã được build ở stage trước.
+                        env.SMS_DEPLOY_CHECK = 'Start frontend and backend, wait for health checks'
                         runLocalCommand(
                             'docker compose -f compose.yaml up -d --no-build --wait --wait-timeout 300 frontend backend'
                         )
 
                         // Provision dữ liệu demo theo cấu hình local.
+                        env.SMS_DEPLOY_CHECK = 'Provision local demo accounts'
                         runLocalCommand(
                             'docker compose -f compose.yaml --profile tools run --rm provision'
                         )
 
                         // Kiểm tra frontend, backend và SQL integrity.
-                        runPythonScript('scripts/docker.py --production smoke')
+                        env.SMS_DEPLOY_CHECK = 'Run HTTP, role login and SQL smoke checks'
+                        runPythonScript('scripts/docker.py smoke')
+                        env.SMS_DEPLOY_COMPLETED = 'true'
 
                         // Hiển thị trạng thái các container.
+                        env.SMS_DEPLOY_CHECK = 'Read Docker container status'
                         runLocalCommand(
                             'docker compose -f compose.yaml ps'
                         )
@@ -302,7 +478,7 @@ pipeline {
                     env.BRANCH_NAME ?: env.GIT_BRANCH ?: ''
                 ).replaceFirst(/^origin\//, '')
 
-                if (currentBranch in ['quyen/admin', 'develop']) {
+                if (env.SMS_DEPLOY_COMPLETED == 'true') {
                     echo 'Local Docker deployment completed.'
                 } else {
                     echo "CI completed. Deployment skipped for branch: ${currentBranch}"
@@ -325,6 +501,12 @@ pipeline {
                         returnStatus: true
                     )
                 }
+            }
+        }
+
+        cleanup {
+            script {
+                notifyDiscord()
             }
         }
     }

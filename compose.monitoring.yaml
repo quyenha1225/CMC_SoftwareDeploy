@@ -74,6 +74,7 @@ services:
       ALERT_TELEGRAM_BOT_TOKEN: ${ALERT_TELEGRAM_BOT_TOKEN:-}
       ALERT_TELEGRAM_CHAT_ID: ${ALERT_TELEGRAM_CHAT_ID:-}
     ports: ['127.0.0.1:${ALERTMANAGER_PORT:-9093}:9093']
+    secrets: [discord_webhook_url]
     volumes:
       - ./infrastructure/monitoring/alertmanager-entrypoint.sh:/alertmanager-entrypoint.sh:ro
       - ./infrastructure/monitoring/alertmanager.tmpl.yml:/etc/alertmanager/alertmanager.tmpl.yml:ro
