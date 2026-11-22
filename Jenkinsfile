@@ -67,7 +67,6 @@ import json
 import os
 from pathlib import Path
 import re
-import sys
 from urllib.error import HTTPError
 from urllib.parse import parse_qsl, urlencode, urlsplit
 from urllib.request import Request, urlopen
@@ -107,12 +106,8 @@ payload = {
 }
 try:
     webhook = env.get("DISCORD_WEBHOOK_URL", "").strip()
-    if not webhook and env.get("SMS_DISCORD_LOCAL_FALLBACK") == "true":
-        sys.path.insert(0, str(Path(env["WORKSPACE"]) / "scripts"))
-        from ci import local_deploy_runtime
-        secret_dir = local_deploy_runtime(require_existing=True).secret_dir
-        webhook = (secret_dir / "jenkins_discord_webhook_url").read_text(encoding="utf-8-sig").strip()
-        print("Using the CI/CD webhook from the existing local deployment secrets.")
+    if not webhook and env.get("SMS_DISCORD_WEBHOOK_FILE"):
+        webhook = Path(env["SMS_DISCORD_WEBHOOK_FILE"]).read_text(encoding="utf-8-sig").strip()
     url = urlsplit(webhook)
     if (url.scheme != "https" or url.netloc not in {"discord.com", "discordapp.com", "canary.discord.com", "ptb.discord.com"}
         or not re.fullmatch(r"/api/(?:v[0-9]+/)?webhooks/[0-9]+/[A-Za-z0-9_-]+", url.path)):
@@ -128,8 +123,8 @@ try:
         print(f"Discord notification delivered (HTTP {response.status}, message {message['id']}).")
 except HTTPError as error:
     print(f"Discord notification failed (HTTP {error.code}).")
-except (OSError, ValueError, KeyError, RuntimeError):
-    print("Discord notification failed. Check webhook configuration and network access.")
+except (OSError, ValueError, KeyError, RuntimeError) as error:
+    print(f"Discord notification failed ({type(error).__name__}). Check the webhook and agent network.")
 '''
             runPythonScript(notifier)
         }
@@ -144,8 +139,9 @@ def notifyDiscord(String stageName = '', String step = '', String result = '') {
                 sendDiscord(stageName, step, result)
             }
         } catch (org.jenkinsci.plugins.credentialsbinding.impl.CredentialNotFoundException missing) {
-            if (!env.CHANGE_ID && !env.TAG_NAME && (env.SMS_CHECKOUT_BRANCH in ['quyen/admin', 'develop'])) {
-                withEnv(['DISCORD_WEBHOOK_URL=', 'SMS_DISCORD_LOCAL_FALLBACK=true']) {
+            if (!env.CHANGE_ID && !env.TAG_NAME && env.SMS_DISCORD_WEBHOOK_FILE &&
+                (env.SMS_CHECKOUT_BRANCH in ['quyen/admin', 'develop'])) {
+                withEnv(['DISCORD_WEBHOOK_URL=']) {
                     sendDiscord(stageName, step, result)
                 }
             } else {
@@ -233,7 +229,8 @@ pipeline {
             post {
                 unsuccessful {
                     script {
-                        notifyDiscord('Check Environment')
+                        def detailFile = "${pwd(tmp: true)}/sms-${env.BUILD_NUMBER}-docker-ready.txt"
+                        notifyDiscord('Check Environment', fileExists(detailFile) ? 'docker-ready' : '')
                     }
                 }
             }
@@ -241,29 +238,18 @@ pipeline {
             steps {
                 script {
                     configureDocker()
-                    env.SMS_ENVIRONMENT_CHECK = 'Python, Docker CLI, Docker Compose and Java'
-                    if (isUnix()) {
-                        sh '''
-                            python3 --version
-                            docker --version
-                            docker compose version
-                            java -version
-                        '''
-                    } else {
-                        bat '''
-                            "%PYTHON_EXE%" --version
-                            docker --version
-                            docker compose version
-                            java -version
-                        '''
+                    def checks = [
+                        'Python': isUnix() ? 'python3 --version' : '"%PYTHON_EXE%" --version',
+                        'Docker CLI': 'docker --version',
+                        'Docker Compose': 'docker compose version',
+                        'Java': 'java -version'
+                    ]
+                    checks.each { name, command ->
+                        env.SMS_ENVIRONMENT_CHECK = "${name}: ${command}"
+                        runLocalCommand(command)
                     }
-                    env.SMS_ENVIRONMENT_CHECK = 'Connect to the configured Docker Engine (Linux containers)'
-                    def dockerOs = (isUnix()
-                        ? sh(script: 'docker info --format "{{.OSType}}"', returnStdout: true)
-                        : bat(script: '@docker info --format "{{.OSType}}"', returnStdout: true)).trim()
-                    if (dockerOs != 'linux') {
-                        error("The Docker Engine must be in Linux container mode. Detected: ${dockerOs}")
-                    }
+                    env.SMS_ENVIRONMENT_CHECK = 'Connect to the configured Docker Linux Engine'
+                    executeStep('docker-ready')
                     env.SMS_DOCKER_READY = 'true'
                 }
             }

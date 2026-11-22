@@ -165,9 +165,45 @@ def deploy_local():
     runtime.run('ps')
 
 
+def wait_for_docker():
+    deadline = time.monotonic() + 120
+    command = docker_command() + ['info', '--format', '{{.OSType}}']
+    while True:
+        try:
+            result = subprocess.run(command, capture_output=True, text=True,
+                                    errors='replace', timeout=10)
+            if result.returncode == 0:
+                engine_os = result.stdout.strip()
+                if engine_os == 'linux':
+                    print('Docker Linux Engine is ready.', flush=True)
+                    return
+                record_check(f'Docker Engine returned OS type {engine_os!r}; Linux containers are required.')
+                raise RuntimeError('Docker Engine must be in Linux container mode.')
+            output = result.stderr.strip()
+            print(output or f'docker info exited with code {result.returncode}.', flush=True)
+            message = output.lower()
+            if 'cannot find the file specified' in message:
+                detail = 'Docker Linux Engine named pipe is missing. The engine is unavailable to the Jenkins agent.'
+            elif 'access is denied' in message or 'permission denied' in message:
+                detail = 'Jenkins agent was denied access to the configured Docker Engine.'
+            else:
+                detail = f'Could not connect to the configured Docker Engine (docker info exit {result.returncode}).'
+        except subprocess.TimeoutExpired:
+            detail = 'Docker Engine did not respond to docker info within 10 seconds.'
+            print(detail, flush=True)
+        record_check(detail)
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise RuntimeError(f'Docker readiness checks expired. {detail}')
+        print('Waiting for Docker Engine before retrying...', flush=True)
+        time.sleep(min(5, remaining))
+
+
 def main(step):
     record_check(step)
-    if step=='prepare':
+    if step=='docker-ready':
+        wait_for_docker()
+    elif step=='prepare':
         run([sys.executable,'-m','unittest','discover','-s','scripts/tests','-v'])
         for command in [['java','-version'],['node','--version'],[NPM,'--version'],docker_command()+['version'],docker_command()+['compose','version']]:run(command)
         ci_build_command()
@@ -306,6 +342,6 @@ def main(step):
 
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('step',choices=['prepare','backend','frontend','sonar','build','deploy-local','mysql','security','secrets','publish'])
+    parser.add_argument('step',choices=['docker-ready','prepare','backend','frontend','sonar','build','deploy-local','mysql','security','secrets','publish'])
     try:main(parser.parse_args().step)
     except (RuntimeError,subprocess.SubprocessError,OSError) as error:print(str(error),file=sys.stderr);sys.exit(1)
