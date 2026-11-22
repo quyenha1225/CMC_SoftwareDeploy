@@ -79,13 +79,13 @@ def docker_command(context=None):
 
 
 class Runtime:
-    def __init__(self,env_file=None,context=None,production=False):
+    def __init__(self,env_file=None,context=None,production=False,*,project_directory=None):
+        project_directory = Path(project_directory or ROOT).resolve()
         self.env_file=Path(env_file or ROOT/'.env').resolve()
         self.config=settings(self.env_file)
         self.docker=docker_command(context)
-        self.compose=self.docker+['compose','--project-directory',str(ROOT),'--env-file',str(self.env_file),'-f',str(ROOT/('compose.prod.yaml' if production else 'compose.yaml'))]
-        self.secret_dir=Path(self.config.get('SMS_SECRETS_DIR',str(ROOT/'.secrets')))
-        if not self.secret_dir.is_absolute():self.secret_dir=ROOT/self.secret_dir
+        self.compose=self.docker+['compose','--project-directory',str(project_directory),'--env-file',str(self.env_file),'-f',str(ROOT/('compose.prod.yaml' if production else 'compose.yaml'))]
+        self.secret_dir=(project_directory/Path(self.config.get('SMS_SECRETS_DIR','.secrets'))).resolve()
         if self.secret_dir.is_dir():
             ensure_discord_secret(self.secret_dir)
     def run(self,*args,**kwargs):return invoke(self.compose+list(args),**kwargs)

@@ -15,6 +15,60 @@ import deploy
 from docker import docker_command,initialize,settings
 
 class OperationsTests(unittest.TestCase):
+    def test_discord_lookup_does_not_initialize_a_deployment(self):
+        with patch.object(ci, 'invoke', return_value=''), patch.object(ci, 'initialize') as initialize:
+            with self.assertRaisesRegex(RuntimeError, 'existing local Compose database was not found'):
+                ci.local_deploy_runtime(require_existing=True)
+        initialize.assert_not_called()
+
+    def test_local_deploy_reuses_the_running_projects_environment(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            env_file = root / '.env'
+            env_file.write_text('COMPOSE_PROJECT_NAME=sms_local\nSMS_SECRETS_DIR=.secrets\n')
+            mounts = [
+                {'Destination': '/run/secrets/' + name, 'Source': str(root / '.secrets' / name)}
+                for name in ('mysql_root_password', 'db_password', 'migrator_password')
+            ]
+            info = [{'Config': {'Labels': {'com.docker.compose.project.working_dir': str(root)}},
+                     'Mounts': mounts}]
+            with patch.object(ci, 'invoke', side_effect=['local-db-id', json.dumps(info)]), \
+                    patch.object(ci, 'initialize') as initialize:
+                runtime = ci.local_deploy_runtime()
+            initialize.assert_not_called()
+            self.assertEqual(runtime.env_file, env_file.resolve())
+            self.assertEqual(runtime.secret_dir, root.resolve() / '.secrets')
+            self.assertEqual(runtime.compose[-2:], ['--project-name', 'sms_local'])
+
+            mounts[0]['Source'] = str(root / 'another-directory' / 'mysql_root_password')
+            with patch.object(ci, 'invoke', side_effect=['local-db-id', json.dumps(info)]):
+                with self.assertRaisesRegex(RuntimeError, 'secret directory differs'):
+                    ci.local_deploy_runtime()
+
+    def test_local_deploy_backs_up_before_using_the_tested_images(self):
+        events = []
+        class LocalRuntime:
+            env_file = Path('.env')
+            secret_dir = Path('.secrets')
+            def run(self, *args, **kwargs):
+                events.append(args)
+                return 'db\nbackend\n' if args[0] == 'ps' else ''
+
+        with patch.dict(os.environ, {'IMAGE_TAG': 'a' * 40}, clear=True), \
+                patch.object(ci, 'local_deploy_runtime', return_value=LocalRuntime()), \
+                patch.object(ci, 'backup', side_effect=lambda _: events.append('backup')), \
+                patch.object(ci, 'smoke', side_effect=lambda _: events.append('smoke')):
+            ci.deploy_local()
+        self.assertEqual(events, [
+            ('config', '--quiet'),
+            ('ps', '--status', 'running', '--services', 'db', 'backend'),
+            'backup',
+            ('up', '-d', '--no-build', '--wait', '--wait-timeout', '300', 'frontend', 'backend'),
+            ('--profile', 'tools', 'run', '--rm', 'provision'),
+            'smoke',
+            ('ps',),
+        ])
+
     def test_ci_creates_and_loads_images_from_the_dedicated_builder(self):
         endpoint = 'npipe:////./pipe/dockerDesktopLinuxEngine'
         with patch.dict(os.environ, {'SMS_CI_BUILDER': 'sms-jenkins-linux', 'DOCKER_HOST': endpoint}, clear=True), \

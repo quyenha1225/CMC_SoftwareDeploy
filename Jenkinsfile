@@ -47,78 +47,113 @@ def executeParallelStep(String stageName, String step) {
     }
 }
 
-def notifyDiscord(String stageName = '', String step = '', String result = '') {
-    result = result ?: currentBuild.currentResult
-    if (!stageName && result == 'SUCCESS' && env.SMS_DEPLOY_COMPLETED != 'true') {
-        return
+def sendDiscord(String stageName, String step, String result) {
+    def detail = ''
+    if (step) {
+        def detailFile = "${pwd(tmp: true)}/sms-${env.BUILD_NUMBER}-${step}.txt"
+        if (fileExists(detailFile)) {
+            detail = readFile(detailFile).trim()
+        }
+    } else if (stageName == 'SonarQube Quality Gate') {
+        detail = env.SMS_QUALITY_GATE_CHECK ?: ''
+    } else if (stageName == 'Check Environment') {
+        detail = env.SMS_ENVIRONMENT_CHECK ?: ''
     }
-    try {
-        withCredentials([string(credentialsId: 'sms-discord-webhook', variable: 'DISCORD_WEBHOOK_URL')]) {
-            def detail = ''
-            if (step) {
-                def detailFile = "${pwd(tmp: true)}/sms-${env.BUILD_NUMBER}-${step}.txt"
-                if (fileExists(detailFile)) {
-                    detail = readFile(detailFile).trim()
-                }
-            } else if (stageName == 'Deploy Local Docker') {
-                detail = env.SMS_DEPLOY_CHECK ?: ''
-            } else if (stageName == 'SonarQube Quality Gate') {
-                detail = env.SMS_QUALITY_GATE_CHECK ?: ''
-            } else if (stageName == 'Check Environment') {
-                detail = env.SMS_ENVIRONMENT_CHECK ?: ''
-            }
-            withEnv(["SMS_BUILD_RESULT=${result}",
-                     "SMS_FAILED_STAGE=${stageName}", "SMS_FAILED_CHECK=${detail}"]) {
-                def notifier = "sms-discord-${stageName.replaceAll('[^A-Za-z0-9]+', '-') ?: 'summary'}.py"
-                dir(pwd(tmp: true)) {
-                    writeFile file: notifier, text: '''
+    withEnv(["SMS_BUILD_RESULT=${result}", "SMS_EVENT_STAGE=${stageName}", "SMS_EVENT_CHECK=${detail}"]) {
+        def notifier = "sms-discord-${stageName.replaceAll('[^A-Za-z0-9]+', '-') ?: 'summary'}.py"
+        dir(pwd(tmp: true)) {
+            writeFile file: notifier, text: '''
 import json
 import os
+from pathlib import Path
+import re
+import sys
 from urllib.error import HTTPError
+from urllib.parse import parse_qsl, urlencode, urlsplit
 from urllib.request import Request, urlopen
 
 env = os.environ
+result = env["SMS_BUILD_RESULT"]
+stage = env.get("SMS_EVENT_STAGE")
 fields = [
     f"{env.get('JOB_NAME', 'Jenkins')} #{env.get('BUILD_NUMBER', '?')}",
-    "Branch: " + (env.get("BRANCH_NAME") or env.get("GIT_BRANCH") or "unknown"),
+    "Branch: " + (env.get("SMS_CHECKOUT_BRANCH") or env.get("BRANCH_NAME") or "unknown"),
     "Commit: " + (env.get("IMAGE_TAG") or "unknown"),
 ]
-if env.get("SMS_FAILED_STAGE"):
-    fields.append("Stage: " + env["SMS_FAILED_STAGE"])
-if env.get("SMS_FAILED_CHECK"):
-    fields.append("Check: " + env["SMS_FAILED_CHECK"])
+if stage:
+    fields.append("Stage: " + stage)
+if env.get("SMS_EVENT_CHECK"):
+    fields.append("Check: " + env["SMS_EVENT_CHECK"])
+if env.get("SMS_NOTIFICATION_CONTEXT"):
+    fields.append(env["SMS_NOTIFICATION_CONTEXT"])
+if env.get("SMS_CI_COMPLETED") == "true":
+    fields.append("CI: passed")
 if env.get("SMS_DEPLOY_COMPLETED") == "true":
-    fields.append("Local Docker deployment and smoke checks passed")
+    fields.append("CD: Local Docker deployment and smoke checks passed")
+elif result == "STARTED" and stage == "Deploy Local Docker":
+    fields.append("CD: deployment started")
+elif env.get("SMS_DEPLOY_STARTED") == "true":
+    fields.append("CD: deployment did not complete")
+elif env.get("SMS_CI_COMPLETED") == "true":
+    fields.append("CD: not run for this build")
 if env.get("BUILD_URL"):
     fields.append("Console: " + env["BUILD_URL"].rstrip("/") + "/console")
 
 payload = {
     "username": "SMS Jenkins",
     "allowed_mentions": {"parse": []},
-    "embeds": [{"title": "Jenkins " + env["SMS_BUILD_RESULT"] +
-                         (" - " + env["SMS_FAILED_STAGE"] if env.get("SMS_FAILED_STAGE") else ""),
+    "embeds": [{"title": "Jenkins " + result + (" - " + stage if stage else ""),
                 "description": chr(10).join(fields)[:4000]}],
 }
 try:
-    request = Request(env["DISCORD_WEBHOOK_URL"].strip(),
+    webhook = env.get("DISCORD_WEBHOOK_URL", "").strip()
+    if not webhook and env.get("SMS_DISCORD_LOCAL_FALLBACK") == "true":
+        sys.path.insert(0, str(Path(env["WORKSPACE"]) / "scripts"))
+        from ci import local_deploy_runtime
+        secret_dir = local_deploy_runtime(require_existing=True).secret_dir
+        webhook = (secret_dir / "jenkins_discord_webhook_url").read_text(encoding="utf-8-sig").strip()
+        print("Using the CI/CD webhook from the existing local deployment secrets.")
+    url = urlsplit(webhook)
+    if (url.scheme != "https" or url.netloc not in {"discord.com", "discordapp.com", "canary.discord.com", "ptb.discord.com"}
+        or not re.fullmatch(r"/api/(?:v[0-9]+/)?webhooks/[0-9]+/[A-Za-z0-9_-]+", url.path)):
+        raise ValueError("Invalid Discord webhook configuration")
+    query = dict(parse_qsl(url.query))
+    query["wait"] = "true"
+    request = Request(url._replace(query=urlencode(query), fragment="").geturl(),
                       data=json.dumps(payload).encode("utf-8"),
                       headers={"Content-Type": "application/json", "User-Agent": "SMS-Jenkins/1.0"},
                       method="POST")
     with urlopen(request, timeout=8) as response:
-        print(f"Discord notification delivered (HTTP {response.status}).")
+        message = json.load(response)
+        print(f"Discord notification delivered (HTTP {response.status}, message {message['id']}).")
 except HTTPError as error:
     print(f"Discord notification failed (HTTP {error.code}).")
-except (OSError, ValueError):
+except (OSError, ValueError, KeyError, RuntimeError):
     print("Discord notification failed. Check webhook configuration and network access.")
 '''
-                    runPythonScript(notifier)
+            runPythonScript(notifier)
+        }
+    }
+}
+
+def notifyDiscord(String stageName = '', String step = '', String result = '') {
+    result = result ?: currentBuild.currentResult
+    try {
+        try {
+            withCredentials([string(credentialsId: 'sms-discord-webhook', variable: 'DISCORD_WEBHOOK_URL')]) {
+                sendDiscord(stageName, step, result)
+            }
+        } catch (org.jenkinsci.plugins.credentialsbinding.impl.CredentialNotFoundException missing) {
+            if (!env.CHANGE_ID && !env.TAG_NAME && (env.SMS_CHECKOUT_BRANCH in ['quyen/admin', 'develop'])) {
+                withEnv(['DISCORD_WEBHOOK_URL=', 'SMS_DISCORD_LOCAL_FALLBACK=true']) {
+                    sendDiscord(stageName, step, result)
                 }
+            } else {
+                echo 'CI/CD Discord credential sms-discord-webhook is missing or is not accessible to this job.'
             }
         }
     } catch (org.jenkinsci.plugins.workflow.steps.FlowInterruptedException interrupted) {
         throw interrupted
-    } catch (org.jenkinsci.plugins.credentialsbinding.impl.CredentialNotFoundException missing) {
-        echo 'CI/CD Discord credential sms-discord-webhook is missing or is not accessible to this job. Add it as Secret text.'
     } catch (Exception ignored) {
         echo 'CI/CD Discord notifier could not run. Check Secret text binding, Python and the Jenkins agent.'
     }
@@ -170,9 +205,11 @@ pipeline {
             }
 
             steps {
-                checkout scm
-
                 script {
+                    def checkedOut = checkout(scm)
+                    env.SMS_CHECKOUT_BRANCH = (
+                        env.BRANCH_NAME ?: checkedOut.GIT_BRANCH ?: env.GIT_BRANCH ?: ''
+                    ).replaceFirst(/^refs\/(remotes\/|heads\/)/, '').replaceFirst(/^origin\//, '')
                     env.IMAGE_TAG = isUnix()
                         ? sh(
                             script: 'git rev-parse HEAD',
@@ -187,7 +224,7 @@ pipeline {
                         error('Không lấy được Git commit SHA hợp lệ.')
                     }
 
-                    echo "Building commit: ${env.IMAGE_TAG}"
+                    echo "Building commit: ${env.IMAGE_TAG} on ${env.SMS_CHECKOUT_BRANCH ?: 'unknown branch'}"
                 }
             }
         }
@@ -379,6 +416,14 @@ pipeline {
         }
 
         stage('Security Scan') {
+            post {
+                success {
+                    script {
+                        env.SMS_CI_COMPLETED = 'true'
+                    }
+                }
+            }
+
             failFast true
             parallel {
 
@@ -404,7 +449,7 @@ pipeline {
             post {
                 unsuccessful {
                     script {
-                        notifyDiscord('Deploy Local Docker')
+                        notifyDiscord('Deploy Local Docker', 'deploy-local')
                     }
                 }
             }
@@ -412,75 +457,24 @@ pipeline {
             when {
                 allOf {
                     expression {
-                        def currentBranch = (
-                            env.BRANCH_NAME ?: env.GIT_BRANCH ?: ''
-                        ).replaceFirst(/^origin\//, '')
-
-                        return currentBranch in ['quyen/admin', 'develop']
+                        return env.SMS_CHECKOUT_BRANCH in ['quyen/admin', 'develop']
                     }
 
                     not {
                         changeRequest()
+                    }
+                    not {
+                        buildingTag()
                     }
                 }
             }
 
             steps {
                 script {
-
-                    // Khởi tạo cấu hình local nếu chưa có.
-                    env.SMS_DEPLOY_CHECK = 'Initialize or validate local Docker configuration'
-                    if (!fileExists('.env')) {
-                        runPythonScript('scripts/docker.py init')
-                    } else {
-                        runPythonScript('scripts/docker.py config')
-                    }
-
-                    withEnv(["IMAGE_TAG=${env.IMAGE_TAG}"]) {
-
-                        // Kiểm tra stack hiện tại.
-                        env.SMS_DEPLOY_CHECK = 'Inspect the local Docker stack'
-                        def running = isUnix()
-                            ? sh(
-                                script: 'docker compose -f compose.yaml ps --status running -q db backend',
-                                returnStdout: true
-                            ).trim()
-                            : bat(
-                                script: '@docker compose -f compose.yaml ps --status running -q db backend',
-                                returnStdout: true
-                            ).trim()
-
-                        // Backup trước khi cập nhật nếu database và backend đang chạy.
-                        if (running.readLines().size() >= 2) {
-                            env.SMS_DEPLOY_CHECK = 'Back up local database and files'
-                            echo 'Existing local stack detected. Creating backup.'
-
-                            runPythonScript('scripts/docker.py backup')
-                        }
-
-                        // Khởi chạy các image đã được build ở stage trước.
-                        env.SMS_DEPLOY_CHECK = 'Start frontend and backend, wait for health checks'
-                        runLocalCommand(
-                            'docker compose -f compose.yaml up -d --no-build --wait --wait-timeout 300 frontend backend'
-                        )
-
-                        // Provision dữ liệu demo theo cấu hình local.
-                        env.SMS_DEPLOY_CHECK = 'Provision local demo accounts'
-                        runLocalCommand(
-                            'docker compose -f compose.yaml --profile tools run --rm provision'
-                        )
-
-                        // Kiểm tra frontend, backend và SQL integrity.
-                        env.SMS_DEPLOY_CHECK = 'Run HTTP, role login and SQL smoke checks'
-                        runPythonScript('scripts/docker.py smoke')
-                        env.SMS_DEPLOY_COMPLETED = 'true'
-
-                        // Hiển thị trạng thái các container.
-                        env.SMS_DEPLOY_CHECK = 'Read Docker container status'
-                        runLocalCommand(
-                            'docker compose -f compose.yaml ps'
-                        )
-                    }
+                    env.SMS_DEPLOY_STARTED = 'true'
+                    notifyDiscord('Deploy Local Docker', '', 'STARTED')
+                    executeStep('deploy-local')
+                    env.SMS_DEPLOY_COMPLETED = 'true'
                 }
             }
         }
@@ -504,14 +498,10 @@ pipeline {
             echo "CI completed for ${env.IMAGE_TAG ?: 'unknown commit'}."
 
             script {
-                def currentBranch = (
-                    env.BRANCH_NAME ?: env.GIT_BRANCH ?: ''
-                ).replaceFirst(/^origin\//, '')
-
                 if (env.SMS_DEPLOY_COMPLETED == 'true') {
                     echo 'Local Docker deployment completed.'
                 } else {
-                    echo "CI completed. Deployment skipped for branch: ${currentBranch}"
+                    echo "CI completed. Deployment skipped for branch: ${env.SMS_CHECKOUT_BRANCH ?: 'unknown'}"
                 }
             }
         }

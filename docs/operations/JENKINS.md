@@ -43,6 +43,8 @@ PR từ fork không được nhận Sonar credential; không publish/deploy từ
 
 Registry password truyền qua stdin, không nằm trong lệnh. Jenkins Credentials masking không ngăn script độc hại lấy secret; chỉ chạy credential stages trên nhánh đã review và agent tin cậy.
 
+Jenkins gửi thông báo khi CD bắt đầu, khi stage lỗi và khi pipeline kết thúc. Nội dung cuối ghi trạng thái CI và CD. Với build trên `quyen/admin` hoặc `develop`, nếu Jenkins thiếu credential Discord, pipeline có thể đọc `jenkins_discord_webhook_url` từ thư mục secret của stack `sms_local` đang có. Đặt webhook riêng của kênh Jenkins vào file đó và cấp quyền đọc cho tài khoản agent.
+
 ## Webhook
 
 Jenkins cần endpoint HTTPS GitHub truy cập được. Cấu hình GitHub Settings → Webhooks → `https://<ci-domain>/github-webhook/`, application/json, push/PR theo plugin, secret/chữ ký được plugin/relay kiểm tra. Không dùng localhost làm URL của GitHub. Có thể dùng Poll SCM tạm thời; không ghi nhận AC webhook đã đạt khi chưa có delivery 2xx/build link đúng SHA.

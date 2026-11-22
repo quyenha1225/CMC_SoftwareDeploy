@@ -100,6 +100,71 @@ def ci_build_command():
     return buildx + ['build', '--builder', builder, '--load']
 
 
+def local_deploy_runtime(*, require_existing=False):
+    docker = docker_command()
+    project = 'sms_local'
+    database_ids = invoke(docker + [
+        'ps', '-aq', '--filter', f'label=com.docker.compose.project={project}',
+        '--filter', 'label=com.docker.compose.service=db',
+    ], capture=True).splitlines()
+    if len(database_ids) > 1:
+        raise RuntimeError('More than one database container matches the local deployment.')
+    if require_existing and not database_ids:
+        raise RuntimeError('The existing local Compose database was not found.')
+
+    project_directory = ROOT
+    database = None
+    if database_ids:
+        database = json.loads(invoke(docker + ['inspect', database_ids[0]], capture=True))[0]
+        working_dir = database['Config']['Labels'].get('com.docker.compose.project.working_dir')
+        if not working_dir or not Path(working_dir).is_absolute():
+            raise RuntimeError('Cannot determine the existing local Compose project directory.')
+        project_directory = Path(working_dir)
+
+    env_file = project_directory / '.env'
+    if not env_file.is_file():
+        if database:
+            raise RuntimeError('The existing local database has no accessible .env in its Compose directory.')
+        initialize(env_file)
+
+    runtime = Runtime(env_file, project_directory=project_directory)
+    if (runtime.config.get('COMPOSE_PROJECT_NAME', project) != project
+            or runtime.config.get('SMS_ENVIRONMENT', 'local') != 'local'):
+        raise RuntimeError('The local deployment requires the sms_local project configuration.')
+    if database:
+        mounts = {mount['Destination']: mount['Source'] for mount in database['Mounts']}
+        for name in ('mysql_root_password', 'db_password', 'migrator_password'):
+            source = mounts.get('/run/secrets/' + name)
+            if not source or Path(source).resolve() != runtime.secret_dir / name:
+                raise RuntimeError('The local deployment secret directory differs from the database mounts.')
+    runtime.compose += ['--project-name', project]
+    return runtime
+
+
+def deploy_local():
+    if not re.fullmatch(r'[0-9a-f]{40}', os.getenv('IMAGE_TAG', '')):
+        raise RuntimeError('Local CI deployment requires the full checked-out commit SHA.')
+
+    record_check('Resolve and validate the existing local Docker configuration')
+    runtime = local_deploy_runtime()
+    print('Local deployment target sms_local, environment file: ' + str(runtime.env_file), flush=True)
+    os.environ['SMS_SECRETS_DIR'] = runtime.secret_dir.as_posix()
+    runtime.run('config', '--quiet')
+    running = runtime.run('ps', '--status', 'running', '--services', 'db', 'backend', capture=True).splitlines()
+    if {'db', 'backend'}.issubset(running):
+        record_check('Back up local database and files')
+        backup(runtime)
+
+    record_check('Start frontend and backend, wait for health checks')
+    runtime.run('up', '-d', '--no-build', '--wait', '--wait-timeout', '300', 'frontend', 'backend')
+    record_check('Provision local demo accounts')
+    runtime.run('--profile', 'tools', 'run', '--rm', 'provision')
+    record_check('Run HTTP, role login and SQL smoke checks')
+    smoke(runtime)
+    record_check('Read Docker container status')
+    runtime.run('ps')
+
+
 def main(step):
     record_check(step)
     if step=='prepare':
@@ -155,6 +220,8 @@ def main(step):
         for service,path in [('backend','backend/Dockerfile'),('frontend','frontend/Dockerfile'),('migration','infrastructure/migration/Dockerfile')]:
             record_check('Docker image build: ' + service)
             run(build+['--label','org.opencontainers.image.revision='+tag,'-f',path,'-t','sms-'+service+':'+tag,'.'])
+    elif step=='deploy-local':
+        deploy_local()
     elif step=='mysql':
         (REPORTS/'mysql-integration.json').unlink(missing_ok=True)
         env_file=ROOT/'artifacts/ci/.env'
@@ -239,6 +306,6 @@ def main(step):
 
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('step',choices=['prepare','backend','frontend','sonar','build','mysql','security','secrets','publish'])
+    parser.add_argument('step',choices=['prepare','backend','frontend','sonar','build','deploy-local','mysql','security','secrets','publish'])
     try:main(parser.parse_args().step)
     except (RuntimeError,subprocess.SubprocessError,OSError) as error:print(str(error),file=sys.stderr);sys.exit(1)
