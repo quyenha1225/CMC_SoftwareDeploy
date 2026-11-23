@@ -30,13 +30,14 @@ public class JenkinsIncidents {
     private static final Logger log = LoggerFactory.getLogger(JenkinsIncidents.class);
     private static final int MAX_LOG_BYTES = 10 * 1024 * 1024;
     private static final Pattern SECRET = Pattern.compile(
-            "(?i)https?://[^\\s/]+/api/(?:v\\d+/)?webhooks/[^\\s\"']+"
-                    + "|https?://[^\\s/@]+:[^\\s/@]+@"
-                    + "|\\b(?:bearer|basic)\\s+[A-Za-z0-9._+/=-]{8,}"
-                    + "|\\b(?:[\\w.-]*(?:password|passwd|token|secret|api[_-]?key)[\\w.-]*)"
-                    + "[\"']?\\s*[:=]\\s*(?:\"[^\"\\r\\n]*\"|'[^'\\r\\n]*'|[^\\s,;]+)"
+            "(?i)https?://[^\\s/]++/api/(?:v\\d++/)?webhooks/[^\\s\"']++"
+                    + "|https?://[^\\s/@:]++:[^\\s/@]++@"
+                    + "|\\b(?:bearer|basic)\\s++[A-Za-z0-9._+/=-]{8,}+"
+                    + "|(?<![\\w.-])(?=[\\w.-]*(?:password|passwd|token|secret|api[_-]?key))"
+                    + "[\\w.-]++[\"']?\\s*+[:=]\\s*+(?:\"[^\"\\r\\n]*+\"?|'[^'\\r\\n]*+'?|[^\\s,;]++)"
                     + "|\\b(?:sk-[A-Za-z0-9_-]{16,}|gh[pousr]_[A-Za-z0-9_]{16,}|AKIA[A-Z0-9]{16})"
-                    + "|-----BEGIN [^-]+PRIVATE KEY-----[\\s\\S]*?-----END [^-]+PRIVATE KEY-----");
+                    + "|-----BEGIN (?:[A-Z0-9 ]{1,48} )?PRIVATE KEY-----[\\s\\S]*?"
+                    + "(?:-----END (?:[A-Z0-9 ]{1,48} )?PRIVATE KEY-----|\\z)");
     private static final Pattern ERROR_LINE = Pattern.compile(
             "(?i)error|exception|failed|failure|segmentation fault|exit code|ENOSPC|out of memory");
 
@@ -73,7 +74,8 @@ public class JenkinsIncidents {
                 ingestToken.getBytes(StandardCharsets.UTF_8), token.getBytes(StandardCharsets.UTF_8))) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED);
         }
-        if (job.length() > 500 || !job.matches("https?://[^\\s@]+/job/[^?#\\s]+/?")
+        String jobUrl = normalizeJobUrl(job);
+        if (jobUrl == null
                 || build <= 0 || !List.of("FAILURE", "UNSTABLE", "ABORTED", "NOT_BUILT").contains(result)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
         }
@@ -87,8 +89,33 @@ public class JenkinsIncidents {
         database.update("""
                 INSERT INTO jenkins_incidents (job_url, build_number, build_result, console_log)
                 VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE id = id
-                """, job.replaceFirst("/+$", ""), build, result,
+                """, jobUrl, build, result,
                 redact(new String(body, StandardCharsets.UTF_8)));
+    }
+
+    private static String normalizeJobUrl(String job) {
+        if (job.length() > 500) {
+            return null;
+        }
+        try {
+            URI uri = URI.create(job);
+            if (!("http".equalsIgnoreCase(uri.getScheme()) || "https".equalsIgnoreCase(uri.getScheme()))
+                    || uri.getHost() == null || uri.getRawUserInfo() != null
+                    || uri.getRawQuery() != null || uri.getRawFragment() != null) {
+                return null;
+            }
+            int end = job.length();
+            while (job.charAt(end - 1) == '/') {
+                end--;
+            }
+            String path = uri.getRawPath();
+            int jobSegment = path.indexOf("/job/");
+            int pathEnd = path.length() - (job.length() - end);
+            return jobSegment >= 0 && jobSegment + "/job/".length() < pathEnd
+                    ? job.substring(0, end) : null;
+        } catch (IllegalArgumentException invalidUrl) {
+            return null;
+        }
     }
 
     @Scheduled(fixedDelay = 30_000, scheduler = "jenkinsIncidentScheduler")

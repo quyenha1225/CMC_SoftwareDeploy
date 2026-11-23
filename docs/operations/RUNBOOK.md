@@ -13,11 +13,42 @@
 
 ## Staging/production khi có VPS
 
+### Job Jenkins triển khai qua SSH
+
+Tạo một job **Pipeline** tên chính xác `SMS-CICD-Server`. Chọn **Pipeline script from SCM**, dùng cùng repo và đường dẫn `Jenkinsfile`, chọn nhánh `develop` (hoặc nhánh cấu hình bằng `SMS_SERVER_BRANCH` trên agent). Job local hiện tại vẫn dùng stage Docker local. Job server theo dõi Git, chạy cùng các bước CI và chỉ publish/deploy khi SonarQube Quality Gate, kiểm thử và quét bảo mật đều qua.
+
+| Cấu hình trên agent Jenkins | Giá trị |
+|---|---|
+| `DEPLOY_TARGET` | `production` (mặc định) hoặc `staging` |
+| `PRODUCTION_HOST` hoặc `STAGING_HOST` | Host SSH tương ứng |
+| `REGISTRY_NAMESPACE` | Namespace registry, ví dụ `ghcr.io/your-org` |
+| `SMS_SERVER_PUBLIC_URL` | URL HTTPS bên ngoài, ví dụ `https://sms.example.org` |
+| `SMS_SERVER_BRANCH` | Nhánh tự động deploy, mặc định `develop` |
+| Credential `sms-server-ssh` | SSH Username with private key dùng được trong chế độ BatchMode |
+| Credential `sms-server-known-hosts` | Secret file chứa host key SSH đã xác minh |
+
+Agent cần `ssh`, `scp`, Docker Linux và quyền push vào registry bằng tài khoản chạy job. Server cần quyền pull nếu registry riêng tư. SSH dùng port 22 mặc định. Gán label `sms-docker` cho agent và chuẩn bị riêng máy chủ cho mỗi đích dùng cổng 80/443. Khi thành công console có `DEPLOY_OK` và `PUBLIC_SMOKE_OK`, và tin Jenkins ghi URL public. Smoke public kiểm tra trang HTML và readiness của backend từ Jenkins qua HTTPS.
+
+### Chuẩn bị máy chủ một lần
+
 Chuẩn bị `/opt/sms/staging` và `/opt/sms/production`, deploy user, Docker/Compose/Python, DNS, firewall chỉ mở 80/443/SSH đã giới hạn, token registry read-only trên VPS. Cài cấu hình/secrets trên host; không truyền secrets qua bundle build. DB root không dùng bởi backend.
 
-Dùng `compose.prod.yaml` độc lập; đặt image `BACKEND_IMAGE`, `FRONTEND_IMAGE`, `MIGRATION_IMAGE` đúng `registry/repository@sha256:...`. Đặt SMS_SEED_DEMO=false, SMS_ENVIRONMENT=production, SESSION_SECURE=true, APP_DOMAIN và SMS_PUBLIC_URL=https://domain. Core migration không có dữ liệu demo. Không copy `.env` local chứa cấu hình demo sang production.
+Dùng `compose.prod.yaml` với `compose.tls.yaml`. Ví dụ `.env` trên server mới:
 
-Lần đầu: dựng DB, chạy migration core, bootstrap BGH bằng secret qua một lần chạy backend có SMS_BOOTSTRAP_ENABLED=true; sau đó tắt cờ trước khi chạy lâu dài. Runner bootstrap không ghi đè tài khoản đã có. Chạy `compose.prod.yaml` kết hợp `compose.tls.yaml` để Caddy cấp TLS sau khi DNS/port hợp lệ. Xác minh login/role với tài khoản production do trường quản lý, không dùng DemoProvisioner.
+```dotenv
+COMPOSE_PROJECT_NAME=sms_production
+SMS_ENVIRONMENT=production
+SMS_SEED_DEMO=false
+SESSION_SECURE=true
+APP_DOMAIN=sms.example.org
+SMS_PUBLIC_URL=https://sms.example.org
+APP_BIND=127.0.0.1
+SMS_SECRETS_DIR=./.secrets
+```
+
+Giá trị `SMS_PUBLIC_URL` trên server phải khớp `SMS_SERVER_PUBLIC_URL` của job. Core migration tạo schema dành cho dữ liệu thật.
+
+Với server mới và database trống, bỏ ba biến image khỏi `.env` để job điền từ release manifest. Chuẩn bị các file `mysql_root_password`, `db_password`, `migrator_password`, `jwt_secret`, `identity_key`, `bootstrap_password`, `smtp_password`, `discord_webhook_url` và `grafana_password` dưới `.secrets/` của server. Dùng các giá trị riêng cho server. `identity_key` là 32 byte ngẫu nhiên mã hóa Base64. Lần deploy đầu khởi tạo DB sạch và áp dụng core migration. Có thể bật `SMS_BOOTSTRAP_ENABLED=true` để tạo tài khoản BGH bằng secret trong lần đầu, rồi đổi lại `false` trước khi chạy lâu dài. Caddy cấp TLS sau khi DNS và các cổng đã trỏ đúng. Xác minh login/role bằng tài khoản production.
 
 Triển khai sau khi đã khởi tạo: `scripts/deploy.py apply --manifest <release.json> --allow-migration`. Script yêu cầu backup + restore-test, pull digest, migrate, up --no-build, smoke và lưu receipt trong `.local/releases/`. Jenkins dùng `remote`, scp bundle không chứa secrets qua SSH với host key đã xác minh. `--allow-migration` xác nhận kế hoạch đã được review; không thay thế review bằng suy đoán tương thích schema.
 

@@ -32,7 +32,7 @@ class JenkinsIncidentsTests {
         var request = new MockHttpServletRequest();
         request.setContent("token=fake-secret\nERROR: Build failed".getBytes(StandardCharsets.UTF_8));
 
-        receiver.ingest(TOKEN, JOB + "/", 48, "FAILURE", request);
+        receiver.ingest(TOKEN, JOB + "///", 48, "FAILURE", request);
 
         verify(database).update(anyString(), eq(JOB), eq(48L), eq("FAILURE"),
                 eq("[REDACTED]\nERROR: Build failed"));
@@ -44,6 +44,9 @@ class JenkinsIncidentsTests {
 
         assertRejected(HttpStatus.UNAUTHORIZED, "wrong-token", JOB, 48, "FAILURE", request);
         assertRejected(HttpStatus.BAD_REQUEST, TOKEN, "invalid-url", 48, "FAILURE", request);
+        assertRejected(HttpStatus.BAD_REQUEST, TOKEN, "http://user@localhost/job/example", 48, "FAILURE", request);
+        assertRejected(HttpStatus.BAD_REQUEST, TOKEN, JOB + "?unexpected=1", 48, "FAILURE", request);
+        assertRejected(HttpStatus.BAD_REQUEST, TOKEN, "http://localhost/job///", 48, "FAILURE", request);
         assertRejected(HttpStatus.BAD_REQUEST, TOKEN, JOB, 0, "FAILURE", request);
         assertRejected(HttpStatus.BAD_REQUEST, TOKEN, JOB, 48, "SUCCESS", request);
         assertRejected(HttpStatus.BAD_REQUEST, TOKEN, JOB, 48, "FAILURE", request);
@@ -71,6 +74,20 @@ class JenkinsIncidentsTests {
         assertThat(JenkinsIncidents.redact(log))
                 .doesNotContain("abcdefghijk", "fake api credential", "fake-webhook")
                 .contains("ERROR: vite build exited with code 139");
+    }
+
+    @Test
+    void redactsMultilineKeysAndCredentialsAfterLongLogFields() {
+        String ordinary = "x".repeat(100_000);
+        String log = ordinary + " " + ordinary + "_PASSWORD=masked-value\n"
+                + "https://user:private-value@example.test/resource\n"
+                + "-----BEGIN PRIVATE KEY-----\nprivate-key-material\n-----END PRIVATE KEY-----\n"
+                + "ERROR: build failed";
+
+        assertThat(JenkinsIncidents.redact(log))
+                .startsWith(ordinary + " [REDACTED]")
+                .doesNotContain("masked-value", "private-value", "private-key-material")
+                .endsWith("ERROR: build failed");
     }
 
     @Test

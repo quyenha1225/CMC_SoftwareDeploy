@@ -88,8 +88,10 @@ if env.get("SMS_NOTIFICATION_CONTEXT"):
 if env.get("SMS_CI_COMPLETED") == "true":
     fields.append("CI: passed")
 if env.get("SMS_DEPLOY_COMPLETED") == "true":
-    fields.append("CD: Local Docker deployment and smoke checks passed")
-elif result == "STARTED" and stage == "Deploy Local Docker":
+    fields.append("CD: deployment and smoke checks passed")
+    if env.get("SMS_DEPLOY_STAGE") == "Deploy Server SSH":
+        fields.append("Public URL: " + env.get("SMS_SERVER_PUBLIC_URL", ""))
+elif result == "STARTED" and stage in {"Deploy Local Docker", "Deploy Server SSH"}:
     fields.append("CD: deployment started")
 elif env.get("SMS_DEPLOY_STARTED") == "true":
     fields.append("CD: deployment did not complete")
@@ -374,6 +376,7 @@ pipeline {
                             }
                             error("SonarQube Quality Gate: ${gate.status}")
                         }
+                        env.QUALITY_GATE_PASSED = 'true'
                     }
                 }
             }
@@ -452,7 +455,8 @@ pipeline {
             when {
                 allOf {
                     expression {
-                        return env.SMS_CHECKOUT_BRANCH in ['quyen/admin', 'develop']
+                        return env.JOB_BASE_NAME != 'SMS-CICD-Server' &&
+                            env.SMS_CHECKOUT_BRANCH in ['quyen/admin', 'develop']
                     }
 
                     not {
@@ -467,8 +471,49 @@ pipeline {
             steps {
                 script {
                     env.SMS_DEPLOY_STARTED = 'true'
+                    env.SMS_DEPLOY_STAGE = 'Deploy Local Docker'
                     notifyDiscord('Deploy Local Docker', '', 'STARTED')
                     executeStep('deploy-local')
+                    env.SMS_DEPLOY_COMPLETED = 'true'
+                }
+            }
+        }
+
+        stage('Deploy Server SSH') {
+            when {
+                allOf {
+                    expression {
+                        return env.JOB_BASE_NAME == 'SMS-CICD-Server' &&
+                            env.SMS_CHECKOUT_BRANCH == (env.SMS_SERVER_BRANCH ?: 'develop')
+                    }
+                    not { changeRequest() }
+                    not { buildingTag() }
+                }
+            }
+            post {
+                unsuccessful {
+                    script {
+                        notifyDiscord('Deploy Server SSH', 'publish')
+                    }
+                }
+            }
+            steps {
+                script {
+                    if (env.SMS_CI_COMPLETED != 'true' || env.QUALITY_GATE_PASSED != 'true') {
+                        error('Server deployment requires successful CI and SonarQube Quality Gate.')
+                    }
+                    env.SMS_DEPLOY_STAGE = 'Deploy Server SSH'
+                    env.SMS_DEPLOY_STARTED = 'true'
+                    notifyDiscord('Deploy Server SSH', '', 'STARTED')
+                    withCredentials([
+                        sshUserPrivateKey(credentialsId: 'sms-server-ssh',
+                                keyFileVariable: 'DEPLOY_KEY', usernameVariable: 'DEPLOY_USER'),
+                        file(credentialsId: 'sms-server-known-hosts', variable: 'DEPLOY_KNOWN_HOSTS')
+                    ]) {
+                        runPythonScript('scripts/deploy.py check-target')
+                        executeStep('publish')
+                        runPythonScript('scripts/deploy.py remote --manifest artifacts/reports/release.json')
+                    }
                     env.SMS_DEPLOY_COMPLETED = 'true'
                 }
             }
@@ -494,7 +539,7 @@ pipeline {
 
             script {
                 if (env.SMS_DEPLOY_COMPLETED == 'true') {
-                    echo 'Local Docker deployment completed.'
+                    echo "${env.SMS_DEPLOY_STAGE} completed."
                 } else {
                     echo "CI completed. Deployment skipped for branch: ${env.SMS_CHECKOUT_BRANCH ?: 'unknown'}"
                 }
@@ -523,7 +568,7 @@ pipeline {
 
         cleanup {
             script {
-                notifyDiscord(env.SMS_DEPLOY_COMPLETED == 'true' ? 'Deploy Local Docker' : '')
+                notifyDiscord(env.SMS_DEPLOY_COMPLETED == 'true' ? env.SMS_DEPLOY_STAGE : '')
                 if (currentBuild.currentResult in ['FAILURE', 'UNSTABLE', 'ABORTED', 'NOT_BUILT']
                         && !env.CHANGE_ID && !env.TAG_NAME
                         && env.SMS_CHECKOUT_BRANCH in ['quyen/admin', 'develop']
