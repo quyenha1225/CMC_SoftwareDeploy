@@ -5,6 +5,7 @@ import base64
 from http.cookiejar import CookieJar
 import json
 import os
+from pathlib import Path
 import sys
 import time
 from urllib.error import HTTPError
@@ -33,6 +34,7 @@ def endpoint(value):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--build-url", default=os.getenv("BUILD_URL"))
+    parser.add_argument("--console-file", type=Path, help="Replay a saved Jenkins console.")
     parser.add_argument("--result", default=os.getenv("SMS_JENKINS_BUILD_RESULT"),
                         choices=["FAILURE", "UNSTABLE", "ABORTED", "NOT_BUILT"])
     args = parser.parse_args()
@@ -47,17 +49,21 @@ def main():
         job, build = build_url.rsplit("/", 1)
         if "/job/" not in job or not build.isdecimal():
             raise ValueError("Expected a Jenkins build URL.")
-        login = os.environ["SMS_JENKINS_CONSOLE_USER"]
-        api_token = os.environ["SMS_JENKINS_CONSOLE_TOKEN"]
         ingest_token = os.environ["SMS_JENKINS_INGEST_TOKEN"]
-        credentials = base64.b64encode(f"{login}:{api_token}".encode()).decode("ascii")
-        opener = build_opener(NoRedirect)
-        console_request = Request(build_url + "/consoleText",
-                                  headers={"Authorization": "Basic " + credentials})
-        with opener.open(console_request, timeout=10) as response:
-            if response.headers.get_content_type() != "text/plain":
-                raise ValueError("Jenkins consoleText did not return plain text.")
-            console = response.read(MAX_LOG_BYTES + 1)
+        if args.console_file:
+            with args.console_file.open("rb") as log:
+                console = log.read(MAX_LOG_BYTES + 1)
+        else:
+            login = os.environ["SMS_JENKINS_CONSOLE_USER"]
+            api_token = os.environ["SMS_JENKINS_CONSOLE_TOKEN"]
+            credentials = base64.b64encode(f"{login}:{api_token}".encode()).decode("ascii")
+            opener = build_opener(NoRedirect)
+            console_request = Request(build_url + "/consoleText",
+                                      headers={"Authorization": "Basic " + credentials})
+            with opener.open(console_request, timeout=10) as response:
+                if response.headers.get_content_type() != "text/plain":
+                    raise ValueError("Jenkins consoleText did not return plain text.")
+                console = response.read(MAX_LOG_BYTES + 1)
         if not console or len(console) > MAX_LOG_BYTES:
             raise ValueError("Jenkins console is empty or exceeds 10 MiB.")
         headers = {

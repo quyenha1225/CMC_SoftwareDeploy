@@ -7,7 +7,7 @@ import path from 'node:path';
 const fixture = process.env.SMS_UI_FIXTURE === 'true';
 const debugPort = Number(process.env.SMS_UI_DEBUG_PORT || 9226);
 const url = process.env.SMS_UI_BASE_URL || (fixture ? 'http://127.0.0.1:5175' : 'http://127.0.0.1:5173');
-const output = path.resolve('../screenshots/recheck-2026-11-12', fixture ? 'six-roles' : process.env.SMS_UI_ROLE === 'STUDENT' ? 'student-restored' : 'mysql');
+const output = process.env.SMS_UI_OUTPUT_DIR || path.resolve('../screenshots/recheck-2026-11-12', fixture ? 'six-roles' : process.env.SMS_UI_ROLE === 'STUDENT' ? 'student-restored' : 'mysql');
 await mkdir(output, { recursive: true });
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 let vite;
@@ -25,7 +25,11 @@ let ws;
 try {
   let targets;
   for (let i = 0; i < 100; i++) {
-    try { targets = await fetch(`http://127.0.0.1:${debugPort}/json`).then(r => r.json()); if ((await fetch(url)).ok) break; } catch {}
+    try {
+      const port = debugPort || Number((await readFile(path.join(profile, 'DevToolsActivePort'), 'utf8')).split(/\r?\n/)[0]);
+      targets = await fetch(`http://127.0.0.1:${port}/json`).then(r => r.json());
+      if ((await fetch(url)).ok) break;
+    } catch {}
     await sleep(150);
   }
   assert.ok(targets, 'Chrome must start');

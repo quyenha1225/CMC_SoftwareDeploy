@@ -86,6 +86,7 @@ services:
       - ${SMS_MONITORING_DIR:-./infrastructure/monitoring}/alertmanager-entrypoint.sh:/alertmanager-entrypoint.sh:ro
       - ${SMS_MONITORING_DIR:-./infrastructure/monitoring}/alertmanager.tmpl.yml:/etc/alertmanager/alertmanager.tmpl.yml:ro
       - ${SMS_MONITORING_DIR:-./infrastructure/monitoring}/alertmanager.null.yml:/etc/alertmanager/alertmanager.null.yml:ro
+    tmpfs: ['/tmp:mode=1777']
     # monitoring_edge không phải mạng internal nên gửi được ra api.telegram.org;
     # Prometheus cũng nằm trong mạng này nên gọi được alertmanager:9093.
     networks: [monitoring_edge]

@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 umask 077
-config=/tmp/alertmanager.yml
+config="$(mktemp /tmp/alertmanager.XXXXXX)"
 
 if [ -n "${ALERT_TELEGRAM_BOT_TOKEN:-}" ] && [ -n "${ALERT_TELEGRAM_CHAT_ID:-}" ]; then
   sed -e "s|__TG_TOKEN__|${ALERT_TELEGRAM_BOT_TOKEN}|" \

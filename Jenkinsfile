@@ -135,6 +135,9 @@ except (OSError, ValueError, KeyError, RuntimeError) as error:
 
 def notifyDiscord(String stageName = '', String step = '', String result = '') {
     result = result ?: currentBuild.currentResult
+    if (stageName && result == 'FAILURE') {
+        echo "CI stage failed: ${stageName}"
+    }
     try {
         try {
             withCredentials([string(credentialsId: 'sms-discord-webhook', variable: 'DISCORD_WEBHOOK_URL')]) {
@@ -158,6 +161,41 @@ def notifyDiscord(String stageName = '', String step = '', String result = '') {
         throw interrupted
     } catch (Exception ignored) {
         echo 'CI/CD Discord notifier could not run. Check credential binding, Python and the Jenkins agent.'
+    }
+}
+
+def transferIncident() {
+    if (env.SMS_INCIDENT_ATTEMPTED != 'true' && currentBuild.currentResult in ['FAILURE', 'UNSTABLE', 'ABORTED', 'NOT_BUILT']
+            && !env.CHANGE_ID && !env.TAG_NAME
+            && env.SMS_CHECKOUT_BRANCH in ['quyen/admin', 'develop']
+            && fileExists('scripts/jenkins_incident.py')) {
+        env.SMS_INCIDENT_ATTEMPTED = 'true'
+        def ingestUrl = env.SMS_JENKINS_INGEST_URL
+        if (!ingestUrl && !isUnix() && env.JOB_BASE_NAME == 'SMS-CICD') {
+            ingestUrl = 'http://127.0.0.1:8088/api/ops/jenkins-incidents'
+        }
+        if (!ingestUrl) {
+            echo 'AI incident transfer skipped: set SMS_JENKINS_INGEST_URL in the Jenkins agent environment.'
+        } else try {
+            withCredentials([
+                usernamePassword(credentialsId: 'sms-jenkins-console-reader',
+                        usernameVariable: 'SMS_JENKINS_CONSOLE_USER',
+                        passwordVariable: 'SMS_JENKINS_CONSOLE_TOKEN'),
+                string(credentialsId: 'sms-jenkins-incident-token',
+                        variable: 'SMS_JENKINS_INGEST_TOKEN')
+            ]) {
+                withEnv(["SMS_JENKINS_BUILD_RESULT=${currentBuild.currentResult}",
+                         "SMS_JENKINS_INGEST_URL=${ingestUrl}"]) {
+                    runPythonScript('scripts/jenkins_incident.py')
+                }
+            }
+        } catch (org.jenkinsci.plugins.workflow.steps.FlowInterruptedException interrupted) {
+            throw interrupted
+        } catch (org.jenkinsci.plugins.credentialsbinding.impl.CredentialNotFoundException missing) {
+            echo 'AI incident transfer requires Jenkins credentials sms-jenkins-console-reader and sms-jenkins-incident-token.'
+        } catch (Exception ignored) {
+            echo 'AI incident transfer did not complete. The console remains available in Jenkins for replay.'
+        }
     }
 }
 
@@ -523,6 +561,10 @@ pipeline {
     post {
 
         always {
+            script {
+                transferIncident()
+            }
+
             junit(
                 testResults: 'backend/target/surefire-reports/*.xml,frontend/coverage/junit.xml',
                 allowEmptyResults: true
@@ -550,7 +592,9 @@ pipeline {
             echo 'Pipeline failed. Check the failed stage and archived reports.'
 
             script {
-                if (env.SMS_DOCKER_READY != 'true') {
+                if (env.SMS_DEPLOY_STARTED != 'true') {
+                    echo 'Application logs are collected for deployment failures.'
+                } else if (env.SMS_DOCKER_READY != 'true') {
                     echo 'Docker logs unavailable because the Docker Engine preflight did not pass.'
                 } else if (isUnix()) {
                     sh(
@@ -568,38 +612,8 @@ pipeline {
 
         cleanup {
             script {
+                transferIncident()
                 notifyDiscord(env.SMS_DEPLOY_COMPLETED == 'true' ? env.SMS_DEPLOY_STAGE : '')
-                if (currentBuild.currentResult in ['FAILURE', 'UNSTABLE', 'ABORTED', 'NOT_BUILT']
-                        && !env.CHANGE_ID && !env.TAG_NAME
-                        && env.SMS_CHECKOUT_BRANCH in ['quyen/admin', 'develop']
-                        && fileExists('scripts/jenkins_incident.py')) {
-                    def ingestUrl = env.SMS_JENKINS_INGEST_URL
-                    if (!ingestUrl && !isUnix() && env.JOB_BASE_NAME == 'SMS-CICD') {
-                        ingestUrl = 'http://127.0.0.1:8088/api/ops/jenkins-incidents'
-                    }
-                    if (!ingestUrl) {
-                        echo 'AI incident transfer skipped: set SMS_JENKINS_INGEST_URL in the Jenkins agent environment.'
-                    } else try {
-                        withCredentials([
-                            usernamePassword(credentialsId: 'sms-jenkins-console-reader',
-                                    usernameVariable: 'SMS_JENKINS_CONSOLE_USER',
-                                    passwordVariable: 'SMS_JENKINS_CONSOLE_TOKEN'),
-                            string(credentialsId: 'sms-jenkins-incident-token',
-                                    variable: 'SMS_JENKINS_INGEST_TOKEN')
-                        ]) {
-                            withEnv(["SMS_JENKINS_BUILD_RESULT=${currentBuild.currentResult}",
-                                     "SMS_JENKINS_INGEST_URL=${ingestUrl}"]) {
-                                runPythonScript('scripts/jenkins_incident.py')
-                            }
-                        }
-                    } catch (org.jenkinsci.plugins.workflow.steps.FlowInterruptedException interrupted) {
-                        throw interrupted
-                    } catch (org.jenkinsci.plugins.credentialsbinding.impl.CredentialNotFoundException missing) {
-                        echo 'AI incident transfer requires Jenkins credentials sms-jenkins-console-reader and sms-jenkins-incident-token.'
-                    } catch (Exception ignored) {
-                        echo 'AI incident transfer did not complete. The console remains available in Jenkins for replay.'
-                    }
-                }
             }
         }
     }

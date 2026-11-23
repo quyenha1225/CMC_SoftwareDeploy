@@ -1,5 +1,6 @@
 """Cross-platform commands used by Jenkins; no secrets appear in command arguments."""
 import argparse
+from concurrent.futures import ThreadPoolExecutor
 import hashlib
 import json
 import datetime as dt
@@ -9,8 +10,9 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
-from docker import ROOT, Runtime, initialize, invoke, smoke, backup, restore_test, docker_command
+from docker import ROOT, Runtime, initialize, invoke, smoke, backup, restore_test, docker_command, settings
 
 REPORTS=ROOT/'artifacts/reports'
 REPORTS.mkdir(parents=True,exist_ok=True)
@@ -248,7 +250,7 @@ def main(step):
         for filename in ['junit.xml','lcov.info','coverage-summary.json']:
             (ROOT/'frontend/coverage'/filename).unlink(missing_ok=True)
         for label, command in [
-            ('Frontend dependency install (npm ci)', [NPM,'ci','--prefer-offline','--no-fund']),
+            ('Frontend dependency install (npm ci)', [NPM,'ci','--prefer-offline','--no-fund','--no-audit']),
             ('Frontend ESLint', [NPM,'run','lint','--','--cache','--cache-strategy','content','--cache-location','.eslintcache']),
             ('Frontend API and unit tests (npm run test:ci)', [NPM,'run','test:ci']),
             ('Frontend production build', [NPM,'run','build']),
@@ -284,46 +286,79 @@ def main(step):
         deploy_local()
     elif step=='mysql':
         (REPORTS/'mysql-integration.json').unlink(missing_ok=True)
-        env_file=ROOT/'artifacts/ci/.env'
-        if not env_file.exists():initialize(env_file,ci=True)
-        runtime=Runtime(env_file)
-        if not runtime.config['COMPOSE_PROJECT_NAME'].startswith('sms_ci_'):raise RuntimeError('Integration tests require an isolated CI project')
-        try:
-            record_check('MySQL integration: start database, migrations and application containers')
-            runtime.run('up','-d','--no-build','--wait','--wait-timeout','300','frontend','backend')
-            record_check('MySQL integration: provision test accounts')
-            runtime.run('run','--rm','provision')
-            record_check('MySQL integration: HTTP, role login and SQL smoke checks')
-            results=smoke(runtime)
-            record_check('MySQL integration: business workflow checks')
-            from mysql_workflows import verify_workflows
-            workflows=verify_workflows(runtime)
-            # Browser checks run against the same isolated MySQL fixture, not host data.
-            credentials=__import__('docker').settings(runtime.secret_dir/'demo_accounts')
-            actors={'PRINCIPAL':'principal','TRAINING_OFFICE':'training_demo','CTSV':'ctsv_demo','LECTURER':'lecturer_demo_01','STUDENT':'student_demo_001','APPLICANT':'applicant_demo_03'}
-            for role,username in actors.items():
-                record_check('Browser integration: ' + role)
-                browser_env={**os.environ,'SMS_UI_BASE_URL':runtime.url(),'SMS_UI_ROLE':role,'SMS_UI_USERNAME':username,'SMS_UI_PASSWORD':credentials[username],'SMS_UI_DEBUG_PORT':'9231'}
-                with open(REPORTS/('browser-'+role+'.log'),'wb') as output:
-                    run(['node','tests/browser-full-ui.mjs'],ROOT/'frontend',env=browser_env,stdout=output,stderr=subprocess.STDOUT,timeout=180)
-            record_check('MySQL integration: backup and restore')
-            print('MySQL integration: backup and restore',flush=True)
-            snapshot=backup(runtime);restore_test(runtime,snapshot)
-            record_check('MySQL integration: restart and persistence')
-            print('MySQL integration: restart and persistence',flush=True)
-            before=runtime.sql('SELECT COUNT(*) FROM students UNION ALL SELECT COUNT(*) FROM payments')
-            runtime.run('restart','db');runtime.run('up','-d','--wait','--wait-timeout','180','backend','frontend')
-            if before!=runtime.sql('SELECT COUNT(*) FROM students UNION ALL SELECT COUNT(*) FROM payments'):raise RuntimeError('Persistence check failed')
-            smoke(runtime)
-            (REPORTS/'mysql-integration.json').write_text(json.dumps({'passed':True,'created_at':dt.datetime.now().isoformat(),'image_tag':os.getenv('IMAGE_TAG','local'),'checks':results,'workflows':workflows,'restore':True,'restart_persistence':True},indent=2))
-            record_check('MySQL integration: collect logs and remove CI containers')
-        finally:
+        actors={'PRINCIPAL':'principal','TRAINING_OFFICE':'training_demo','CTSV':'ctsv_demo','LECTURER':'lecturer_demo_01','STUDENT':'student_demo_001','APPLICANT':'applicant_demo_03'}
+        for role in actors:
+            (REPORTS / f'browser-{role}.log').unlink(missing_ok=True)
+        # A cancelled build can leave containers behind. Each run gets a fresh project and secrets.
+        with tempfile.TemporaryDirectory(prefix='sms-ci-', dir=REPORTS.parent) as directory:
+            env_file = Path(directory) / '.env'
+            initialize(env_file, ci=True)
+            runtime=Runtime(env_file)
+            if not runtime.config['COMPOSE_PROJECT_NAME'].startswith('sms_ci_'):raise RuntimeError('Integration tests require an isolated CI project')
             try:
-                runtime.run('logs','--no-color','--tail','200','backend','migrate',destination=REPORTS/'mysql-runtime.log',check=False,timeout=30)
-            except subprocess.TimeoutExpired:
-                print('MySQL integration: Docker timed out collecting logs',file=sys.stderr,flush=True)
-            # Only the generated, disposable CI namespace is removed, never local/production volumes.
-            runtime.run('down','--volumes','--remove-orphans',timeout=90)
+                record_check('MySQL integration: start database, migrations and application containers')
+                runtime.run('up','-d','--no-build','--wait','--wait-timeout','300','frontend','backend')
+                record_check('MySQL integration: provision test accounts')
+                runtime.run('run','--rm','--no-deps','provision')
+                record_check('MySQL integration: HTTP, role login and SQL smoke checks')
+                results=smoke(runtime)
+                record_check('MySQL integration: business workflow checks')
+                from mysql_workflows import verify_workflows
+                try:
+                    workflows = verify_workflows(runtime)
+                except Exception as error:
+                    raise RuntimeError(f'MySQL business workflow failed: {type(error).__name__}: {error}') from error
+                # Browser checks run against the same isolated MySQL fixture, not host data.
+                credentials = settings(runtime.secret_dir / 'demo_accounts')
+                base_url = runtime.url()
+                record_check('MySQL integration: browser checks for all six roles')
+
+                def check_browser(actor):
+                    role, username = actor
+                    browser_env = {
+                        **os.environ,
+                        'SMS_UI_BASE_URL': base_url,
+                        'SMS_UI_ROLE': role,
+                        'SMS_UI_USERNAME': username,
+                        'SMS_UI_PASSWORD': credentials[username],
+                        'SMS_UI_DEBUG_PORT': '0',
+                        'SMS_UI_OUTPUT_DIR': str(Path(directory) / 'browser' / role),
+                    }
+                    browser_log = REPORTS / f'browser-{role}.log'
+                    try:
+                        with browser_log.open('wb') as output:
+                            run(['node','tests/browser-full-ui.mjs'],ROOT/'frontend',env=browser_env,stdout=output,stderr=subprocess.STDOUT,timeout=180)
+                    except (RuntimeError, subprocess.TimeoutExpired):
+                        print(f'Browser integration failed for {role}. Report: {browser_log.name}', flush=True)
+                        with browser_log.open('rb') as output:
+                            output.seek(max(0, browser_log.stat().st_size - 4000))
+                            detail = output.read().decode('utf-8', 'replace')
+                        for password in credentials.values():
+                            if password:
+                                detail = detail.replace(password, '[REDACTED]')
+                        print(detail, flush=True)
+                        raise
+
+                with ThreadPoolExecutor(max_workers=2) as browsers:
+                    list(browsers.map(check_browser, actors.items()))
+                record_check('MySQL integration: backup and restore')
+                print('MySQL integration: backup and restore',flush=True)
+                snapshot=backup(runtime);restore_test(runtime,snapshot)
+                record_check('MySQL integration: restart and persistence')
+                print('MySQL integration: restart and persistence',flush=True)
+                before=runtime.sql('SELECT COUNT(*) FROM students UNION ALL SELECT COUNT(*) FROM payments')
+                runtime.run('restart','db');runtime.run('up','-d','--wait','--wait-timeout','180','backend','frontend')
+                if before!=runtime.sql('SELECT COUNT(*) FROM students UNION ALL SELECT COUNT(*) FROM payments'):raise RuntimeError('Persistence check failed')
+                smoke(runtime)
+                (REPORTS/'mysql-integration.json').write_text(json.dumps({'passed':True,'created_at':dt.datetime.now().isoformat(),'image_tag':os.getenv('IMAGE_TAG','local'),'checks':results,'workflows':workflows,'restore':True,'restart_persistence':True},indent=2))
+                record_check('MySQL integration: collect logs and remove CI containers')
+            finally:
+                try:
+                    runtime.run('logs','--no-color','--tail','200','backend','migrate',destination=REPORTS/'mysql-runtime.log',check=False,timeout=30)
+                except subprocess.TimeoutExpired:
+                    print('MySQL integration: Docker timed out collecting logs',file=sys.stderr,flush=True)
+                # Only the generated, disposable CI namespace is removed, never local/production volumes.
+                runtime.run('down','--volumes','--remove-orphans',timeout=90)
     elif step in ['security','secrets']:
         scanner='vuln' if step=='security' else 'secret'
         severity='CRITICAL' if step=='security' else 'UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL'
@@ -333,10 +368,11 @@ def main(step):
         tracked=subprocess.check_output(['git','ls-files'],cwd=ROOT,text=True).splitlines()
         prohibited=[p for p in tracked if '/.local/' in p or p.startswith(('.secrets/','backups/')) or (Path(p).name.startswith('.env') and Path(p).name!='.env.example')]
         if prohibited:raise RuntimeError('Sensitive runtime files are tracked in Git')
-        record_check('Frontend dependency audit (npm audit)')
-        with open(REPORTS/'npm-audit.json','wb') as out:
-            result=subprocess.run([NPM,'audit','--json','--audit-level=critical'],cwd=ROOT/'frontend',stdout=out)
-        if result.returncode:raise RuntimeError('Dependency audit failed or could not complete')
+        if step == 'security':
+            record_check('Frontend dependency audit (npm audit)')
+            with open(REPORTS/'npm-audit.json','wb') as out:
+                result=subprocess.run([NPM,'audit','--json','--audit-level=critical'],cwd=ROOT/'frontend',stdout=out)
+            if result.returncode:raise RuntimeError('Dependency audit failed or could not complete')
         image=os.getenv('TRIVY_IMAGE','aquasec/trivy:0.64.1')
         skips=['backend/target','frontend/dist','.git','.secrets','backend/.local','backend/private-files','frontend/node_modules','frontend/.npm-cache','backups','artifacts']
         command=docker_command()+['run','--rm','-v',str(ROOT)+':/work:ro','-v','sms_trivy_cache:/root/.cache/','-w','/work',image,'fs','--timeout','15m','--no-progress','--scanners',scanner,'--severity',severity,'--exit-code','1']
@@ -373,4 +409,6 @@ if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('step',choices=['docker-ready','monitoring-config','prepare','backend','frontend','sonar','build','deploy-local','mysql','security','secrets','publish'])
     try:main(parser.parse_args().step)
-    except (RuntimeError,subprocess.SubprocessError,OSError) as error:print(str(error),file=sys.stderr);sys.exit(1)
+    except (RuntimeError,subprocess.SubprocessError,OSError) as error:
+        print(f'CI failure: {error}', flush=True)
+        sys.exit(1)
