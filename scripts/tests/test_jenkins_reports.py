@@ -66,7 +66,7 @@ class JenkinsReportsTests(unittest.TestCase):
     def test_jenkinsfile_uses_sandbox_safe_stage_tracking_and_python_wrapper(self):
         jenkins = (ROOT / "Jenkinsfile").read_text(encoding="utf-8")
         groovy = jenkins.split("writeFile file: notifier, text: '''", 1)[0]
-        self.assertNotRegex(groovy, r"\\benv\\s*\\[")
+        self.assertNotRegex(groovy, r"\benv\s*\[")
         self.assertNotIn("stageKey(", groovy)
         self.assertIn("stageValue(it, 'state')", groovy)
         self.assertIn("stageValue(it, 'detail')", groovy)
