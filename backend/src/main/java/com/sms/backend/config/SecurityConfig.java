@@ -72,8 +72,10 @@ public class SecurityConfig {
             throws Exception {
         var jenkinsIngest = org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher
                 .withDefaults().matcher(org.springframework.http.HttpMethod.POST, "/api/ops/jenkins-incidents");
-        http.csrf(csrf -> csrf.csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
-                        .ignoringRequestMatchers(jenkinsIngest))
+        var csrfTokens = new CookieCsrfTokenRepository();
+        csrfTokens.setCookieName("XSRF-TOKEN");
+        csrfTokens.setHeaderName("X-XSRF-TOKEN");
+        http.csrf(csrf -> csrf.csrfTokenRepository(csrfTokens))
                 .securityContext(context -> context.securityContextRepository(repository))
                 .addFilterAfter(
                         new LoginTokenFilter(tokens),

@@ -19,6 +19,7 @@ import javax.crypto.spec.*;
 
 @Service
 public class IdentityRecords {
+    private static final SecureRandom RANDOM = new SecureRandom();
     private final Db db;
     private final Actor actor;
     private final Resources resources;
@@ -55,7 +56,7 @@ public class IdentityRecords {
             byte[] key = Base64.getDecoder().decode(encryptionKey);
             if (key.length != 32) throw new IllegalArgumentException();
             byte[] nonce = new byte[12];
-            new SecureRandom().nextBytes(nonce);
+            RANDOM.nextBytes(nonce);
             var cipher = Cipher.getInstance("AES/GCM/NoPadding");
             cipher.init(
                     Cipher.ENCRYPT_MODE,

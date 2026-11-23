@@ -53,7 +53,7 @@ public class JenkinsIncidents {
     private String aiKey;
     @Value("${SMS_CI_AI_MODEL:}")
     private String model;
-    @Value("${discord.webhook-url:}")
+    @Value("${SMS_CI_DISCORD_WEBHOOK_URL:}")
     private String webhook;
 
     public JenkinsIncidents(JdbcTemplate database, ObjectMapper json) {

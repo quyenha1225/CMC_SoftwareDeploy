@@ -369,6 +369,9 @@ pipeline {
                         env.SMS_QUALITY_GATE_CHECK = "Quality gate status: ${gate.status}"
 
                         if (gate.status != 'OK') {
+                            withSonarQubeEnv(installationName: 'sonarqube', envOnly: true) {
+                                runPythonScript('scripts/sonar_gate_details.py')
+                            }
                             error("SonarQube Quality Gate: ${gate.status}")
                         }
                     }
@@ -524,9 +527,10 @@ pipeline {
                 if (currentBuild.currentResult in ['FAILURE', 'UNSTABLE', 'ABORTED', 'NOT_BUILT']
                         && !env.CHANGE_ID && !env.TAG_NAME
                         && env.SMS_CHECKOUT_BRANCH in ['quyen/admin', 'develop']
-                        && env.SMS_JENKINS_INGEST_URL
                         && fileExists('scripts/jenkins_incident.py')) {
-                    try {
+                    if (!env.SMS_JENKINS_INGEST_URL) {
+                        echo 'AI incident transfer skipped: set SMS_JENKINS_INGEST_URL in the Jenkins agent environment.'
+                    } else try {
                         withCredentials([
                             usernamePassword(credentialsId: 'sms-jenkins-console-reader',
                                     usernameVariable: 'SMS_JENKINS_CONSOLE_USER',

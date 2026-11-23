@@ -2,15 +2,18 @@
 
 import argparse
 import base64
+from http.cookiejar import CookieJar
+import json
 import os
 import sys
 import time
 from urllib.error import HTTPError
 from urllib.parse import urlsplit
-from urllib.request import HTTPRedirectHandler, Request, build_opener
+from urllib.request import HTTPCookieProcessor, HTTPRedirectHandler, Request, build_opener
 
 
 MAX_LOG_BYTES = 10 * 1024 * 1024
+INCIDENT_PATH = "/api/ops/jenkins-incidents"
 
 
 class NoRedirect(HTTPRedirectHandler):
@@ -36,6 +39,9 @@ def main():
     try:
         build_url = endpoint(args.build_url or "")
         receiver = endpoint(os.environ["SMS_JENKINS_INGEST_URL"])
+        if not receiver.endswith(INCIDENT_PATH):
+            raise ValueError("Expected the SMS Jenkins incident endpoint.")
+        csrf_url = receiver.removesuffix(INCIDENT_PATH) + "/api/auth/csrf"
         if not args.result:
             raise ValueError("Missing build result.")
         job, build = build_url.rsplit("/", 1)
@@ -54,16 +60,21 @@ def main():
             console = response.read(MAX_LOG_BYTES + 1)
         if not console or len(console) > MAX_LOG_BYTES:
             raise ValueError("Jenkins console is empty or exceeds 10 MiB.")
-        upload = Request(receiver, data=console, method="POST", headers={
+        headers = {
             "Content-Type": "text/plain; charset=utf-8",
             "X-Jenkins-Token": ingest_token,
             "X-Jenkins-Job": job,
             "X-Jenkins-Build": build,
             "X-Jenkins-Result": args.result,
-        })
+        }
+        receiver_client = build_opener(NoRedirect, HTTPCookieProcessor(CookieJar()))
         for attempt in range(3):
             try:
-                with opener.open(upload, timeout=8) as response:
+                with receiver_client.open(csrf_url, timeout=8) as response:
+                    csrf = json.load(response)
+                upload = Request(receiver, data=console, method="POST",
+                                 headers={**headers, csrf["headerName"]: csrf["token"]})
+                with receiver_client.open(upload, timeout=8) as response:
                     if response.status != 202:
                         raise ValueError(f"Unexpected receiver HTTP status {response.status}.")
                 print(f"Jenkins incident accepted for build #{build}.")

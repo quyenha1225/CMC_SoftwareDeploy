@@ -18,6 +18,7 @@ import java.util.*;
 
 @Service
 public class PasswordRecovery {
+    private static final SecureRandom RANDOM = new SecureRandom();
     public record Delivery(long id, String email, String token) {}
 
     private final Db db;
@@ -77,7 +78,7 @@ public class PasswordRecovery {
                         + " used_at IS NULL",
                 userId);
         byte[] bytes = new byte[32];
-        new SecureRandom().nextBytes(bytes);
+        RANDOM.nextBytes(bytes);
         String token = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
         long id =
                 db.insert(
