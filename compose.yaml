@@ -49,6 +49,10 @@ services:
       DB_URL: jdbc:mysql://db:3306/${DB_NAME:-sms_db}?allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=Asia/Ho_Chi_Minh
       DB_USERNAME: sms_app
       SMS_ENVIRONMENT: ${SMS_ENVIRONMENT:-local}
+      SMS_JENKINS_INGEST_TOKEN: ${SMS_JENKINS_INGEST_TOKEN:-}
+      SMS_CI_AI_URL: ${SMS_CI_AI_URL:-}
+      SMS_CI_AI_MODEL: ${SMS_CI_AI_MODEL:-}
+      SMS_CI_AI_KEY: ${SMS_CI_AI_KEY:-}
       SESSION_SECURE: ${SESSION_SECURE:-false}
       SMS_PUBLIC_URL: ${SMS_PUBLIC_URL:-http://localhost:8088}
       SMS_BOOTSTRAP_ENABLED: ${SMS_BOOTSTRAP_ENABLED:-false}

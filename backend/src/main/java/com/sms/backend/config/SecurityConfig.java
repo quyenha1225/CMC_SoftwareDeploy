@@ -70,14 +70,18 @@ public class SecurityConfig {
     SecurityFilterChain securityFilterChain(
             HttpSecurity http, SecurityContextRepository repository, LoginTokens tokens)
             throws Exception {
-        http.csrf(csrf -> csrf.csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse()))
+        var jenkinsIngest = org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher
+                .withDefaults().matcher(org.springframework.http.HttpMethod.POST, "/api/ops/jenkins-incidents");
+        http.csrf(csrf -> csrf.csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+                        .ignoringRequestMatchers(jenkinsIngest))
                 .securityContext(context -> context.securityContextRepository(repository))
                 .addFilterAfter(
                         new LoginTokenFilter(tokens),
                         org.springframework.security.web.context.SecurityContextHolderFilter.class)
                 .authorizeHttpRequests(
                         auth ->
-                                auth.requestMatchers("/actuator/health", "/actuator/health/**")
+                                auth.requestMatchers(jenkinsIngest).permitAll()
+                                        .requestMatchers("/actuator/health", "/actuator/health/**")
                                         .permitAll()
                                         .requestMatchers(
                                                 request ->

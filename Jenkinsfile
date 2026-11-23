@@ -521,6 +521,29 @@ pipeline {
         cleanup {
             script {
                 notifyDiscord(env.SMS_DEPLOY_COMPLETED == 'true' ? 'Deploy Local Docker' : '')
+                if (currentBuild.currentResult in ['FAILURE', 'UNSTABLE', 'ABORTED', 'NOT_BUILT']
+                        && !env.CHANGE_ID && !env.TAG_NAME
+                        && env.SMS_CHECKOUT_BRANCH in ['quyen/admin', 'develop']
+                        && env.SMS_JENKINS_INGEST_URL
+                        && fileExists('scripts/jenkins_incident.py')) {
+                    try {
+                        withCredentials([
+                            usernamePassword(credentialsId: 'sms-jenkins-console-reader',
+                                    usernameVariable: 'SMS_JENKINS_CONSOLE_USER',
+                                    passwordVariable: 'SMS_JENKINS_CONSOLE_TOKEN'),
+                            string(credentialsId: 'sms-jenkins-incident-token',
+                                    variable: 'SMS_JENKINS_INGEST_TOKEN')
+                        ]) {
+                            withEnv(["SMS_JENKINS_BUILD_RESULT=${currentBuild.currentResult}"]) {
+                                runPythonScript('scripts/jenkins_incident.py')
+                            }
+                        }
+                    } catch (org.jenkinsci.plugins.workflow.steps.FlowInterruptedException interrupted) {
+                        throw interrupted
+                    } catch (Exception ignored) {
+                        echo 'AI incident transfer did not complete. The console remains available in Jenkins for replay.'
+                    }
+                }
             }
         }
     }
