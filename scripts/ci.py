@@ -10,8 +10,8 @@ import re
 import shutil
 import subprocess
 import sys
-import tempfile
 import time
+from uuid import uuid4
 from docker import ROOT, Runtime, initialize, invoke, smoke, backup, restore_test, docker_command, settings
 
 REPORTS=ROOT/'artifacts/reports'
@@ -22,6 +22,7 @@ MAVEN=[MVN] if WIN else ['sh',MVN]
 NPM='npm.cmd' if WIN else 'npm'
 
 def record_check(label):
+    print('CI check: ' + label, flush=True)
     destination = os.getenv('SMS_CI_DETAIL_FILE')
     if destination:
         try:
@@ -290,8 +291,12 @@ def main(step):
         for role in actors:
             (REPORTS / f'browser-{role}.log').unlink(missing_ok=True)
         # A cancelled build can leave containers behind. Each run gets a fresh project and secrets.
-        with tempfile.TemporaryDirectory(prefix='sms-ci-', dir=REPORTS.parent) as directory:
-            env_file = Path(directory) / '.env'
+        directory = REPORTS.parent / f'sms-ci-{uuid4().hex}'
+        # Docker Desktop needs to read bind-mounted secrets through the workspace ACL.
+        # On Windows, mkdir(0700) can give the directory a private ACL.
+        directory.mkdir(mode=0o777 if WIN else 0o700)
+        try:
+            env_file = directory / '.env'
             initialize(env_file, ci=True)
             runtime=Runtime(env_file)
             if not runtime.config['COMPOSE_PROJECT_NAME'].startswith('sms_ci_'):raise RuntimeError('Integration tests require an isolated CI project')
@@ -322,7 +327,7 @@ def main(step):
                         'SMS_UI_USERNAME': username,
                         'SMS_UI_PASSWORD': credentials[username],
                         'SMS_UI_DEBUG_PORT': '0',
-                        'SMS_UI_OUTPUT_DIR': str(Path(directory) / 'browser' / role),
+                        'SMS_UI_OUTPUT_DIR': str(directory / 'browser' / role),
                     }
                     browser_log = REPORTS / f'browser-{role}.log'
                     try:
@@ -353,12 +358,29 @@ def main(step):
                 (REPORTS/'mysql-integration.json').write_text(json.dumps({'passed':True,'created_at':dt.datetime.now().isoformat(),'image_tag':os.getenv('IMAGE_TAG','local'),'checks':results,'workflows':workflows,'restore':True,'restart_persistence':True},indent=2))
                 record_check('MySQL integration: collect logs and remove CI containers')
             finally:
+                had_failure = sys.exc_info()[0] is not None
                 try:
                     runtime.run('logs','--no-color','--tail','200','backend','migrate',destination=REPORTS/'mysql-runtime.log',check=False,timeout=30)
-                except subprocess.TimeoutExpired:
-                    print('MySQL integration: Docker timed out collecting logs',file=sys.stderr,flush=True)
+                except (OSError, subprocess.SubprocessError) as error:
+                    print(f'CI evidence limitation: MySQL runtime log collection failed ({type(error).__name__})', flush=True)
                 # Only the generated, disposable CI namespace is removed, never local/production volumes.
-                runtime.run('down','--volumes','--remove-orphans',timeout=90)
+                try:
+                    runtime.run('down','--volumes','--remove-orphans',timeout=90)
+                except (RuntimeError, OSError, subprocess.SubprocessError) as error:
+                    if not had_failure:
+                        raise
+                    print(f'CI cleanup warning: MySQL project teardown failed ({type(error).__name__})', flush=True)
+        finally:
+            had_failure = sys.exc_info()[0] is not None
+            try:
+                if WIN:
+                    for secret in (directory / '.secrets-ci').glob('*'):
+                        secret.chmod(0o600)
+                shutil.rmtree(directory)
+            except OSError as error:
+                if not had_failure:
+                    raise
+                print(f'CI cleanup warning: fixture removal failed ({type(error).__name__})', flush=True)
     elif step in ['security','secrets']:
         scanner='vuln' if step=='security' else 'secret'
         severity='CRITICAL' if step=='security' else 'UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL'

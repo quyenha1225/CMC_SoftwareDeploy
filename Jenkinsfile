@@ -1,3 +1,60 @@
+def diagnosticStages() {
+    return [
+        'Checkout',
+        'Check Environment',
+        'Prepare',
+        'Backend Test',
+        'Frontend Test',
+        'Validate Docker Compose',
+        'SonarQube Analysis',
+        'SonarQube Quality Gate',
+        'Build Docker Images',
+        'MySQL Integration Tests',
+        'Dependency and Image Scan',
+        'Secret Scan',
+        'Deploy Local Docker',
+        'Deploy Server SSH',
+    ]
+}
+
+def stageKey(String name) {
+    return 'SMS_STAGE_' + name.replaceAll('[^A-Za-z0-9]', '_')
+}
+
+def recordStage(String name, String state) {
+    def key = stageKey(name)
+    if (env[key] != state) {
+        env[key] = state
+        echo "CI stage ${state}: ${name}"
+    }
+}
+
+def recordStageFailure(String name, String step = '') {
+    recordStage(name, 'failed')
+    def key = stageKey(name)
+    if (name == 'SonarQube Quality Gate') {
+        env[key + '_DETAIL'] = env.SMS_QUALITY_GATE_CHECK ?: ''
+    } else if (name == 'Check Environment') {
+        env[key + '_DETAIL'] = env.SMS_ENVIRONMENT_CHECK ?: ''
+    }
+    if (!step) {
+        return
+    }
+    try {
+        def detail = "${pwd(tmp: true)}/sms-${env.BUILD_NUMBER}-${step}.txt"
+        if (fileExists(detail)) {
+            env[key + '_DETAIL'] = readFile(detail).trim().take(250)
+        }
+        if (fileExists(detail + '.error')) {
+            env[key + '_ERROR'] = readFile(file: detail + '.error', encoding: 'UTF-8').trim()
+        }
+    } catch (org.jenkinsci.plugins.workflow.steps.FlowInterruptedException interrupted) {
+        throw interrupted
+    } catch (Exception ignored) {
+        echo "CI evidence limitation: detail for ${name} was unavailable."
+    }
+}
+
 
 def runPythonScript(String arguments) {
     if (isUnix()) {
@@ -10,7 +67,7 @@ def runPythonScript(String arguments) {
 def executeStep(String step) {
     def detailFile = "${pwd(tmp: true)}/sms-${env.BUILD_NUMBER}-${step}.txt"
     withEnv(["IMAGE_TAG=${env.IMAGE_TAG ?: 'local'}", "SMS_CI_DETAIL_FILE=${detailFile}"]) {
-        runPythonScript("scripts/ci.py ${step}")
+        runPythonScript("scripts/jenkins_reports.py ${step}")
     }
 }
 
@@ -42,7 +99,7 @@ def executeParallelStep(String stageName, String step) {
     } catch (org.jenkinsci.plugins.workflow.steps.FlowInterruptedException interrupted) {
         throw interrupted
     } catch (Exception failure) {
-        notifyDiscord(stageName, step, 'FAILURE')
+        recordStageFailure(stageName, step)
         throw failure
     }
 }
@@ -59,7 +116,16 @@ def sendDiscord(String stageName, String step, String result) {
     } else if (stageName == 'Check Environment') {
         detail = env.SMS_ENVIRONMENT_CHECK ?: ''
     }
-    withEnv(["SMS_BUILD_RESULT=${result}", "SMS_EVENT_STAGE=${stageName}", "SMS_EVENT_CHECK=${detail}"]) {
+    def stageSummary = diagnosticStages().collect {
+        def state = env[stageKey(it)] ?: (result == 'SUCCESS' ? 'skipped' : 'not run')
+        def check = env[stageKey(it) + '_DETAIL']
+        return "${state.toUpperCase()} | ${it}" + (check ? " | ${check}" : '')
+    }.join('\n')
+    def errors = diagnosticStages().collect { env[stageKey(it) + '_ERROR'] }.findAll { it }.join('\n')
+    withEnv(["SMS_BUILD_RESULT=${result}", "SMS_EVENT_STAGE=${stageName}", "SMS_EVENT_CHECK=${detail}",
+             "SMS_STAGE_SUMMARY=${stageSummary}", "SMS_BUILD_DURATION_MS=${currentBuild.duration}",
+             "SMS_BUILD_STARTED_MS=${currentBuild.startTimeInMillis}",
+             "SMS_STAGE_ERRORS=${errors}"]) {
         def notifier = "sms-discord-${stageName.replaceAll('[^A-Za-z0-9]+', '-') ?: 'summary'}.py"
         dir(pwd(tmp: true)) {
             writeFile file: notifier, text: '''
@@ -67,17 +133,25 @@ import json
 import os
 from pathlib import Path
 import re
+import time
 from urllib.error import HTTPError
 from urllib.parse import parse_qsl, urlencode, urlsplit
-from urllib.request import Request, urlopen
+from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 env = os.environ
 result = env["SMS_BUILD_RESULT"]
 stage = env.get("SMS_EVENT_STAGE")
+commit = env.get("IMAGE_TAG", "")
+if re.fullmatch(r"[0-9a-f]{40}", commit):
+    commit = f"[{commit[:12]}](https://github.com/quyenha1225/CMC_SoftwareDeploy/commit/{commit})"
+duration = int(env.get("SMS_BUILD_DURATION_MS", 0)) / 1000
+if not duration and env.get("SMS_BUILD_STARTED_MS"):
+    duration = max(0, time.time() - int(env["SMS_BUILD_STARTED_MS"]) / 1000)
 fields = [
     f"{env.get('JOB_NAME', 'Jenkins')} #{env.get('BUILD_NUMBER', '?')}",
+    f"Duration: {int(duration)}s",
     "Branch: " + (env.get("SMS_CHECKOUT_BRANCH") or env.get("BRANCH_NAME") or "unknown"),
-    "Commit: " + (env.get("IMAGE_TAG") or "unknown"),
+    "Commit: " + (commit or "unknown"),
 ]
 if stage:
     fields.append("Stage: " + stage)
@@ -100,12 +174,38 @@ elif env.get("SMS_CI_COMPLETED") == "true":
 if env.get("BUILD_URL"):
     fields.append("Console: " + env["BUILD_URL"].rstrip("/") + "/console")
 
+summary = env.get("SMS_SUCCESS_REPORTS", "").splitlines()
+if env.get("QUALITY_GATE_PASSED") == "true":
+    summary.append("SonarQube Quality Gate: OK")
+if env.get("SMS_IMAGES_BUILT") == "true":
+    summary.append("Docker images: built")
+if env.get("SMS_IMAGES_PUBLISHED") == "true":
+    summary.append("Docker images: published")
+if result == "ABORTED":
+    fields.append("Build cancelled. See Jenkins for the cancellation source.")
+if result == "NOT_BUILT":
+    fields.append("Build did not execute. See Jenkins for details.")
+embed_fields = []
+if env.get("SMS_STAGE_SUMMARY") and result != "STARTED":
+    embed_fields.append({"name": "Stages", "value": env["SMS_STAGE_SUMMARY"][:1000]})
+if env.get("SMS_STAGE_ERRORS") and result != "STARTED":
+    embed_fields.insert(0, {"name": "Evidence", "value": env["SMS_STAGE_ERRORS"][:950]})
+if summary:
+    embed_fields.append({"name": "Checks and images", "value": chr(10).join(summary)[:1000]})
 payload = {
     "username": "SMS Jenkins",
     "allowed_mentions": {"parse": []},
     "embeds": [{"title": "Jenkins " + result + (" - " + stage if stage else ""),
-                "description": chr(10).join(fields)[:4000]}],
+                "description": chr(10).join(fields)[:3500],
+                "color": {"SUCCESS": 0x2ecc71, "FAILURE": 0xe74c3c, "UNSTABLE": 0xf1c40f,
+                          "STARTED": 0x3498db}.get(result, 0x7f8c8d),
+                "fields": embed_fields}],
 }
+
+class NoRedirect(HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
 try:
     webhook = env.get("DISCORD_WEBHOOK_URL", "").strip()
     if not webhook and env.get("SMS_DISCORD_WEBHOOK_FILE"):
@@ -120,9 +220,18 @@ try:
                       data=json.dumps(payload).encode("utf-8"),
                       headers={"Content-Type": "application/json", "User-Agent": "SMS-Jenkins/1.0"},
                       method="POST")
-    with urlopen(request, timeout=8) as response:
-        message = json.load(response)
-        print(f"Discord notification delivered (HTTP {response.status}, message {message['id']}).")
+    opener = build_opener(NoRedirect)
+    for attempt in range(2):
+        try:
+            with opener.open(request, timeout=4) as response:
+                message = json.load(response)
+                print(f"Discord notification delivered (HTTP {response.status}, message {message['id']}).")
+            break
+        except HTTPError as error:
+            delay = float(error.headers.get("Retry-After", "1"))
+            if attempt or error.code not in (429, 503) or not 0 <= delay <= 2:
+                raise
+            time.sleep(delay)
 except HTTPError as error:
     print(f"Discord notification failed (HTTP {error.code}).")
 except (OSError, ValueError, KeyError, RuntimeError) as error:
@@ -135,8 +244,18 @@ except (OSError, ValueError, KeyError, RuntimeError) as error:
 
 def notifyDiscord(String stageName = '', String step = '', String result = '') {
     result = result ?: currentBuild.currentResult
-    if (stageName && result == 'FAILURE') {
-        echo "CI stage failed: ${stageName}"
+    if (result == 'SUCCESS' && fileExists('scripts/jenkins_reports.py')) {
+        try {
+            withEnv(["SMS_BUILD_STARTED_MS=${currentBuild.startTimeInMillis}"]) {
+                env.SMS_SUCCESS_REPORTS = isUnix()
+                    ? sh(script: 'python3 scripts/jenkins_reports.py --summary', returnStdout: true).trim()
+                    : bat(script: '@"%PYTHON_EXE%" scripts/jenkins_reports.py --summary', returnStdout: true).trim()
+            }
+        } catch (org.jenkinsci.plugins.workflow.steps.FlowInterruptedException interrupted) {
+            throw interrupted
+        } catch (Exception ignored) {
+            echo 'CI evidence limitation: success report details unavailable.'
+        }
     }
     try {
         try {
@@ -185,8 +304,11 @@ def transferIncident() {
                         variable: 'SMS_JENKINS_INGEST_TOKEN')
             ]) {
                 withEnv(["SMS_JENKINS_BUILD_RESULT=${currentBuild.currentResult}",
-                         "SMS_JENKINS_INGEST_URL=${ingestUrl}"]) {
+                         "SMS_JENKINS_INGEST_URL=${ingestUrl}",
+                         "SMS_BUILD_STARTED_MS=${currentBuild.startTimeInMillis}",
+                         "SMS_BUILD_DURATION_MS=${currentBuild.duration}"]) {
                     runPythonScript('scripts/jenkins_incident.py')
+                    env.SMS_INCIDENT_ACCEPTED = 'true'
                 }
             }
         } catch (org.jenkinsci.plugins.workflow.steps.FlowInterruptedException interrupted) {
@@ -237,14 +359,18 @@ pipeline {
 
         stage('Checkout') {
             post {
-                unsuccessful {
+                success { script { recordStage('Checkout', 'passed') } }
+                aborted { script { recordStage('Checkout', 'aborted') } }
+                unstable { script { recordStage('Checkout', 'unstable') } }
+                failure {
                     script {
-                        notifyDiscord('Checkout')
+                        recordStageFailure('Checkout')
                     }
                 }
             }
 
             steps {
+                script { recordStage('Checkout', 'started') }
                 script {
                     def checkedOut = checkout(scm)
                     env.SMS_CHECKOUT_BRANCH = (
@@ -272,15 +398,19 @@ pipeline {
 
         stage('Check Environment') {
             post {
-                unsuccessful {
+                success { script { recordStage('Check Environment', 'passed') } }
+                aborted { script { recordStage('Check Environment', 'aborted') } }
+                unstable { script { recordStage('Check Environment', 'unstable') } }
+                failure {
                     script {
                         def detailFile = "${pwd(tmp: true)}/sms-${env.BUILD_NUMBER}-docker-ready.txt"
-                        notifyDiscord('Check Environment', fileExists(detailFile) ? 'docker-ready' : '')
+                        recordStageFailure('Check Environment', fileExists(detailFile) ? 'docker-ready' : '')
                     }
                 }
             }
 
             steps {
+                script { recordStage('Check Environment', 'started') }
                 script {
                     configureDocker()
                     def checks = [
@@ -302,14 +432,18 @@ pipeline {
 
         stage('Prepare') {
             post {
-                unsuccessful {
+                success { script { recordStage('Prepare', 'passed') } }
+                aborted { script { recordStage('Prepare', 'aborted') } }
+                unstable { script { recordStage('Prepare', 'unstable') } }
+                failure {
                     script {
-                        notifyDiscord('Prepare', 'prepare')
+                        recordStageFailure('Prepare', 'prepare')
                     }
                 }
             }
 
             steps {
+                script { recordStage('Prepare', 'started') }
                 executeStep('prepare')
             }
         }
@@ -319,7 +453,13 @@ pipeline {
             parallel {
 
                 stage('Backend Test') {
+                    post {
+                        success { script { recordStage('Backend Test', 'passed') } }
+                        aborted { script { recordStage('Backend Test', 'aborted') } }
+                        unstable { script { recordStage('Backend Test', 'unstable') } }
+                    }
                     steps {
+                        script { recordStage('Backend Test', 'started') }
                         script {
                             executeParallelStep('Backend Test', 'backend')
                         }
@@ -327,7 +467,13 @@ pipeline {
                 }
 
                 stage('Frontend Test') {
+                    post {
+                        success { script { recordStage('Frontend Test', 'passed') } }
+                        aborted { script { recordStage('Frontend Test', 'aborted') } }
+                        unstable { script { recordStage('Frontend Test', 'unstable') } }
+                    }
                     steps {
+                        script { recordStage('Frontend Test', 'started') }
                         script {
                             executeParallelStep('Frontend Test', 'frontend')
                         }
@@ -338,14 +484,18 @@ pipeline {
 
         stage('Validate Docker Compose') {
             post {
-                unsuccessful {
+                success { script { recordStage('Validate Docker Compose', 'passed') } }
+                aborted { script { recordStage('Validate Docker Compose', 'aborted') } }
+                unstable { script { recordStage('Validate Docker Compose', 'unstable') } }
+                failure {
                     script {
-                        notifyDiscord('Validate Docker Compose', 'monitoring-config')
+                        recordStageFailure('Validate Docker Compose', 'monitoring-config')
                     }
                 }
             }
 
             steps {
+                script { recordStage('Validate Docker Compose', 'started') }
                 withEnv(["IMAGE_TAG=${env.IMAGE_TAG}"]) {
                     runLocalCommand(
                         'docker compose -f compose.yaml -f compose.monitoring.yaml --profile monitoring config --quiet'
@@ -357,9 +507,12 @@ pipeline {
 
         stage('SonarQube Analysis') {
             post {
-                unsuccessful {
+                success { script { recordStage('SonarQube Analysis', 'passed') } }
+                aborted { script { recordStage('SonarQube Analysis', 'aborted') } }
+                unstable { script { recordStage('SonarQube Analysis', 'unstable') } }
+                failure {
                     script {
-                        notifyDiscord('SonarQube Analysis', 'sonar')
+                        recordStageFailure('SonarQube Analysis', 'sonar')
                     }
                 }
             }
@@ -376,6 +529,7 @@ pipeline {
             }
 
             steps {
+                script { recordStage('SonarQube Analysis', 'started') }
                 withSonarQubeEnv('sonarqube') {
                     executeStep('sonar')
                 }
@@ -384,9 +538,12 @@ pipeline {
 
         stage('SonarQube Quality Gate') {
             post {
-                unsuccessful {
+                success { script { recordStage('SonarQube Quality Gate', 'passed') } }
+                aborted { script { recordStage('SonarQube Quality Gate', 'aborted') } }
+                unstable { script { recordStage('SonarQube Quality Gate', 'unstable') } }
+                failure {
                     script {
-                        notifyDiscord('SonarQube Quality Gate')
+                        recordStageFailure('SonarQube Quality Gate')
                     }
                 }
             }
@@ -403,6 +560,7 @@ pipeline {
             }
 
             steps {
+                script { recordStage('SonarQube Quality Gate', 'started') }
                 timeout(time: 10, unit: 'MINUTES') {
                     script {
                         def gate = waitForQualityGate()
@@ -422,30 +580,39 @@ pipeline {
 
         stage('Build Docker Images') {
             post {
-                unsuccessful {
+                success { script { recordStage('Build Docker Images', 'passed') } }
+                aborted { script { recordStage('Build Docker Images', 'aborted') } }
+                unstable { script { recordStage('Build Docker Images', 'unstable') } }
+                failure {
                     script {
-                        notifyDiscord('Build Docker Images', 'build')
+                        recordStageFailure('Build Docker Images', 'build')
                     }
                 }
             }
 
             steps {
+                script { recordStage('Build Docker Images', 'started') }
                 // Build backend, frontend và migration.
                 // Build context được giữ ở thư mục gốc repository.
                 executeStep('build')
+                script { env.SMS_IMAGES_BUILT = 'true' }
             }
         }
 
         stage('MySQL Integration Tests') {
             post {
-                unsuccessful {
+                success { script { recordStage('MySQL Integration Tests', 'passed') } }
+                aborted { script { recordStage('MySQL Integration Tests', 'aborted') } }
+                unstable { script { recordStage('MySQL Integration Tests', 'unstable') } }
+                failure {
                     script {
-                        notifyDiscord('MySQL Integration Tests', 'mysql')
+                        recordStageFailure('MySQL Integration Tests', 'mysql')
                     }
                 }
             }
 
             steps {
+                script { recordStage('MySQL Integration Tests', 'started') }
                 // Database CI riêng, không sử dụng database local.
                 executeStep('mysql')
             }
@@ -464,7 +631,13 @@ pipeline {
             parallel {
 
                 stage('Dependency and Image Scan') {
+                    post {
+                        success { script { recordStage('Dependency and Image Scan', 'passed') } }
+                        aborted { script { recordStage('Dependency and Image Scan', 'aborted') } }
+                        unstable { script { recordStage('Dependency and Image Scan', 'unstable') } }
+                    }
                     steps {
+                        script { recordStage('Dependency and Image Scan', 'started') }
                         script {
                             executeParallelStep('Dependency and Image Scan', 'security')
                         }
@@ -472,7 +645,13 @@ pipeline {
                 }
 
                 stage('Secret Scan') {
+                    post {
+                        success { script { recordStage('Secret Scan', 'passed') } }
+                        aborted { script { recordStage('Secret Scan', 'aborted') } }
+                        unstable { script { recordStage('Secret Scan', 'unstable') } }
+                    }
                     steps {
+                        script { recordStage('Secret Scan', 'started') }
                         script {
                             executeParallelStep('Secret Scan', 'secrets')
                         }
@@ -483,9 +662,12 @@ pipeline {
 
         stage('Deploy Local Docker') {
             post {
-                unsuccessful {
+                success { script { recordStage('Deploy Local Docker', 'passed') } }
+                aborted { script { recordStage('Deploy Local Docker', 'aborted') } }
+                unstable { script { recordStage('Deploy Local Docker', 'unstable') } }
+                failure {
                     script {
-                        notifyDiscord('Deploy Local Docker', 'deploy-local')
+                        recordStageFailure('Deploy Local Docker', 'deploy-local')
                     }
                 }
             }
@@ -507,6 +689,7 @@ pipeline {
             }
 
             steps {
+                script { recordStage('Deploy Local Docker', 'started') }
                 script {
                     env.SMS_DEPLOY_STARTED = 'true'
                     env.SMS_DEPLOY_STAGE = 'Deploy Local Docker'
@@ -529,13 +712,17 @@ pipeline {
                 }
             }
             post {
-                unsuccessful {
+                success { script { recordStage('Deploy Server SSH', 'passed') } }
+                aborted { script { recordStage('Deploy Server SSH', 'aborted') } }
+                unstable { script { recordStage('Deploy Server SSH', 'unstable') } }
+                failure {
                     script {
-                        notifyDiscord('Deploy Server SSH', 'publish')
+                        recordStageFailure('Deploy Server SSH', 'publish')
                     }
                 }
             }
             steps {
+                script { recordStage('Deploy Server SSH', 'started') }
                 script {
                     if (env.SMS_CI_COMPLETED != 'true' || env.QUALITY_GATE_PASSED != 'true') {
                         error('Server deployment requires successful CI and SonarQube Quality Gate.')
@@ -550,6 +737,7 @@ pipeline {
                     ]) {
                         runPythonScript('scripts/deploy.py check-target')
                         executeStep('publish')
+                        env.SMS_IMAGES_PUBLISHED = 'true'
                         runPythonScript('scripts/deploy.py remote --manifest artifacts/reports/release.json')
                     }
                     env.SMS_DEPLOY_COMPLETED = 'true'
@@ -561,10 +749,6 @@ pipeline {
     post {
 
         always {
-            script {
-                transferIncident()
-            }
-
             junit(
                 testResults: 'backend/target/surefire-reports/*.xml,frontend/coverage/junit.xml',
                 allowEmptyResults: true
@@ -613,7 +797,9 @@ pipeline {
         cleanup {
             script {
                 transferIncident()
-                notifyDiscord(env.SMS_DEPLOY_COMPLETED == 'true' ? env.SMS_DEPLOY_STAGE : '')
+                if (env.SMS_INCIDENT_ACCEPTED != 'true') {
+                    notifyDiscord()
+                }
             }
         }
     }

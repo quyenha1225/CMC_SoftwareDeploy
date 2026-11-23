@@ -8,7 +8,8 @@
 **/*.log
 **/.npm-cache
 screenshots
-.secrets
+**/.secrets
+**/.secrets-ci
 artifacts
 backups
 
