@@ -63,6 +63,22 @@ class JenkinsReportsTests(unittest.TestCase):
         self.assertIn("Error response from daemon", text)
         self.assertNotRegex(text, "test-secret|webhooks|abcdefghijk")
 
+    def test_jenkinsfile_uses_sandbox_safe_stage_tracking_and_python_wrapper(self):
+        jenkins = (ROOT / "Jenkinsfile").read_text(encoding="utf-8")
+        groovy = jenkins.split("writeFile file: notifier, text: '''", 1)[0]
+        self.assertNotRegex(groovy, r"\\benv\\s*\\[")
+        self.assertNotIn("stageKey(", groovy)
+        self.assertIn("stageValue(it, 'state')", groovy)
+        self.assertIn("stageValue(it, 'detail')", groovy)
+        self.assertIn("stageValue(it, 'error')", groovy)
+        self.assertIn("call scripts/jenkins-python.cmd", jenkins)
+        self.assertNotIn("PYTHON_EXE", jenkins)
+        for stage in ("Checkout", "Check Environment", "Prepare", "Backend Test", "Frontend Test",
+                      "Validate Docker Compose", "SonarQube Analysis", "SonarQube Quality Gate",
+                      "Build Docker Images", "MySQL Integration Tests", "Dependency and Image Scan",
+                      "Secret Scan", "Deploy Local Docker", "Deploy Server SSH"):
+            self.assertIn("case '" + stage + "':", groovy)
+
     def test_direct_discord_has_one_embed_for_each_terminal_status(self):
         jenkins = (ROOT / "Jenkinsfile").read_text(encoding="utf-8")
         embedded = re.search(r"writeFile file: notifier, text: '''(.*?)'''", jenkins, re.S)[1]
