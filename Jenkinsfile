@@ -208,7 +208,7 @@ def runPythonScript(String arguments) {
     if (isUnix()) {
         sh "python3 ${arguments}"
     } else {
-        bat "call scripts/jenkins-python.cmd ${arguments}"
+        bat "call \"${env.WORKSPACE}/scripts/jenkins-python.cmd\" ${arguments}"
     }
 }
 
