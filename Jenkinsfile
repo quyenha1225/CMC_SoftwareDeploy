@@ -335,16 +335,16 @@ if result == "NOT_BUILT":
     fields.append("Build did not execute. See Jenkins for details.")
 embed_fields = []
 if env.get("SMS_STAGE_SUMMARY") and result != "STARTED":
-    embed_fields.append({"name": "Stages", "value": env["SMS_STAGE_SUMMARY"][:1000]})
+    embed_fields.append({"name": "Stages", "value": env["SMS_STAGE_SUMMARY"][:800]})
 if env.get("SMS_STAGE_ERRORS") and result != "STARTED":
-    embed_fields.insert(0, {"name": "Evidence", "value": env["SMS_STAGE_ERRORS"][:950]})
+    embed_fields.insert(0, {"name": "Evidence", "value": env["SMS_STAGE_ERRORS"][:800]})
 if summary:
-    embed_fields.append({"name": "Checks and images", "value": chr(10).join(summary)[:1000]})
+    embed_fields.append({"name": "Checks and images", "value": chr(10).join(summary)[:800]})
 payload = {
     "username": "SMS Jenkins",
     "allowed_mentions": {"parse": []},
     "embeds": [{"title": "Jenkins " + result + (" - " + stage if stage else ""),
-                "description": chr(10).join(fields)[:3500],
+                "description": chr(10).join(fields)[:2800],
                 "color": {"SUCCESS": 0x2ecc71, "FAILURE": 0xe74c3c, "UNSTABLE": 0xf1c40f,
                           "STARTED": 0x3498db}.get(result, 0x7f8c8d),
                 "fields": embed_fields}],
