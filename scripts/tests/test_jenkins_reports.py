@@ -102,6 +102,14 @@ class JenkinsReportsTests(unittest.TestCase):
                 embed, = json.loads(opener.open.call_args.args[0].data)["embeds"]
                 self.assertIn(status, embed["title"])
                 self.assertIn("#54", embed["description"])
+                self.assertLessEqual(len(embed["title"]), 256)
+                self.assertLessEqual(len(embed["description"]), 4096)
+                for field in embed.get("fields", []):
+                    self.assertLessEqual(len(field["name"]), 256)
+                    self.assertLessEqual(len(field["value"]), 1024)
+                total_chars = len(embed["title"]) + len(embed["description"])
+                total_chars += sum(len(field["name"]) + len(field["value"]) for field in embed.get("fields", []))
+                self.assertLessEqual(total_chars, 6000)
                 if status == "FAILURE":
                     self.assertIn("Docker mount denied", embed["fields"][0]["value"])
                 if status == "SUCCESS":
