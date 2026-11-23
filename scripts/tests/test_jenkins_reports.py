@@ -72,6 +72,7 @@ class JenkinsReportsTests(unittest.TestCase):
         self.assertIn("stageValue(it, 'detail')", groovy)
         self.assertIn("stageValue(it, 'error')", groovy)
         self.assertIn("call scripts/jenkins-python.cmd", jenkins)
+        self.assertIn("env.WORKSPACE", groovy)
         self.assertNotIn("PYTHON_EXE", jenkins)
         for stage in ("Checkout", "Check Environment", "Prepare", "Backend Test", "Frontend Test",
                       "Validate Docker Compose", "SonarQube Analysis", "SonarQube Quality Gate",
