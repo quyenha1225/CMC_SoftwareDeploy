@@ -63,6 +63,23 @@ class JenkinsReportsTests(unittest.TestCase):
         self.assertIn("Error response from daemon", text)
         self.assertNotRegex(text, "test-secret|webhooks|abcdefghijk")
 
+    def test_jenkinsfile_uses_sandbox_safe_stage_tracking_and_python_wrapper(self):
+        jenkins = (ROOT / "Jenkinsfile").read_text(encoding="utf-8")
+        groovy = jenkins.split("writeFile file: notifier, text: '''", 1)[0]
+        self.assertNotRegex(groovy, r"\benv\s*\[")
+        self.assertNotIn("stageKey(", groovy)
+        self.assertIn("stageValue(it, 'state')", groovy)
+        self.assertIn("stageValue(it, 'detail')", groovy)
+        self.assertIn("stageValue(it, 'error')", groovy)
+        self.assertIn("call scripts/jenkins-python.cmd", jenkins)
+        self.assertIn("env.WORKSPACE", groovy)
+        self.assertNotIn("PYTHON_EXE", jenkins)
+        for stage in ("Checkout", "Check Environment", "Prepare", "Backend Test", "Frontend Test",
+                      "Validate Docker Compose", "SonarQube Analysis", "SonarQube Quality Gate",
+                      "Build Docker Images", "MySQL Integration Tests", "Dependency and Image Scan",
+                      "Secret Scan", "Deploy Local Docker", "Deploy Server SSH"):
+            self.assertIn("case '" + stage + "':", groovy)
+
     def test_direct_discord_has_one_embed_for_each_terminal_status(self):
         jenkins = (ROOT / "Jenkinsfile").read_text(encoding="utf-8")
         embedded = re.search(r"writeFile file: notifier, text: '''(.*?)'''", jenkins, re.S)[1]
@@ -86,6 +103,14 @@ class JenkinsReportsTests(unittest.TestCase):
                 embed, = json.loads(opener.open.call_args.args[0].data)["embeds"]
                 self.assertIn(status, embed["title"])
                 self.assertIn("#54", embed["description"])
+                self.assertLessEqual(len(embed["title"]), 256)
+                self.assertLessEqual(len(embed["description"]), 4096)
+                for field in embed.get("fields", []):
+                    self.assertLessEqual(len(field["name"]), 256)
+                    self.assertLessEqual(len(field["value"]), 1024)
+                total_chars = len(embed["title"]) + len(embed["description"])
+                total_chars += sum(len(field["name"]) + len(field["value"]) for field in embed.get("fields", []))
+                self.assertLessEqual(total_chars, 6000)
                 if status == "FAILURE":
                     self.assertIn("Docker mount denied", embed["fields"][0]["value"])
                 if status == "SUCCESS":

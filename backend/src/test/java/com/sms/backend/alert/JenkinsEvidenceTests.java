@@ -71,6 +71,19 @@ class JenkinsEvidenceTests {
         assertThat(evidence.facts()).contains("FAIL checkout.test.jsx", "[ERROR] Checkout.java:[5,7] cannot find symbol");
     }
 
+    @Test
+    void retainsCheckEvidenceWhenParallelStagesAreActive() {
+        var evidence = JenkinsEvidence.from("""
+                CI stage started: Backend Test
+                CI stage started: Frontend Test
+                CI check: Maven backend tests
+                CI check: npm frontend tests
+                CI stage failed: Backend Test
+                CI stage failed: Frontend Test
+                """, "FAILURE");
+        assertThat(evidence.facts()).contains("CI check: Maven backend tests", "CI check: npm frontend tests");
+    }
+
     @ParameterizedTest
     @CsvSource({"SUCCESS,UNKNOWN", "FAILURE,UNKNOWN", "UNSTABLE,UNKNOWN", "ABORTED,ABORTED", "NOT_BUILT,UNKNOWN"})
     void genericOutputNeverInventsACause(String result, String category) {

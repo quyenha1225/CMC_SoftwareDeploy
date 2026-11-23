@@ -79,6 +79,7 @@ record JenkinsEvidence(Map<String, Set<String>> stages, List<String> facts, List
                 truncated = true;
             } else if (line.startsWith("CI check:")) {
                 if (active.size() == 1) checks.put(active.getFirst(), cut(line, 550));
+                else add(facts, line, 18);
             } else if (line.startsWith("CI report:") || line.startsWith("CI test failure:")
                     || line.startsWith("CI security finding:")) {
                 add(detail, line, 12);

@@ -262,10 +262,10 @@ public class JenkinsIncidents {
                 case "confidence" -> "Tin cậy";
                 default -> "Giới hạn";
             };
-            sections.add("**" + heading + "** " + JenkinsEvidence.cut(redact(value), 185));
+            sections.add("**" + heading + "** " + JenkinsEvidence.cut(redact(value), 140));
         }
         if (referenceId >= 0) {
-            sections.add(1, "**Dòng AI dựa vào** " + JenkinsEvidence.cut(evidence.facts().get(referenceId), 120));
+            sections.add(1, "**Dòng AI dựa vào** " + JenkinsEvidence.cut(evidence.facts().get(referenceId), 100));
         }
         return String.join("\n", sections);
     }
