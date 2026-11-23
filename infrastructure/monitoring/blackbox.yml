@@ -4,3 +4,6 @@ modules:
     timeout: 5s
     http:
       method: GET
+  tcp_connect:
+    prober: tcp
+    timeout: 5s

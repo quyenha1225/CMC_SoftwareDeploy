@@ -26,6 +26,10 @@ scrape_configs:
     static_configs:
       - targets: ['node-exporter:9100']
 
+  - job_name: sms-monitoring
+    static_configs:
+      - targets: ['prometheus:9090', 'alertmanager:9093', 'grafana:3000']
+
   - job_name: sms-frontend-probe
     metrics_path: /probe
     params:
@@ -46,4 +50,12 @@ scrape_configs:
       module: [http_2xx]
     static_configs:
       - targets: ['http://backend:9092/actuator/health/readiness']
+    relabel_configs: *blackbox_relabel
+
+  - job_name: sms-mysql-probe
+    metrics_path: /probe
+    params:
+      module: [tcp_connect]
+    static_configs:
+      - targets: ['db:3306']
     relabel_configs: *blackbox_relabel

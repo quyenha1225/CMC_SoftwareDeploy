@@ -14,11 +14,42 @@ groups:
         annotations:
           summary: "Backend còn xuất metrics nhưng readiness lỗi. Kiểm tra MySQL và backend."
       - alert: SMSHealthProbeUnavailable
-        expr: up{job=~"sms-frontend-probe|sms-backend-readiness-probe"} == 0
+        expr: up{job=~"sms-(frontend|backend-readiness|mysql)-probe"} == 0
         for: 2m
         labels: {severity: warning}
         annotations:
-          summary: "Prometheus không thu được kết quả kiểm tra HTTP từ Blackbox Exporter."
+          summary: "Prometheus không thu được kết quả probe từ Blackbox Exporter."
+      - alert: SMSMySQLUnreachable
+        expr: probe_success{job="sms-mysql-probe"} == 0
+        for: 2m
+        labels: {severity: critical}
+        annotations:
+          summary: "Blackbox không kết nối được tới cổng MySQL nội bộ."
+          description: "Kiểm tra trạng thái db, log MySQL và mạng Docker data."
+      - alert: SMSMonitoringTargetDown
+        expr: up{job=~"sms-monitoring|sms-node|sms-cadvisor"} == 0
+        for: 2m
+        labels: {severity: warning}
+        annotations:
+          summary: "Prometheus không đọc được metrics của {{ $labels.instance }}."
+      - alert: SMSAlertDeliveryFailed
+        expr: increase(alertmanager_notifications_failed_total{job="sms-monitoring"}[10m]) > 0
+        labels: {severity: warning}
+        annotations:
+          summary: "Alertmanager có lỗi gửi thông báo qua {{ $labels.integration }}."
+          description: "Kiểm tra webhook và log Alertmanager."
+      - alert: SMSHostMemoryLow
+        expr: node_memory_MemAvailable_bytes{job="sms-node"} / node_memory_MemTotal_bytes{job="sms-node"} < 0.10
+        for: 5m
+        labels: {severity: warning}
+        annotations:
+          summary: "Máy chạy Docker còn dưới 10% RAM khả dụng."
+      - alert: SMSHostCPUHigh
+        expr: 1 - avg by (instance, job) (rate(node_cpu_seconds_total{job="sms-node",mode="idle"}[5m])) > 0.90
+        for: 10m
+        labels: {severity: warning}
+        annotations:
+          summary: "CPU máy chạy Docker trên 90% trong 10 phút."
       - alert: DiskSpaceLow
         expr: 100 * min(node_filesystem_avail_bytes{fstype!~"tmpfs|overlay|squashfs"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay|squashfs"}) < 15
         for: 10m

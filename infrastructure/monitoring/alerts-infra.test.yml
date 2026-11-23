@@ -29,7 +29,7 @@ tests:
         exp_alerts:
           - exp_labels: {job: sms-frontend-probe, severity: warning}
             exp_annotations:
-              summary: "Prometheus không thu được kết quả kiểm tra HTTP từ Blackbox Exporter."
+              summary: "Prometheus không thu được kết quả probe từ Blackbox Exporter."
       - {alertname: SMSHealthProbeUnavailable, eval_time: 4m, exp_alerts: []}
 
   - interval: 1m
@@ -60,3 +60,18 @@ tests:
           - exp_labels: {job: sms-node, volume: mysql_data, severity: warning}
             exp_annotations:
               summary: "Số liệu dung lượng volume bị thiếu hoặc file volumes.prom ngừng cập nhật."
+
+  - interval: 1m
+    input_series:
+      - series: 'probe_success{job="sms-mysql-probe",instance="db:3306"}'
+        values: '1 0 0 0 1'
+    alert_rule_test:
+      - {alertname: SMSMySQLUnreachable, eval_time: 2m, exp_alerts: []}
+      - alertname: SMSMySQLUnreachable
+        eval_time: 3m
+        exp_alerts:
+          - exp_labels: {job: sms-mysql-probe, instance: 'db:3306', severity: critical}
+            exp_annotations:
+              summary: "Blackbox không kết nối được tới cổng MySQL nội bộ."
+              description: "Kiểm tra trạng thái db, log MySQL và mạng Docker data."
+      - {alertname: SMSMySQLUnreachable, eval_time: 4m, exp_alerts: []}

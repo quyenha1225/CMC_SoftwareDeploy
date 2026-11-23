@@ -2,8 +2,10 @@
 # Chạy: docker compose -f compose.yaml -f compose.monitoring.yaml --profile monitoring up -d
 services:
   prometheus:
+    labels:
+      sms.monitoring.revision: ${SMS_MONITORING_REVISION:-local}
     volumes:
-      - ./infrastructure/monitoring/alerts-infra.yml:/etc/prometheus/alerts-infra.yml:ro
+      - ${SMS_MONITORING_DIR:-./infrastructure/monitoring}/alerts-infra.yml:/etc/prometheus/alerts-infra.yml:ro
 
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:v0.49.1
@@ -39,7 +41,7 @@ services:
     restart: unless-stopped
     command: [sh, /volume-size.sh]
     volumes:
-      - ./infrastructure/monitoring/volume-size.sh:/volume-size.sh:ro
+      - ${SMS_MONITORING_DIR:-./infrastructure/monitoring}/volume-size.sh:/volume-size.sh:ro
       - metrics_textfile:/textfile
       - mysql_data:/vols/mysql_data:ro
       - private_files:/vols/private_files:ro
@@ -56,9 +58,11 @@ services:
     image: prom/blackbox-exporter:v0.26.0
     profiles: [monitoring]
     restart: unless-stopped
+    labels:
+      sms.monitoring.revision: ${SMS_MONITORING_REVISION:-local}
     volumes:
-      - ./infrastructure/monitoring/blackbox.yml:/etc/blackbox_exporter/config.yml:ro
-    networks: [app, observability]
+      - ${SMS_MONITORING_DIR:-./infrastructure/monitoring}/blackbox.yml:/etc/blackbox_exporter/config.yml:ro
+    networks: [app, data, observability]
     cap_drop: [ALL]
     security_opt: [no-new-privileges:true]
     logging:
@@ -70,15 +74,18 @@ services:
     profiles: [monitoring]
     restart: unless-stopped
     entrypoint: [sh, /alertmanager-entrypoint.sh]
+    labels:
+      sms.monitoring.revision: ${SMS_MONITORING_REVISION:-local}
     environment:
       ALERT_TELEGRAM_BOT_TOKEN: ${ALERT_TELEGRAM_BOT_TOKEN:-}
       ALERT_TELEGRAM_CHAT_ID: ${ALERT_TELEGRAM_CHAT_ID:-}
     ports: ['127.0.0.1:${ALERTMANAGER_PORT:-9093}:9093']
     secrets: [discord_webhook_url]
     volumes:
-      - ./infrastructure/monitoring/alertmanager-entrypoint.sh:/alertmanager-entrypoint.sh:ro
-      - ./infrastructure/monitoring/alertmanager.tmpl.yml:/etc/alertmanager/alertmanager.tmpl.yml:ro
-      - ./infrastructure/monitoring/alertmanager.null.yml:/etc/alertmanager/alertmanager.null.yml:ro
+      - alertmanager_data:/alertmanager
+      - ${SMS_MONITORING_DIR:-./infrastructure/monitoring}/alertmanager-entrypoint.sh:/alertmanager-entrypoint.sh:ro
+      - ${SMS_MONITORING_DIR:-./infrastructure/monitoring}/alertmanager.tmpl.yml:/etc/alertmanager/alertmanager.tmpl.yml:ro
+      - ${SMS_MONITORING_DIR:-./infrastructure/monitoring}/alertmanager.null.yml:/etc/alertmanager/alertmanager.null.yml:ro
     # monitoring_edge không phải mạng internal nên gửi được ra api.telegram.org;
     # Prometheus cũng nằm trong mạng này nên gọi được alertmanager:9093.
     networks: [monitoring_edge]
@@ -90,3 +97,4 @@ services:
 
 volumes:
   metrics_textfile: {}
+  alertmanager_data: {}

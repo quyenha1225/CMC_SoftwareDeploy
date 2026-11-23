@@ -100,8 +100,8 @@ services:
     command: [--config.file=/etc/prometheus/prometheus.yml, --storage.tsdb.retention.time=15d]
     ports: ['127.0.0.1:${PROMETHEUS_PORT:-9090}:9090']
     volumes:
-      - ./infrastructure/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - ./infrastructure/monitoring/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - ${SMS_MONITORING_DIR:-./infrastructure/monitoring}/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ${SMS_MONITORING_DIR:-./infrastructure/monitoring}/alerts.yml:/etc/prometheus/alerts.yml:ro
       - prometheus_data:/prometheus
     networks: [observability, monitoring_edge]
     logging: *logging
@@ -120,8 +120,8 @@ services:
     secrets: [grafana_password]
     volumes:
       - grafana_data:/var/lib/grafana
-      - ./infrastructure/monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
-      - ./infrastructure/monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - ${SMS_MONITORING_DIR:-./infrastructure/monitoring}/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ${SMS_MONITORING_DIR:-./infrastructure/monitoring}/grafana/dashboards:/var/lib/grafana/dashboards:ro
     networks: [observability, monitoring_edge]
     depends_on: [prometheus]
     logging: *logging

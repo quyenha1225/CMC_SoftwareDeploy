@@ -46,11 +46,42 @@ Backend management :9092 và MySQL :3306 không publish ra host. Nginx chỉ cho
 ### Thông báo Discord
 
 - **Kênh giám sát hệ thống** dùng webhook riêng trong `.secrets/discord_webhook_url` hoặc file cùng tên trong `SMS_SECRETS_DIR`. Backend gửi trạng thái sẵn sàng và lỗi 5xx. Alertmanager gửi mức độ, tên cảnh báo, thành phần, tóm tắt lỗi và trạng thái phục hồi. Lệnh `python scripts/docker.py init` tạo file rỗng cho môi trường mới. Với môi trường cũ chưa có file, chạy `python scripts/docker.py config` trước khi chạy Compose trực tiếp. File rỗng tắt Discord. Nếu chạy backend ngoài Docker, đặt biến môi trường `DISCORD_WEBHOOK_URL`.
-- **Kênh CI/CD** dùng webhook của kênh Discord khác, lưu trong Jenkins dưới dạng **Secret text** với ID `sms-discord-webhook`. Khi một stage lỗi, thông báo ghi tên stage, bước kiểm tra nếu có, branch, commit và link console để tra chi tiết. Cuối pipeline gửi tổng kết lỗi hoặc thông báo triển khai local thành công.
+- **Kênh CI/CD** dùng webhook riêng của `#jenkins`, lưu trong Jenkins với ID `sms-discord-webhook`. Dùng **Secret text** với URL, hoặc **Secret file** với file `jenkins_discord_webhook_url`. Khi một stage lỗi, thông báo ghi tên stage, bước kiểm tra nếu có, branch, commit và link console. Cuối pipeline gửi tổng kết CI/CD.
 - **Backend** thông báo khi sẵn sàng và khi có lỗi HTTP 5xx, kèm mẫu route. **Alertmanager** gửi cảnh báo và tin phục hồi theo các rule Prometheus, gồm backend, frontend, tỷ lệ 5xx, độ trễ, dung lượng đĩa và volume. Nếu đã cấu hình Telegram, Alertmanager gửi qua cả hai kênh.
 - Trên staging hoặc production, dùng `-f compose.prod.yaml -f compose.monitoring.yaml --profile monitoring` với các image digest của bản phát hành. Sau khi cập nhật webhook, tạo lại container backend và Alertmanager để cả hai đọc cấu hình mới.
 
-Với profile monitoring và file `compose.monitoring.yaml`, Blackbox kiểm tra readiness của backend, bao gồm kết nối MySQL. Prometheus phát cảnh báo nếu readiness lỗi liên tục hai phút trong khi backend vẫn xuất metrics, nếu mất kết quả probe HTTP, hoặc nếu số liệu volume thiếu hay ngừng cập nhật. Alertmanager gửi cảnh báo và trạng thái phục hồi tới Discord. Có thể kiểm tra các tình huống này bằng `promtool test rules infrastructure/monitoring/alerts-infra.test.yml`.
+CD local cập nhật stack giám sát sau smoke test của ứng dụng. Prometheus thu metrics, Grafana hiển thị dashboard **SMS infrastructure**, Alertmanager gửi cảnh báo lỗi và phục hồi tới `#giám-sát-hệ-thống`. Kênh `#jenkins` nhận trạng thái và lỗi của CI/CD từ Jenkins.
+
+#### Bản tin trạng thái Discord
+
+Chạy từ thư mục gốc để xem trạng thái ngay hoặc gửi bản tin vào kênh giám sát.
+
+```powershell
+python scripts/monitoring_status.py
+python scripts/monitoring_status.py --discord
+```
+
+Trên Windows, đặt lịch mỗi giờ trong Task Scheduler. Lệnh dưới đây tạo tác vụ chạy theo tài khoản đang đăng nhập, bắt đầu sau một giờ.
+
+```powershell
+$smsPython = (Get-Command python -CommandType Application | Select-Object -First 1).Source
+$smsScript = (Resolve-Path scripts/monitoring_status.py).Path
+$smsAction = New-ScheduledTaskAction -Execute $smsPython -Argument ('"{0}" --discord' -f $smsScript)
+$smsTrigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddHours(1) -RepetitionInterval (New-TimeSpan -Hours 1)
+Register-ScheduledTask -TaskName 'SMS Monitoring Discord Status' -Action $smsAction -Trigger $smsTrigger
+```
+
+Bản tin dùng số liệu tức thời từ Prometheus và liệt kê các cảnh báo đang phát. MySQL được kiểm tra qua kết nối TCP. Khi Prometheus không phản hồi, bản tin báo chưa xác định trạng thái. Máy chạy tác vụ cần hoạt động và tài khoản thực thi cần đọc được webhook.
+
+| Thành phần | Theo dõi |
+|---|---|
+| Frontend | HTTP `/healthz` và độ trễ probe |
+| Backend | Scrape metrics, HTTP readiness, tỷ lệ HTTP 5xx và p95 GET |
+| MySQL | Kết nối TCP nội bộ, readiness của backend và dung lượng volume. Smoke test CD kiểm tra thêm SQL |
+| Máy chạy Docker | CPU, RAM khả dụng, dung lượng đĩa, số liệu volume. Grafana hiển thị CPU/RAM từng container |
+| Hệ thống giám sát | Scrape Prometheus, Alertmanager, Grafana, Node Exporter và cAdvisor, probe Blackbox bị mất, lỗi gửi thông báo Alertmanager |
+
+Chạy `python scripts/ci.py monitoring-config` để kiểm tra cấu hình Prometheus và tình huống alert phát sinh/phục hồi. Sau deploy, mở Prometheus **Status → Targets** để xem trạng thái từng nguồn. Nếu Prometheus, Alertmanager, Docker host hoặc đường gửi Discord đều mất, cần một dịch vụ giám sát bên ngoài stack để phát cảnh báo về sự cố đó.
 
 Nếu Prometheus đang chạy khi cập nhật rule, dùng cùng các tùy chọn Compose ở trên với lệnh `restart prometheus` để nạp lại cấu hình.
 

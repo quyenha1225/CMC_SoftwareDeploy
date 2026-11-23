@@ -139,19 +139,23 @@ def notifyDiscord(String stageName = '', String step = '', String result = '') {
                 sendDiscord(stageName, step, result)
             }
         } catch (org.jenkinsci.plugins.credentialsbinding.impl.CredentialNotFoundException missing) {
-            if (!env.CHANGE_ID && !env.TAG_NAME && env.SMS_DISCORD_WEBHOOK_FILE &&
-                (env.SMS_CHECKOUT_BRANCH in ['quyen/admin', 'develop'])) {
-                withEnv(['DISCORD_WEBHOOK_URL=']) {
+            try {
+                withCredentials([file(credentialsId: 'sms-discord-webhook', variable: 'SMS_DISCORD_WEBHOOK_FILE')]) {
                     sendDiscord(stageName, step, result)
                 }
-            } else {
-                echo 'CI/CD Discord credential sms-discord-webhook is missing or is not accessible to this job.'
+            } catch (org.jenkinsci.plugins.credentialsbinding.impl.CredentialNotFoundException missingFile) {
+                if (!env.CHANGE_ID && !env.TAG_NAME && env.SMS_DISCORD_WEBHOOK_FILE &&
+                    (env.SMS_CHECKOUT_BRANCH in ['quyen/admin', 'develop'])) {
+                    sendDiscord(stageName, step, result)
+                } else {
+                    echo 'CI/CD Discord credential sms-discord-webhook is missing or inaccessible. Use Secret text or Secret file.'
+                }
             }
         }
     } catch (org.jenkinsci.plugins.workflow.steps.FlowInterruptedException interrupted) {
         throw interrupted
     } catch (Exception ignored) {
-        echo 'CI/CD Discord notifier could not run. Check Secret text binding, Python and the Jenkins agent.'
+        echo 'CI/CD Discord notifier could not run. Check credential binding, Python and the Jenkins agent.'
     }
 }
 
@@ -221,6 +225,7 @@ pipeline {
                     }
 
                     echo "Building commit: ${env.IMAGE_TAG} on ${env.SMS_CHECKOUT_BRANCH ?: 'unknown branch'}"
+                    notifyDiscord('Checkout', '', 'STARTED')
                 }
             }
         }
@@ -295,7 +300,7 @@ pipeline {
             post {
                 unsuccessful {
                     script {
-                        notifyDiscord('Validate Docker Compose')
+                        notifyDiscord('Validate Docker Compose', 'monitoring-config')
                     }
                 }
             }
@@ -303,9 +308,10 @@ pipeline {
             steps {
                 withEnv(["IMAGE_TAG=${env.IMAGE_TAG}"]) {
                     runLocalCommand(
-                        'docker compose -f compose.yaml config --quiet'
+                        'docker compose -f compose.yaml -f compose.monitoring.yaml --profile monitoring config --quiet'
                     )
                 }
+                executeStep('monitoring-config')
             }
         }
 
@@ -514,7 +520,7 @@ pipeline {
 
         cleanup {
             script {
-                notifyDiscord()
+                notifyDiscord(env.SMS_DEPLOY_COMPLETED == 'true' ? 'Deploy Local Docker' : '')
             }
         }
     }

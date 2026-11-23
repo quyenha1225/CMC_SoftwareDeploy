@@ -59,6 +59,7 @@ class OperationsTests(unittest.TestCase):
                 patch.object(ci, 'backup', side_effect=lambda _: events.append('backup')), \
                 patch.object(ci, 'smoke', side_effect=lambda _: events.append('smoke')):
             ci.deploy_local()
+        overlay = ('-f', str(ci.ROOT / 'compose.monitoring.yaml'), '--profile', 'monitoring')
         self.assertEqual(events, [
             ('config', '--quiet'),
             ('ps', '--status', 'running', '--services', 'db', 'backend'),
@@ -66,7 +67,9 @@ class OperationsTests(unittest.TestCase):
             ('up', '-d', '--no-build', '--wait', '--wait-timeout', '300', 'frontend', 'backend'),
             ('--profile', 'tools', 'run', '--rm', 'provision'),
             'smoke',
-            ('ps',),
+            (*overlay, 'up', '-d', '--no-build', '--wait', '--wait-timeout', '180',
+             'prometheus', 'grafana', 'alertmanager', 'blackbox', 'cadvisor', 'node-exporter', 'volume-size'),
+            (*overlay, 'ps'),
         ])
 
     def test_ci_creates_and_loads_images_from_the_dedicated_builder(self):

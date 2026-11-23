@@ -1,5 +1,6 @@
 """Cross-platform commands used by Jenkins; no secrets appear in command arguments."""
 import argparse
+import hashlib
 import json
 import datetime as dt
 import os
@@ -161,8 +162,19 @@ def deploy_local():
     runtime.run('--profile', 'tools', 'run', '--rm', 'provision')
     record_check('Run HTTP, role login and SQL smoke checks')
     smoke(runtime)
+    record_check('Deploy Prometheus, Grafana, Alertmanager and infrastructure exporters')
+    monitoring = ROOT / 'infrastructure/monitoring'
+    revision = hashlib.sha256()
+    for config in sorted(path for path in monitoring.iterdir() if path.is_file()):
+        revision.update(config.name.encode())
+        revision.update(hashlib.sha256(config.read_bytes()).digest())
+    os.environ['SMS_MONITORING_DIR'] = monitoring.as_posix()
+    os.environ['SMS_MONITORING_REVISION'] = revision.hexdigest()
+    overlay = ('-f', str(ROOT / 'compose.monitoring.yaml'), '--profile', 'monitoring')
+    runtime.run(*overlay, 'up', '-d', '--no-build', '--wait', '--wait-timeout', '180',
+                'prometheus', 'grafana', 'alertmanager', 'blackbox', 'cadvisor', 'node-exporter', 'volume-size')
     record_check('Read Docker container status')
-    runtime.run('ps')
+    runtime.run(*overlay, 'ps')
 
 
 def wait_for_docker():
@@ -203,6 +215,15 @@ def main(step):
     record_check(step)
     if step=='docker-ready':
         wait_for_docker()
+    elif step=='monitoring-config':
+        root = (ROOT / 'infrastructure/monitoring').as_posix()
+        command = docker_command() + ['run', '--rm', '--network', 'none', '--entrypoint', '/bin/promtool',
+                                      '--mount', f'type=bind,source={root},target=/etc/prometheus,readonly',
+                                      '--workdir', '/etc/prometheus', 'prom/prometheus:v3.4.1']
+        record_check('Validate Prometheus scrape configuration and alert rules')
+        run(command + ['check', 'config', '/etc/prometheus/prometheus.yml'])
+        record_check('Test Prometheus alert firing and recovery rules')
+        run(command + ['test', 'rules', 'alerts-infra.test.yml'])
     elif step=='prepare':
         run([sys.executable,'-m','unittest','discover','-s','scripts/tests','-v'])
         for command in [['java','-version'],['node','--version'],[NPM,'--version'],docker_command()+['version'],docker_command()+['compose','version']]:run(command)
@@ -342,6 +363,6 @@ def main(step):
 
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('step',choices=['docker-ready','prepare','backend','frontend','sonar','build','deploy-local','mysql','security','secrets','publish'])
+    parser.add_argument('step',choices=['docker-ready','monitoring-config','prepare','backend','frontend','sonar','build','deploy-local','mysql','security','secrets','publish'])
     try:main(parser.parse_args().step)
     except (RuntimeError,subprocess.SubprocessError,OSError) as error:print(str(error),file=sys.stderr);sys.exit(1)

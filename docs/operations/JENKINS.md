@@ -14,19 +14,18 @@ Jenkinsfile hỗ trợ agent Windows/Linux, label **sms-docker**, có Java 21, N
 
 | Stage | Lệnh / kết quả |
 |---|---|
-| Checkout/Prepare | SHA, dirty flag, công cụ; `python scripts/ci.py prepare` |
+| Checkout / Check Environment / Prepare | Checkout đúng SHA, gửi thông báo bắt đầu, kiểm tra Python, Java, Docker và Chrome, chuẩn bị BuildKit và chạy test công cụ |
 | Backend | Maven Wrapper clean verify, JUnit và JaCoCo |
 | Frontend | npm ci → lint → API tests + Vitest/RTL + coverage/JUnit → build |
+| Validate Docker Compose | Render Compose kèm profile giám sát. Promtool kiểm tra cấu hình scrape, các rule và test cảnh báo khi lỗi/phục hồi |
 | Sonar/Quality Gate | Token từ Jenkins, waitForQualityGate; lỗi chặn các bước sau |
 | Image Build | 3 image tag full commit SHA, gồm image migration bất biến |
 | MySQL Integration | DB riêng `sms_ci_*`, Flyway, 15 login, 8 luồng/kiểm tra nghiệp vụ, 6 vai trò trên trình duyệt, health/SQL, backup/restore và restart; xóa đúng volume CI sau test |
 | Security | npm audit mức Critical; Trivy dependency/images chặn Critical; secret scan riêng chặn mọi severity, report che giá trị bí mật |
-| Publish | Chỉ develop/main/tag tin cậy, không PR; ghi digest 3 image vào `artifacts/reports/release.json` |
-| Staging | Chỉ develop và bật tham số DEPLOY_STAGING |
-| Production | main/tag v*, bật tham số và thành viên nhóm `sms-release-approvers` phê duyệt |
-| Post | JUnit, coverage, build/release/scan JSON; không archive secrets/SQL dump |
+| Deploy Local Docker | Branch `quyen/admin` hoặc `develop`, build thường. Backup nếu DB/backend đang chạy, chạy migration, khởi động app bằng image đã test, provision tài khoản demo, chạy smoke test và cập nhật stack giám sát |
+| Post | Lưu JUnit, coverage và báo cáo CI. Gửi tổng kết trên Discord với trạng thái CI/CD và link console |
 
-PR từ fork không được nhận Sonar credential; không publish/deploy từ PR. Agent kiểm thử PR không được đặt chung secrets production. Với các PR tin cậy, Sonar gate là bắt buộc trước publish. Lint hiện phân biệt lỗi với cảnh báo unused code cũ; 0 lỗi là điều kiện qua, cảnh báo vẫn nằm trong log.
+Job hiện tại triển khai Docker local. Registry, staging và production là luồng phát hành riêng. SonarQube chạy trên build nhánh khi bật tham số RUN_SONAR, mặc định bật. PR chạy các kiểm tra phù hợp và không deploy. Lỗi ở một gate chặn các bước triển khai sau đó.
 
 ## Credentials và thông số
 
@@ -35,7 +34,7 @@ PR từ fork không được nhận Sonar credential; không publish/deploy từ
 | github-read | GitHub App/token | Cấu hình repository trong Multibranch, quyền đọc tối thiểu |
 | registry-push | Username/password | Registry token chỉ push repository cần thiết |
 | sonar-token | Secret text | Gắn vào SonarQube server của Jenkins |
-| sms-discord-webhook | Secret text | URL webhook của kênh CI/CD. Job dùng credential này để báo ngay khi stage lỗi. |
+| sms-discord-webhook | Secret text hoặc Secret file | Webhook của kênh `#jenkins`. Với Secret text, dán URL. Với Secret file, dùng file `jenkins_discord_webhook_url`. Scope Global. |
 | vps-ssh | SSH private key | Deploy user, không gửi key vào chat/Git |
 | vps-known-hosts | Secret file | Host key đã xác minh ngoài kênh; StrictHostKeyChecking=yes |
 | REGISTRY_NAMESPACE | Job parameter | Ví dụ ghcr.io/ten-nhom; chưa có thì không bật publish release |
@@ -43,7 +42,7 @@ PR từ fork không được nhận Sonar credential; không publish/deploy từ
 
 Registry password truyền qua stdin, không nằm trong lệnh. Jenkins Credentials masking không ngăn script độc hại lấy secret; chỉ chạy credential stages trên nhánh đã review và agent tin cậy.
 
-Jenkins gửi thông báo khi CD bắt đầu, khi stage lỗi và khi pipeline kết thúc. Nội dung cuối ghi trạng thái CI và CD. Với build trên `quyen/admin` hoặc `develop`, nếu Jenkins thiếu credential Discord, pipeline có thể đọc `jenkins_discord_webhook_url` từ thư mục secret của stack `sms_local` đang có. Đặt webhook riêng của kênh Jenkins vào file đó và cấp quyền đọc cho tài khoản agent.
+Jenkins gửi thông báo sau checkout, khi stage lỗi, khi CD bắt đầu và khi pipeline kết thúc. Nội dung gồm job, build, branch, commit, stage hoặc bước kiểm tra nếu có, và link console. Dòng `Discord notification delivered (HTTP 200, message …)` xác nhận Discord đã nhận thông báo. Cảnh báo Alertmanager dùng webhook riêng của kênh giám sát.
 
 ## Webhook
 
