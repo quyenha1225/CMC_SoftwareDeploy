@@ -54,12 +54,12 @@ def ensure_demo_credentials(runtime):
     print('Created the missing local Docker demo account secret from the supplied host actor credentials.')
     return True
 
-def invoke(command, *, capture=False, data=None, destination=None, check=True):
+def invoke(command, *, capture=False, data=None, destination=None, check=True, timeout=None):
     if destination:
         with open(destination,'wb') as output:
-            result=subprocess.run(command,cwd=ROOT,input=data,stdout=output,stderr=subprocess.PIPE)
+            result=subprocess.run(command,cwd=ROOT,input=data,stdout=output,stderr=subprocess.PIPE,timeout=timeout)
     else:
-        result=subprocess.run(command,cwd=ROOT,input=data,capture_output=capture)
+        result=subprocess.run(command,cwd=ROOT,input=data,capture_output=capture,timeout=timeout)
     if check and result.returncode:
         if capture and result.stderr: print(result.stderr.decode('utf-8','replace')[-2000:],file=sys.stderr)
         raise RuntimeError('Operation failed: '+str(command[0])+' (exit '+str(result.returncode)+')')
@@ -89,8 +89,8 @@ class Runtime:
         if self.secret_dir.is_dir():
             ensure_discord_secret(self.secret_dir)
     def run(self,*args,**kwargs):return invoke(self.compose+list(args),**kwargs)
-    def sql(self,query):
-        return self.run('exec','-T','db','sh','-c','export MYSQL_PWD="$(cat /run/secrets/mysql_root_password)"; exec mysql -uroot --default-character-set=utf8mb4 --batch --raw --skip-column-names "$MYSQL_DATABASE"',data=query.encode('utf-8'),capture=True)
+    def sql(self,query,*,timeout=None):
+        return self.run('exec','-T','db','sh','-c','export MYSQL_PWD="$(cat /run/secrets/mysql_root_password)"; exec mysql -uroot --default-character-set=utf8mb4 --batch --raw --skip-column-names "$MYSQL_DATABASE"',data=query.encode('utf-8'),capture=True,timeout=timeout)
     def url(self):
         port=self.run('port','frontend','8080',capture=True).splitlines()[0].rsplit(':',1)[1]
         return 'http://127.0.0.1:'+port
@@ -158,15 +158,24 @@ def smoke(runtime,login=True):
     print('PASS smoke '+url+': '+', '.join(results))
     return results
 
+def table_counts(tables, query):
+    names=list(tables)
+    if not names:return {}
+    statements=['SELECT COUNT(*) FROM `'+name.replace('`','``')+'`' for name in names]
+    return dict(zip(names, map(int, query(';\n'.join(statements)).splitlines()), strict=True))
+
 def backup(runtime):
     stamp=dt.datetime.now().strftime('%Y%m%d_%H%M%S')
     folder=ROOT/'backups'/runtime.config['COMPOSE_PROJECT_NAME']/stamp
     folder.mkdir(parents=True,exist_ok=False);folder.chmod(0o700)
     command=runtime.compose+['exec','-T','db','sh','-c','export MYSQL_PWD="$(cat /run/secrets/mysql_root_password)"; exec mysqldump -uroot --single-transaction --routines --triggers --no-tablespaces --set-gtid-purged=OFF --column-statistics=0 "$MYSQL_DATABASE"']
-    invoke(command,destination=folder/'database.sql')
-    runtime.run('exec','-T','backend','tar','-czf','-','-C','/app/private-files','.',destination=folder/'private-files.tar.gz')
-    counts=runtime.sql("SELECT table_name FROM information_schema.tables WHERE table_schema=DATABASE() AND table_type='BASE TABLE'").splitlines()
-    inventory={table:int(runtime.sql('SELECT COUNT(*) FROM `'+table+'`')) for table in counts}
+    timeout=180 if runtime.config['COMPOSE_PROJECT_NAME'].startswith('sms_ci_') else None
+    print('Backup: exporting database and private files',flush=True)
+    invoke(command,destination=folder/'database.sql',timeout=timeout)
+    runtime.run('exec','-T','backend','tar','-czf','-','-C','/app/private-files','.',destination=folder/'private-files.tar.gz',timeout=timeout)
+    print('Backup: collecting table counts',flush=True)
+    counts=runtime.sql("SELECT table_name FROM information_schema.tables WHERE table_schema=DATABASE() AND table_type='BASE TABLE'",timeout=timeout).splitlines()
+    inventory=table_counts(counts,lambda query: runtime.sql(query,timeout=timeout))
     manifest={'created_at':stamp,'database':runtime.config.get('DB_NAME','sms_db'),'rows':inventory,'sha256':{name:hashlib.sha256((folder/name).read_bytes()).hexdigest() for name in ['database.sql','private-files.tar.gz']}}
     (folder/'manifest.json').write_text(json.dumps(manifest,indent=2),encoding='utf-8')
     print('Backup created: '+str(folder));return folder
@@ -176,22 +185,29 @@ def restore_test(runtime,folder):
     for name,digest in manifest['sha256'].items():
         if hashlib.sha256((folder/name).read_bytes()).hexdigest()!=digest:raise RuntimeError('Backup checksum mismatch')
     name='sms-restore-'+secrets.token_hex(5)
-    invoke(runtime.docker+['run','-d','--rm','--network','none','--name',name,'--tmpfs','/var/lib/mysql','-e','MYSQL_ALLOW_EMPTY_PASSWORD=yes','mysql:8.4.5'],capture=True)
+    command=runtime.docker+['exec','-i',name,'mysql','-uroot','--batch','--skip-column-names']
+    timeout=180 if runtime.config['COMPOSE_PROJECT_NAME'].startswith('sms_ci_') else None
+    print('Restore: starting isolated MySQL',flush=True)
     try:
-        for _ in range(90):
-            probe=subprocess.run(runtime.docker+['exec',name,'mysql','--protocol=tcp','--host=127.0.0.1','-uroot','--execute=SELECT 1'],capture_output=True)
+        invoke(runtime.docker+['run','-d','--rm','--network','none','--name',name,'--tmpfs','/var/lib/mysql','-e','MYSQL_ALLOW_EMPTY_PASSWORD=yes','mysql:8.4.5'],capture=True,timeout=60)
+        deadline=time.monotonic()+90
+        while time.monotonic()<deadline:
+            probe=subprocess.run(runtime.docker+['exec',name,'mysql','--protocol=tcp','--host=127.0.0.1','-uroot','--execute=SELECT 1'],capture_output=True,timeout=15)
             if probe.returncode==0:break
             time.sleep(1)
         else:raise RuntimeError('Restore database did not start')
-        invoke(runtime.docker+['exec','-i',name,'mysql','-uroot'],data=b'CREATE DATABASE sms_restore CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;')
+        print('Restore: importing SQL dump',flush=True)
+        invoke(command,data=b'CREATE DATABASE sms_restore CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;',timeout=timeout)
         source=(folder/'database.sql').read_text(encoding='utf-8')
         source=re.sub(r'DEFINER=`[^`]+`@`[^`]+`','',source)
-        invoke(runtime.docker+['exec','-i',name,'mysql','-uroot','sms_restore'],data=source.encode())
+        invoke(command+['sms_restore'],data=source.encode(),timeout=timeout)
+        print('Restore: verifying table counts and integrity',flush=True)
+        actual=table_counts(manifest['rows'], lambda query: invoke(command+['sms_restore'],
+                            data=(query+';').encode(),capture=True,timeout=timeout))
         for table,count in manifest['rows'].items():
-            actual=invoke(runtime.docker+['exec',name,'mysql','-uroot','--batch','--skip-column-names','sms_restore','-e','SELECT COUNT(*) FROM `'+table+'`'],capture=True)
-            if int(actual)!=count:raise RuntimeError('Restore row mismatch: '+table)
+            if actual[table]!=count:raise RuntimeError('Restore row mismatch: '+table)
         for view in ['v_normalization_checks','v_approval_workflow_checks']:
-            values=invoke(runtime.docker+['exec',name,'mysql','-uroot','--batch','--skip-column-names','sms_restore','-e','SELECT violation_count FROM '+view],capture=True)
+            values=invoke(command+['sms_restore'],data=('SELECT violation_count FROM '+view+';').encode(),capture=True,timeout=timeout)
             if any(int(value) for value in values.splitlines()):raise RuntimeError('Restore integrity failed')
         # Verify archive readability without extracting sensitive documents onto the host.
         import tarfile
@@ -203,7 +219,7 @@ def restore_test(runtime,folder):
             if any(not (member.isfile() or member.isdir()) for member in members):raise RuntimeError('Links or special archive entries forbidden')
             expected={member.name.removeprefix('./'):hashlib.sha256(archive.extractfile(member).read()).hexdigest() for member in members if member.isfile()}
         image=runtime.config.get('BACKEND_IMAGE','sms-backend:'+runtime.config.get('IMAGE_TAG','local'))
-        output=invoke(runtime.docker+['run','--rm','-i','--network','none','--entrypoint','sh',image,'-c','mkdir -p /tmp/restore-check && tar -xzf - -C /tmp/restore-check && find /tmp/restore-check -type f -exec sha256sum {} +'],data=(folder/'private-files.tar.gz').read_bytes(),capture=True)
+        output=invoke(runtime.docker+['run','--rm','-i','--network','none','--entrypoint','sh',image,'-c','mkdir -p /tmp/restore-check && tar -xzf - -C /tmp/restore-check && find /tmp/restore-check -type f -exec sha256sum {} +'],data=(folder/'private-files.tar.gz').read_bytes(),capture=True,timeout=timeout)
         actual={}
         for line in output.splitlines():
             digest,name=line.split(None,1);actual[name.strip().removeprefix('/tmp/restore-check/')]=digest
@@ -211,7 +227,11 @@ def restore_test(runtime,folder):
 
         (folder/'restore-test.json').write_text(json.dumps({'passed':True,'tables':len(manifest['rows']),'private_archive_readable':True,'private_files_restored':len(expected),'checked_at':dt.datetime.now().isoformat()},indent=2))
         print('PASS isolated restore: '+str(len(manifest['rows']))+' tables and '+str(len(expected))+' restored private files')
-    finally:invoke(runtime.docker+['rm','-f',name],capture=True,check=False)
+    finally:
+        try:
+            invoke(runtime.docker+['rm','-f',name],capture=True,check=False,timeout=30)
+        except subprocess.TimeoutExpired:
+            print('Restore: Docker timed out removing '+name,file=sys.stderr,flush=True)
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)

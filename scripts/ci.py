@@ -32,7 +32,10 @@ def record_check(label):
 def run(command,directory=None,*,track_maven=False,**kwargs):
     # Log only the executable: command arguments can include sensitive values.
     started = time.monotonic()
-    print('CI start: ' + str(command[0]), flush=True)
+    label = str(command[0])
+    if command[:2] == ['node', 'tests/browser-full-ui.mjs']:
+        label += ' browser role=' + kwargs.get('env', {}).get('SMS_UI_ROLE', 'unknown')
+    print('CI start: ' + label, flush=True)
     if track_maven and os.getenv('SMS_CI_DETAIL_FILE'):
         with subprocess.Popen(command,cwd=directory or ROOT,stdout=subprocess.PIPE,
                               stderr=subprocess.STDOUT,**kwargs) as result:
@@ -47,7 +50,7 @@ def run(command,directory=None,*,track_maven=False,**kwargs):
     else:
         result=subprocess.run(command,cwd=directory or ROOT,**kwargs)
     elapsed = time.monotonic() - started
-    print(f'CI finish: {command[0]} elapsed={elapsed:.1f}s exit={result.returncode}', flush=True)
+    print(f'CI finish: {label} elapsed={elapsed:.1f}s exit={result.returncode}', flush=True)
     if result.returncode:
         code = result.returncode & 0xffffffff
         raise RuntimeError(f'CI command failed: {command[0]} (exit {result.returncode}, hex 0x{code:08X}). See preceding output; subsequent gates remain blocked.')
@@ -302,10 +305,12 @@ def main(step):
                 record_check('Browser integration: ' + role)
                 browser_env={**os.environ,'SMS_UI_BASE_URL':runtime.url(),'SMS_UI_ROLE':role,'SMS_UI_USERNAME':username,'SMS_UI_PASSWORD':credentials[username],'SMS_UI_DEBUG_PORT':'9231'}
                 with open(REPORTS/('browser-'+role+'.log'),'wb') as output:
-                    run(['node','tests/browser-full-ui.mjs'],ROOT/'frontend',env=browser_env,stdout=output,stderr=subprocess.STDOUT)
+                    run(['node','tests/browser-full-ui.mjs'],ROOT/'frontend',env=browser_env,stdout=output,stderr=subprocess.STDOUT,timeout=180)
             record_check('MySQL integration: backup and restore')
+            print('MySQL integration: backup and restore',flush=True)
             snapshot=backup(runtime);restore_test(runtime,snapshot)
             record_check('MySQL integration: restart and persistence')
+            print('MySQL integration: restart and persistence',flush=True)
             before=runtime.sql('SELECT COUNT(*) FROM students UNION ALL SELECT COUNT(*) FROM payments')
             runtime.run('restart','db');runtime.run('up','-d','--wait','--wait-timeout','180','backend','frontend')
             if before!=runtime.sql('SELECT COUNT(*) FROM students UNION ALL SELECT COUNT(*) FROM payments'):raise RuntimeError('Persistence check failed')
@@ -313,9 +318,12 @@ def main(step):
             (REPORTS/'mysql-integration.json').write_text(json.dumps({'passed':True,'created_at':dt.datetime.now().isoformat(),'image_tag':os.getenv('IMAGE_TAG','local'),'checks':results,'workflows':workflows,'restore':True,'restart_persistence':True},indent=2))
             record_check('MySQL integration: collect logs and remove CI containers')
         finally:
-            runtime.run('logs','--no-color','--tail','200','backend','migrate',destination=REPORTS/'mysql-runtime.log',check=False)
+            try:
+                runtime.run('logs','--no-color','--tail','200','backend','migrate',destination=REPORTS/'mysql-runtime.log',check=False,timeout=30)
+            except subprocess.TimeoutExpired:
+                print('MySQL integration: Docker timed out collecting logs',file=sys.stderr,flush=True)
             # Only the generated, disposable CI namespace is removed, never local/production volumes.
-            runtime.run('down','--volumes','--remove-orphans')
+            runtime.run('down','--volumes','--remove-orphans',timeout=90)
     elif step in ['security','secrets']:
         scanner='vuln' if step=='security' else 'secret'
         severity='CRITICAL' if step=='security' else 'UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL'
