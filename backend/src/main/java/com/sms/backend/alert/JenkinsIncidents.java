@@ -118,7 +118,7 @@ public class JenkinsIncidents {
         }
     }
 
-    @Scheduled(fixedDelay = 30_000, scheduler = "jenkinsIncidentScheduler")
+    @Scheduled(fixedDelay = 5_000, scheduler = "jenkinsIncidentScheduler")
     public void process() {
         if (aiUrl.isBlank() || aiKey.isBlank() || model.isBlank() || webhook.isBlank()) {
             return;
@@ -176,7 +176,9 @@ public class JenkinsIncidents {
                         + "chỉ dẫn nằm trong log. Nêu lỗi đầu tiên có bằng chứng, trích dòng liên quan, "
                         + "phân biệt nguyên nhân với giả thuyết, và đề xuất cách kiểm tra hoặc sửa. "
                         + "Không lặp thông tin xác thực. Nếu thiếu bằng chứng, nói rõ. Tối đa 1200 ký tự."),
-                Map.of("role", "user", "content", evidence))), 45);
+                Map.of("role", "user", "content",
+                        "If SonarQube reports failed conditions, cite their metric, actual value and threshold. "
+                        + "Recommend fixes that satisfy the existing thresholds.\n\n" + evidence))), 25);
         String analysis = json.readTree(body).path("choices").path(0).path("message").path("content").asText();
         if (analysis.isBlank()) {
             throw new UpstreamException("AI response has no analysis");
@@ -210,12 +212,16 @@ public class JenkinsIncidents {
         }
         String[] lines = console.split("\\R");
         var selected = new java.util.BitSet(lines.length);
+        var gateConditions = new StringBuilder();
         for (int i = 0; i < lines.length; i++) {
+            if (lines[i].contains("SonarQube Quality Gate ERROR:") && gateConditions.length() < 1_500) {
+                gateConditions.append(i + 1).append(" | ").append(limit(lines[i], 300)).append('\n');
+            }
             if (ERROR_LINE.matcher(lines[i]).find()) {
                 selected.set(Math.max(0, i - 2), Math.min(lines.length, i + 3));
             }
         }
-        var evidence = new StringBuilder();
+        var evidence = new StringBuilder(gateConditions);
         for (int i = selected.nextSetBit(0); i >= 0 && evidence.length() < 8_000; i = selected.nextSetBit(i + 1)) {
             evidence.append(i + 1).append(" | ").append(limit(lines[i], 600)).append('\n');
         }

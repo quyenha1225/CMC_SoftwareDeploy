@@ -3,15 +3,25 @@ package com.sms.backend.alert;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.sql.ResultSet;
+import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.server.ResponseStatusException;
@@ -98,5 +108,98 @@ class JenkinsIncidentsTests {
         assertThat(JenkinsIncidents.excerpt(log))
                 .contains("Building frontend", "exited with code 139", "Finished: FAILURE")
                 .hasSizeLessThan(12_000);
+    }
+
+    @Test
+    void longConsolePrioritizesExactQualityGateConditions() {
+        String condition = "SonarQube Quality Gate ERROR: new_coverage actual=72.1; fails when LT 80";
+        String console = "Warning: zero errors in unit test output\n".repeat(500)
+                + condition + "\n" + "Pipeline cleanup output\n".repeat(500);
+
+        assertThat(JenkinsIncidents.excerpt(console)).startsWith("501 | " + condition);
+    }
+
+    @Test
+    void workerAnalyzesThenDeliversTheClaimedBuild() throws Exception {
+        HttpClient http = configureWorker();
+        queueIncident(null, 1);
+        when(database.queryForObject(anyString(), eq(String.class), eq(1L)))
+                .thenReturn("ERROR: Build failed");
+        var aiResponse = response(200, """
+                {"choices":[{"message":{"content":"Build failed at compilation."}}]}
+                """);
+        var discordResponse = response(204, "");
+        when(http.send(any(HttpRequest.class), anyBodyHandler())).thenReturn(aiResponse, discordResponse);
+
+        receiver.process();
+
+        var updates = inOrder(database);
+        updates.verify(database).update(anyString(), eq(120), eq(1L), eq(0));
+        updates.verify(database).update(anyString(), eq("Build failed at compilation."), eq(1L));
+        updates.verify(database).update(org.mockito.ArgumentMatchers.contains("delivered_at"), eq(1L));
+        var requests = ArgumentCaptor.forClass(HttpRequest.class);
+        verify(http, org.mockito.Mockito.times(2)).send(requests.capture(), anyBodyHandler());
+        assertThat(requests.getAllValues().getFirst().headers().firstValue("Authorization"))
+                .contains("Bearer test-ai-key");
+        assertThat(requests.getAllValues().getLast().uri().getHost()).isEqualTo("discord.example.test");
+    }
+
+    @Test
+    void workerKeepsSavedAnalysisWhenDiscordFails() throws Exception {
+        HttpClient http = configureWorker();
+        queueIncident("Previously analyzed", 1);
+        var unavailable = response(503, "");
+        when(http.send(any(HttpRequest.class), anyBodyHandler())).thenReturn(unavailable);
+
+        receiver.process();
+
+        verify(http).send(any(HttpRequest.class), anyBodyHandler());
+        verify(database, org.mockito.Mockito.never()).update(
+                org.mockito.ArgumentMatchers.contains("SET delivered_at"), eq(1L));
+    }
+
+    @Test
+    void workerDoesNotCallUpstreamWhenAnotherWorkerClaimsTheJob() throws Exception {
+        HttpClient http = configureWorker();
+        queueIncident(null, 0);
+
+        receiver.process();
+
+        verifyNoInteractions(http);
+    }
+
+    private HttpClient configureWorker() {
+        var http = mock(HttpClient.class);
+        ReflectionTestUtils.setField(receiver, "http", http);
+        ReflectionTestUtils.setField(receiver, "aiUrl", "https://ai.example.test/chat/completions");
+        ReflectionTestUtils.setField(receiver, "aiKey", "test-ai-key");
+        ReflectionTestUtils.setField(receiver, "model", "test-model");
+        ReflectionTestUtils.setField(receiver, "webhook", "https://discord.example.test/webhook");
+        return http;
+    }
+
+    @SuppressWarnings("unchecked")
+    private void queueIncident(String analysis, int claimed) throws Exception {
+        var row = mock(ResultSet.class);
+        when(row.getLong("id")).thenReturn(1L);
+        when(row.getString("job_url")).thenReturn(JOB);
+        when(row.getLong("build_number")).thenReturn(48L);
+        when(row.getString("build_result")).thenReturn("FAILURE");
+        when(row.getString("analysis")).thenReturn(analysis);
+        when(database.query(anyString(), any(RowMapper.class)))
+                .thenAnswer(call -> List.of(call.<RowMapper<?>>getArgument(1).mapRow(row, 0)));
+        when(database.update(anyString(), eq(120), eq(1L), eq(0))).thenReturn(claimed);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static HttpResponse<String> response(int status, String body) {
+        HttpResponse<String> response = mock(HttpResponse.class);
+        when(response.statusCode()).thenReturn(status);
+        when(response.body()).thenReturn(body);
+        return response;
+    }
+
+    private static HttpResponse.BodyHandler<String> anyBodyHandler() {
+        return any();
     }
 }

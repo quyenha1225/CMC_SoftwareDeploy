@@ -573,7 +573,11 @@ pipeline {
                         && !env.CHANGE_ID && !env.TAG_NAME
                         && env.SMS_CHECKOUT_BRANCH in ['quyen/admin', 'develop']
                         && fileExists('scripts/jenkins_incident.py')) {
-                    if (!env.SMS_JENKINS_INGEST_URL) {
+                    def ingestUrl = env.SMS_JENKINS_INGEST_URL
+                    if (!ingestUrl && !isUnix() && env.JOB_BASE_NAME == 'SMS-CICD') {
+                        ingestUrl = 'http://127.0.0.1:8088/api/ops/jenkins-incidents'
+                    }
+                    if (!ingestUrl) {
                         echo 'AI incident transfer skipped: set SMS_JENKINS_INGEST_URL in the Jenkins agent environment.'
                     } else try {
                         withCredentials([
@@ -583,12 +587,15 @@ pipeline {
                             string(credentialsId: 'sms-jenkins-incident-token',
                                     variable: 'SMS_JENKINS_INGEST_TOKEN')
                         ]) {
-                            withEnv(["SMS_JENKINS_BUILD_RESULT=${currentBuild.currentResult}"]) {
+                            withEnv(["SMS_JENKINS_BUILD_RESULT=${currentBuild.currentResult}",
+                                     "SMS_JENKINS_INGEST_URL=${ingestUrl}"]) {
                                 runPythonScript('scripts/jenkins_incident.py')
                             }
                         }
                     } catch (org.jenkinsci.plugins.workflow.steps.FlowInterruptedException interrupted) {
                         throw interrupted
+                    } catch (org.jenkinsci.plugins.credentialsbinding.impl.CredentialNotFoundException missing) {
+                        echo 'AI incident transfer requires Jenkins credentials sms-jenkins-console-reader and sms-jenkins-incident-token.'
                     } catch (Exception ignored) {
                         echo 'AI incident transfer did not complete. The console remains available in Jenkins for replay.'
                     }

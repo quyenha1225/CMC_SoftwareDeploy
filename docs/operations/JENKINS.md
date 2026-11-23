@@ -69,7 +69,7 @@ Với build có kết quả `FAILURE`, `UNSTABLE`, `ABORTED` hoặc `NOT_BUILT` 
    | `SMS_CI_DISCORD_WEBHOOK_URL` | Webhook của kênh `#jenkins`, cùng đích với credential `sms-discord-webhook` |
 
 2. Trong Jenkins, tạo credential **Username with password** có ID `sms-jenkins-console-reader`. Điền tên tài khoản có quyền đọc job và API token của tài khoản đó. Tạo credential **Secret text** có ID `sms-jenkins-incident-token`, trùng token backend.
-3. Đặt `SMS_JENKINS_INGEST_URL` cho Jenkins agent. Máy local có thể dùng `http://127.0.0.1:8088/api/ops/jenkins-incidents`. Với máy khác, dùng HTTPS. Agent cần kết nối tới cả Jenkins console URL và backend.
+3. Job Windows local `SMS-CICD` mặc định gửi về `http://127.0.0.1:8088/api/ops/jenkins-incidents`. Đặt `SMS_JENKINS_INGEST_URL` nếu dùng cổng khác, backend khác hoặc job khác. Dùng HTTPS khi đi qua mạng. Agent cần kết nối tới cả Jenkins console URL và backend.
 4. Dùng một build lỗi để xác minh console có dòng `Jenkins incident accepted for build #...` và kênh `#jenkins` nhận tin **Phân tích AI · Jenkins #...**.
 
 Backend gửi phần log đã lọc và giới hạn dung lượng tới nhà cung cấp AI. Bộ lọc nhận dạng các dạng bí mật phổ biến. Tránh in dữ liệu cá nhân và bí mật vào build log, đồng thời chọn nhà cung cấp được phép xử lý log của dự án. Tác vụ nền lưu kết quả AI trước khi gửi Discord và giãn thời gian thử lại khi API hoặc webhook lỗi.
