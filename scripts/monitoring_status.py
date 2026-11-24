@@ -71,7 +71,7 @@ def _format_top(rows, unit):
     )
 
 
-def _analysis(metrics, checks, alerts):
+def _analysis(metrics, checks, alerts, missing_metrics=(), alerts_available=True):
     issues = []
     for service in ("Frontend /healthz", "Backend readiness", "MySQL TCP"):
         if checks.get(service) != "OK":
@@ -80,7 +80,11 @@ def _analysis(metrics, checks, alerts):
         value = metrics.get(name)
         if value is not None and value >= threshold:
             issues.append(f"{name} cao (>= {threshold}%)")
-    if alerts:
+    if missing_metrics:
+        issues.append("Thiếu số liệu: " + ", ".join(missing_metrics))
+    if not alerts_available:
+        issues.append("Không truy vấn được danh sách cảnh báo")
+    elif alerts:
         issues.append("Prometheus đang có alert firing")
     return ("Phân tích: Chưa thấy vấn đề từ số liệu có sẵn; tiếp tục theo dõi."
             if not issues else "Phân tích/rủi ro: " + "; ".join(issues) + ".")
@@ -91,7 +95,9 @@ def report(base):
     lines = [f"**SMS | Trạng thái hệ thống** ({stamp})", "**Dịch vụ**"]
     checks = {}
     metrics = {}
+    missing_metrics = []
     alerts = set()
+    alerts_available = False
     for label, expression in CHECKS.items():
         try:
             rows = query(base, expression)
@@ -107,25 +113,31 @@ def report(base):
             metrics[label] = _sample_value(query(base, expression))
         except (OSError, ValueError, KeyError, TypeError, IndexError):
             metrics[label] = None
+            missing_metrics.append(label)
         lines.append(_format_metric(label, metrics[label]))
     try:
         rows = query(base, CONTAINER_CPU)
+        if not rows:
+            missing_metrics.append("Top container CPU")
         lines.append("- Top container CPU: " + _format_top(rows, "% CPU"))
     except (OSError, ValueError, KeyError, TypeError, IndexError):
         lines.append("- Top container CPU: Không truy vấn được")
     try:
         rows = query(base, CONTAINER_RAM)
+        if not rows:
+            missing_metrics.append("Top container RAM")
         rows = [{"metric": row["metric"], "value": [row["value"][0], float(row["value"][1]) / (1024 ** 3)]} for row in rows]
         lines.append("- Top container RAM: " + _format_top(rows, "GiB RAM"))
     except (OSError, ValueError, KeyError, TypeError, IndexError):
         lines.append("- Top container RAM: Không truy vấn được")
     try:
         rows = query(base, 'ALERTS{alertstate="firing"}')
+        alerts_available = True
         alerts = {row["metric"].get("alertname", "Alert không tên") for row in rows}
         lines.append("**Cảnh báo đang phát**: " + (", ".join(sorted(alerts)) or "Không có"))
     except (OSError, ValueError, KeyError, TypeError, IndexError):
         lines.append("**Cảnh báo đang phát**: Không truy vấn được")
-    lines.append(_analysis(metrics, checks, alerts))
+    lines.append(_analysis(metrics, checks, alerts, missing_metrics, alerts_available))
     lines.append("Ghi chú: phân tích rule-based, không phải AI; số liệu thiếu được báo rõ.")
     return "\n".join(lines)
 
