@@ -131,3 +131,16 @@ tests:
           - exp_labels: {severity: warning}
             exp_annotations:
               summary: "Ổ đĩa của Docker còn dưới 15% dung lượng trống"
+
+  - interval: 1m
+    input_series:
+      - series: 'sms_volume_bytes{job="sms-node",volume="mysql_data"}'
+        values: '6442450944x12'
+    alert_rule_test:
+      - {alertname: MysqlVolumeLarge, eval_time: 9m, exp_alerts: []}
+      - alertname: MysqlVolumeLarge
+        eval_time: 11m
+        exp_alerts:
+          - exp_labels: {job: sms-node, volume: mysql_data, severity: warning}
+            exp_annotations:
+              summary: "Volume mysql_data vượt 5 GiB (chỉnh ngưỡng cho phù hợp)"
