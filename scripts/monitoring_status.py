@@ -152,7 +152,7 @@ def report(base):
                  if alerts_available else "**Cảnh báo đang phát**: Không truy vấn được")
     lines.append(_analysis(metrics, checks, alerts, missing_metrics, alerts_available))
     lines.append("Ghi chú: phân tích rule-based, không phải AI; số liệu thiếu được báo rõ.")
-    return "\\n".join(lines)
+    return "\n".join(lines)
 
 class NoRedirect(HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
