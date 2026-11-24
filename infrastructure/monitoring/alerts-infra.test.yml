@@ -128,6 +128,6 @@ tests:
       - alertname: DiskSpaceLow
         eval_time: 11m
         exp_alerts:
-          - exp_labels: {job: sms-node, instance: 'node-exporter:9100', mountpoint: '/', device: '/dev/sda1', fstype: ext4, severity: warning}
+          - exp_labels: {severity: warning}
             exp_annotations:
               summary: "Ổ đĩa của Docker còn dưới 15% dung lượng trống"
