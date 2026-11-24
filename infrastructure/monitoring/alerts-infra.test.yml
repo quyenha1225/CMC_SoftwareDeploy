@@ -75,3 +75,31 @@ tests:
               summary: "Blackbox không kết nối được tới cổng MySQL nội bộ."
               description: "Kiểm tra trạng thái db, log MySQL và mạng Docker data."
       - {alertname: SMSMySQLUnreachable, eval_time: 4m, exp_alerts: []}
+
+  - interval: 1m
+    input_series:
+      - series: 'probe_success{job="sms-frontend-probe",instance="http://frontend:8080/healthz"}'
+        values: '1 0 0 0 1'
+    alert_rule_test:
+      - {alertname: FrontendDown, eval_time: 2m, exp_alerts: []}
+      - alertname: FrontendDown
+        eval_time: 3m
+        exp_alerts:
+          - exp_labels: {job: sms-frontend-probe, instance: 'http://frontend:8080/healthz', severity: critical}
+            exp_annotations:
+              summary: "Frontend /healthz không phản hồi"
+
+  - interval: 1m
+    input_series:
+      - series: 'node_memory_MemAvailable_bytes{job="sms-node",instance="node-exporter:9100"}'
+        values: '5 5 5 5 5 5 5 5'
+      - series: 'node_memory_MemTotal_bytes{job="sms-node",instance="node-exporter:9100"}'
+        values: '100 100 100 100 100 100 100 100'
+    alert_rule_test:
+      - {alertname: SMSHostMemoryLow, eval_time: 4m, exp_alerts: []}
+      - alertname: SMSHostMemoryLow
+        eval_time: 7m
+        exp_alerts:
+          - exp_labels: {job: sms-node, instance: 'node-exporter:9100', severity: warning}
+            exp_annotations:
+              summary: "Máy chạy Docker còn dưới 10% RAM khả dụng."
