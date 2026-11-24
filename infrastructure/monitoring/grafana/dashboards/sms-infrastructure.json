@@ -5,7 +5,7 @@
   "sms"
  ],
  "schemaVersion": 39,
- "version": 2,
+ "version": 3,
  "refresh": "30s",
  "time": {
   "from": "now-3h",
@@ -481,6 +481,130 @@
     {
      "refId": "A",
      "expr": "jvm_threads_live_threads{job=\"sms-backend\"}",
+     "legendFormat": "",
+     "datasource": {
+      "type": "prometheus"
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short"
+    },
+    "overrides": []
+   }
+  },
+  {
+   "id": 15,
+   "type": "gauge",
+   "title": "CPU host sử dụng (%)",
+   "datasource": {
+    "type": "prometheus"
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 44,
+    "w": 6,
+    "h": 6
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "100 * (1 - avg(rate(node_cpu_seconds_total{job=\"sms-node\",mode=\"idle\"}[5m])))",
+     "legendFormat": "",
+     "datasource": {
+      "type": "prometheus"
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "percent",
+     "min": 0,
+     "max": 100
+    },
+    "overrides": []
+   }
+  },
+  {
+   "id": 16,
+   "type": "gauge",
+   "title": "RAM host sử dụng (%)",
+   "datasource": {
+    "type": "prometheus"
+   },
+   "gridPos": {
+    "x": 6,
+    "y": 44,
+    "w": 6,
+    "h": 6
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "100 * (1 - node_memory_MemAvailable_bytes{job=\"sms-node\"} / node_memory_MemTotal_bytes{job=\"sms-node\"})",
+     "legendFormat": "",
+     "datasource": {
+      "type": "prometheus"
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "percent",
+     "min": 0,
+     "max": 100
+    },
+    "overrides": []
+   }
+  },
+  {
+   "id": 17,
+   "type": "stat",
+   "title": "Host uptime",
+   "datasource": {
+    "type": "prometheus"
+   },
+   "gridPos": {
+    "x": 12,
+    "y": 44,
+    "w": 6,
+    "h": 6
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "time() - node_boot_time_seconds{job=\"sms-node\"}",
+     "legendFormat": "",
+     "datasource": {
+      "type": "prometheus"
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "dtdurations"
+    },
+    "overrides": []
+   }
+  },
+  {
+   "id": 18,
+   "type": "stat",
+   "title": "Load average 1m",
+   "datasource": {
+    "type": "prometheus"
+   },
+   "gridPos": {
+    "x": 18,
+    "y": 44,
+    "w": 6,
+    "h": 6
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "node_load1{job=\"sms-node\"}",
      "legendFormat": "",
      "datasource": {
       "type": "prometheus"
