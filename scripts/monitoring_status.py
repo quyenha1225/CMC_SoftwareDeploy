@@ -1,6 +1,7 @@
 """Read current Prometheus status and optionally post a compact report to Discord."""
 
 import argparse
+from concurrent.futures import ThreadPoolExecutor
 import datetime as dt
 import json
 import os
@@ -93,56 +94,65 @@ def _analysis(metrics, checks, alerts, missing_metrics=(), alerts_available=True
 def report(base):
     stamp = dt.datetime.now().astimezone().strftime("%Y-%m-%d %H:%M %z")
     lines = [f"**SMS | Trạng thái hệ thống** ({stamp})", "**Dịch vụ**"]
+    requests = {f"check:{label}": expression for label, expression in CHECKS.items()}
+    requests.update({f"metric:{label}": expression for label, expression in METRICS.items()})
+    requests.update({"container_cpu": CONTAINER_CPU, "container_ram": CONTAINER_RAM,
+                    "alerts": 'ALERTS{alertstate="firing"}'})
+    results = {}
+    # Query independently in parallel so a slow endpoint does not delay every other metric.
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        futures = {key: pool.submit(query, base, expression) for key, expression in requests.items()}
+        for key, future in futures.items():
+            try:
+                results[key] = future.result()
+            except (OSError, ValueError, KeyError, TypeError, IndexError):
+                results[key] = None
+
     checks = {}
     metrics = {}
     missing_metrics = []
-    alerts = set()
-    alerts_available = False
-    for label, expression in CHECKS.items():
-        try:
-            rows = query(base, expression)
-            samples = [row["value"][1] for row in rows]
-            checks[label] = "OK" if samples and all(value == "1" for value in samples) else (
-                "Lỗi" if "0" in samples else "Chưa có dữ liệu")
-        except (OSError, ValueError, KeyError, TypeError, IndexError):
-            checks[label] = "Không truy vấn được"
+    for label in CHECKS:
+        rows = results.get(f"check:{label}")
+        samples = [row["value"][1] for row in rows] if rows else []
+        checks[label] = "OK" if samples and all(value == "1" for value in samples) else (
+            "Lỗi" if "0" in samples else "Không có dữ liệu" if rows is not None else "Không truy vấn được")
     lines.extend(f"- {label}: {state}" for label, state in checks.items())
+
     lines.append("**Tài nguyên máy chủ / volume**")
-    for label, expression in METRICS.items():
+    for label in METRICS:
+        rows = results.get(f"metric:{label}")
         try:
-            metrics[label] = _sample_value(query(base, expression))
-            if metrics[label] is None:
-                missing_metrics.append(label)
-        except (OSError, ValueError, KeyError, TypeError, IndexError):
+            metrics[label] = _sample_value(rows) if rows is not None else None
+        except (KeyError, TypeError, ValueError, IndexError):
             metrics[label] = None
+        if metrics[label] is None:
             missing_metrics.append(label)
         lines.append(_format_metric(label, metrics[label]))
-    try:
-        rows = query(base, CONTAINER_CPU)
+
+    for key, label, unit in (("container_cpu", "Top container CPU", "% CPU"),
+                             ("container_ram", "Top container RAM", "GiB RAM")):
+        rows = results.get(key)
         if not rows:
-            missing_metrics.append("Top container CPU")
-        lines.append("- Top container CPU: " + _format_top(rows, "% CPU"))
-    except (OSError, ValueError, KeyError, TypeError, IndexError):
-        lines.append("- Top container CPU: Không truy vấn được")
-    try:
-        rows = query(base, CONTAINER_RAM)
-        if not rows:
-            missing_metrics.append("Top container RAM")
-        rows = [{"metric": row["metric"], "value": [row["value"][0], float(row["value"][1]) / (1024 ** 3)]} for row in rows]
-        lines.append("- Top container RAM: " + _format_top(rows, "GiB RAM"))
-    except (OSError, ValueError, KeyError, TypeError, IndexError):
-        lines.append("- Top container RAM: Không truy vấn được")
-    try:
-        rows = query(base, 'ALERTS{alertstate="firing"}')
-        alerts_available = True
-        alerts = {row["metric"].get("alertname", "Alert không tên") for row in rows}
-        lines.append("**Cảnh báo đang phát**: " + (", ".join(sorted(alerts)) or "Không có"))
-    except (OSError, ValueError, KeyError, TypeError, IndexError):
-        lines.append("**Cảnh báo đang phát**: Không truy vấn được")
+            missing_metrics.append(label)
+            lines.append(f"- {label}: Không có dữ liệu" if rows is not None else f"- {label}: Không truy vấn được")
+            continue
+        try:
+            if key == "container_ram":
+                rows = [{"metric": row["metric"], "value": [row["value"][0],
+                         float(row["value"][1]) / (1024 ** 3)]} for row in rows]
+            lines.append(f"- {label}: " + _format_top(rows, unit))
+        except (KeyError, TypeError, ValueError, IndexError):
+            missing_metrics.append(label)
+            lines.append(f"- {label}: Dữ liệu không hợp lệ")
+
+    alert_rows = results.get("alerts")
+    alerts_available = alert_rows is not None
+    alerts = {row["metric"].get("alertname", "Alert không tên") for row in alert_rows} if alerts_available else set()
+    lines.append("**Cảnh báo đang phát**: " + (", ".join(sorted(alerts)) or "Không có")
+                 if alerts_available else "**Cảnh báo đang phát**: Không truy vấn được")
     lines.append(_analysis(metrics, checks, alerts, missing_metrics, alerts_available))
     lines.append("Ghi chú: phân tích rule-based, không phải AI; số liệu thiếu được báo rõ.")
-    return "\n".join(lines)
-
+    return "\\n".join(lines)
 
 class NoRedirect(HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
