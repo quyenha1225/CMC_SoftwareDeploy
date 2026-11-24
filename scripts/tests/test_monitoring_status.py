@@ -65,8 +65,7 @@ class MonitoringStatusTests(unittest.TestCase):
         self.assertIn("CPU máy chủ: Không có dữ liệu", output)
         self.assertIn("Ổ đĩa root đã dùng: Không có dữ liệu", output)
         self.assertIn("Top container CPU: Không có dữ liệu", output)
-        self.assertIn("Thiếu số liệu", output)
-        self.assertIn("Chưa thấy vấn đề từ số liệu", output)
+        self.assertIn("Phân tích/rủi ro: Thiếu số liệu", output)
 
     def test_analysis_flags_high_resources_and_failed_probe(self):
         values = {"CPU máy chủ": 95, "RAM đã dùng": 91, "Ổ đĩa root đã dùng": 88}
