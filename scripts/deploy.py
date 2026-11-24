@@ -101,6 +101,20 @@ def remote(manifest_path):
     subprocess.run(['ssh',*options,destination,command],check=True)
     public_smoke(public_url)
 
+def start_monitoring(runtime):
+    monitoring=ROOT/'infrastructure/monitoring'
+    revision=hashlib.sha256()
+    for config in sorted(path for path in monitoring.iterdir() if path.is_file()):
+        revision.update(config.name.encode())
+        revision.update(hashlib.sha256(config.read_bytes()).digest())
+    os.environ['SMS_MONITORING_DIR']=monitoring.as_posix()
+    os.environ['SMS_MONITORING_REVISION']=revision.hexdigest()
+    overlay=('-f',str(ROOT/'compose.monitoring.yaml'),'--profile','monitoring')
+    services=('prometheus','grafana','alertmanager','blackbox','cadvisor','node-exporter','volume-size')
+    runtime.run(*overlay,'up','-d','--no-build','--wait','--wait-timeout','180',*services)
+    runtime.run(*overlay,'ps')
+    return revision.hexdigest()
+
 def apply(manifest_path,allow_migration):
     manifest=read_manifest(manifest_path);runtime=Runtime(production=True)
     if runtime.config.get('SMS_SEED_DEMO','false')!='false':raise RuntimeError('Demo seed is forbidden on staging/production')
@@ -153,6 +167,7 @@ def apply(manifest_path,allow_migration):
             print('Previous application digests restored; failed release was not marked successful.')
         else:print('Database version changed or rollback images missing. Backup retained; manual DB compatibility/restore review required.',file=sys.stderr)
         raise
+    start_monitoring(runtime)
     receipt=manifest|{'environment':current['SMS_ENVIRONMENT'],'schema_version':schema(runtime),'backup':str(snapshot) if snapshot else None,'approver':os.getenv('RELEASE_APPROVER','manual'),'deployed_at':dt.datetime.now().isoformat()}
     folder=ROOT/'.local/releases';folder.mkdir(parents=True,exist_ok=True)
     (folder/(dt.datetime.now().strftime('%Y%m%d_%H%M%S')+'.json')).write_text(json.dumps(receipt,indent=2))
