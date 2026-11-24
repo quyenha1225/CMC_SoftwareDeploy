@@ -111,6 +111,8 @@ def report(base):
     for label, expression in METRICS.items():
         try:
             metrics[label] = _sample_value(query(base, expression))
+            if metrics[label] is None:
+                missing_metrics.append(label)
         except (OSError, ValueError, KeyError, TypeError, IndexError):
             metrics[label] = None
             missing_metrics.append(label)
