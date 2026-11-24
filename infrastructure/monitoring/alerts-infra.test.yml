@@ -103,3 +103,31 @@ tests:
           - exp_labels: {job: sms-node, instance: 'node-exporter:9100', severity: warning}
             exp_annotations:
               summary: "Máy chạy Docker còn dưới 10% RAM khả dụng."
+
+  - interval: 1m
+    input_series:
+      - series: 'node_cpu_seconds_total{job="sms-node",mode="idle",instance="node-exporter:9100",cpu="0"}'
+        values: '0 0 0 0 0 0 0 0 0 0 0 0'
+    alert_rule_test:
+      - {alertname: SMSHostCPUHigh, eval_time: 9m, exp_alerts: []}
+      - alertname: SMSHostCPUHigh
+        eval_time: 11m
+        exp_alerts:
+          - exp_labels: {job: sms-node, instance: 'node-exporter:9100', severity: warning}
+            exp_annotations:
+              summary: "CPU máy chạy Docker trên 90% trong 10 phút."
+
+  - interval: 1m
+    input_series:
+      - series: 'node_filesystem_avail_bytes{job="sms-node",instance="node-exporter:9100",mountpoint="/",device="/dev/sda1",fstype="ext4"}'
+        values: '10 10 10 10 10 10 10 10 10 10 10 10'
+      - series: 'node_filesystem_size_bytes{job="sms-node",instance="node-exporter:9100",mountpoint="/",device="/dev/sda1",fstype="ext4"}'
+        values: '100 100 100 100 100 100 100 100 100 100 100 100'
+    alert_rule_test:
+      - {alertname: DiskSpaceLow, eval_time: 9m, exp_alerts: []}
+      - alertname: DiskSpaceLow
+        eval_time: 11m
+        exp_alerts:
+          - exp_labels: {job: sms-node, instance: 'node-exporter:9100', mountpoint: '/', device: '/dev/sda1', fstype: ext4, severity: warning}
+            exp_annotations:
+              summary: "Ổ đĩa của Docker còn dưới 15% dung lượng trống"
