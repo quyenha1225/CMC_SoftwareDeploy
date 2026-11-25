@@ -135,6 +135,29 @@ class BuildArtifacts:
             os.environ['SMS_CI_' + service.upper() + '_IMAGE'] = expected['id']
         return images
 
+    def verify_runtime_images(self, runtime, expected):
+        """Check actual Compose containers, not just the tags requested at startup."""
+        if set(expected) != set(DOCKERFILES):
+            raise RuntimeError('Expected three CI images')
+        if not runtime.config.get('COMPOSE_PROJECT_NAME', '').startswith('sms_ci_'):
+            raise RuntimeError('Runtime image verification requires an isolated CI project')
+        actual = {}
+        for service in DOCKERFILES:
+            compose_service = 'migrate' if service == 'migration' else service
+            containers = runtime.run('ps', '--all', '--quiet', compose_service, capture=True).splitlines()
+            if len(containers) != 1:
+                raise RuntimeError('Expected exactly one CI container: ' + compose_service)
+            raw = subprocess.check_output(
+                runtime.docker + ['inspect', containers[0]], cwd=self.root)
+            container = json.loads(raw)[0]
+            labels = container['Config']['Labels']
+            if (labels.get('com.docker.compose.project') != runtime.config['COMPOSE_PROJECT_NAME']
+                    or labels.get('com.docker.compose.service') != compose_service
+                    or container['Image'] != expected[service]['id']):
+                raise RuntimeError('CI runtime image differs from the built image: ' + service)
+            actual[service] = container['Image']
+        return actual
+
     def export_scans(self, run, record):
         images = self.pin_images()
         directory = self.work / 'scans'
@@ -154,8 +177,13 @@ class BuildArtifacts:
                 if len(entries) != 1:
                     raise RuntimeError('Expected one image in the scan archive: ' + service)
                 config = archive.extractfile(entries[0]['Config']).read()
-            if json.loads(config)['rootfs']['diff_ids'] != image['layers']:
-                raise RuntimeError('Scan archive does not match the built image layers: ' + service)
+            exported = json.loads(config)
+            if (exported['rootfs']['diff_ids'] != image['layers']
+                    or exported.get('os') != 'linux'
+                    or exported.get('architecture') != image['architecture']
+                    or (exported.get('config', {}).get('Labels') or {}).get(
+                        'org.opencontainers.image.revision') != image['revision']):
+                raise RuntimeError('Scan archive does not match the built image identity: ' + service)
             records[service] = {'id': image['id'], 'sha256': sha256(path), 'size': path.stat().st_size,
                                 'config_id': 'sha256:' + hashlib.sha256(config).hexdigest()}
         self.write('scan-archives', records)
