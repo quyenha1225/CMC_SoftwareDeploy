@@ -92,9 +92,8 @@ class JenkinsReportsTests(unittest.TestCase):
         self.assertNotRegex(text, "test-secret|webhooks|abcdefghijk")
 
     def test_direct_discord_has_one_embed_for_each_terminal_status(self):
-        jenkins = (ROOT / "Jenkinsfile").read_text(encoding="utf-8")
-        embedded = re.search(r"writeFile file: notifier, text: '''(.*?)'''", jenkins, re.S)[1]
-        code = compile(embedded, "Jenkinsfile Discord notifier", "exec")
+        notifier = ROOT / "scripts/jenkins_notify.py"
+        code = compile(notifier.read_text(encoding="utf-8"), str(notifier), "exec")
 
         class Response(io.BytesIO):
             status = 200
