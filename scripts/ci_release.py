@@ -88,7 +88,7 @@ def max_age(env):
 def evidence_paths(root):
     paths = set(REQUIRED) | {FRONTEND_TEST}
     paths.update(p.relative_to(root).as_posix()
-                 for p in (root / 'backend/target/surefire-reports').glob('*.xml'))
+                 for p in (root / 'backend/target/surefire-reports').glob('TEST-*.xml'))
     require(any(BACKEND_TEST.fullmatch(p) for p in paths), 'Backend JUnit evidence missing')
     return sorted(paths)
 
@@ -157,13 +157,13 @@ def validate(manifest, files, *, commit, branch, build_url, now, age):
             'Integration test evidence is incomplete')
     archives = bound('scan-archives')
     require(set(archives) == set(SERVICES)
-            and all(archives[s]['id'] == ids[s] for s in SERVICES),
+            and all(archives[s]['id'] == ids[s] and IMAGE_ID.fullmatch(archives[s]['config_id']) for s in SERVICES),
             'Scan archives do not match built images')
     for scanner, prefix in (('vuln', 'trivy'), ('secret', 'trivy-secret')):
         require(bound('scan-completed-' + scanner) == archives, 'Scan checkpoint missing: ' + scanner)
         for service in SERVICES:
             require(report(prefix + '-' + service).get('Metadata', {}).get('ImageID')
-                    == archives[service]['config_id'] == ids[service], 'Scanned image differs: ' + service)
+                    == archives[service]['config_id'], 'Scanned image differs: ' + service)
         for service in ('filesystem', *SERVICES):
             scan = report(prefix + '-' + service)
             require('Results' in scan and (isinstance(scan['Results'], list) or scan['Results'] is None),
@@ -309,6 +309,8 @@ def verify_local(root, env):
     require(decode(read_bytes(root / REPORT / 'release.json')) ==
             {'commit': manifest['commit'], 'images': manifest['images']},
             'Deployment manifest was changed after verification')
+    require(manifest['scanner'] == env.get('TRIVY_IMAGE', 'aquasec/trivy:0.64.1'),
+            'Release scanner differs from current approved scanner configuration')
     return manifest
 
 
