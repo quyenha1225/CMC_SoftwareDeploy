@@ -30,14 +30,25 @@ def main():
 
         task = get("ce/task", id=metadata["ceTaskId"])["task"]
         gate = get("qualitygates/project_status", analysisId=task["analysisId"])["projectStatus"]
+        if os.getenv('SMS_RECORD_SONAR_EVIDENCE') == 'true':
+            if task.get('status') != 'SUCCESS' or gate.get('status') != 'OK':
+                raise RuntimeError('Exact Sonar analysis did not pass')
+            from ci_release import atomic_json
+            atomic_json(report.parents[3] / 'artifacts/reports/sonar-evidence.json', {
+                'commit': os.environ['IMAGE_TAG'], 'task_id': metadata['ceTaskId'],
+                'analysis_id': task['analysisId'], 'status': gate['status']})
         for condition in gate["conditions"]:
             if condition["status"] == "ERROR":
                 print(f"SonarQube Quality Gate ERROR: {condition['metricKey']} "
                       f"actual={condition.get('actualValue', '?')}; "
                       f"fails when {condition.get('comparator', '?')} {condition.get('errorThreshold', '?')}")
     except HTTPError as error:
+        if os.getenv('SMS_RECORD_SONAR_EVIDENCE') == 'true':
+            raise RuntimeError('Exact Sonar evidence unavailable') from None
         print(f"SonarQube Quality Gate details unavailable (HTTP {error.code}).")
     except (OSError, ValueError, KeyError, TypeError) as error:
+        if os.getenv('SMS_RECORD_SONAR_EVIDENCE') == 'true':
+            raise RuntimeError('Exact Sonar evidence unavailable') from None
         print(f"SonarQube Quality Gate details unavailable ({type(error).__name__}).")
 
 
