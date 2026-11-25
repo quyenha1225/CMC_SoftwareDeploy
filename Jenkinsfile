@@ -14,7 +14,6 @@ def diagnosticStages() {
         'Dependency and Image Scan',
         'Secret Scan',
         'Publish Verified Release',
-        'Import Verified Release',
         'Deploy Local Docker',
         'Deploy Server SSH',
     ]
@@ -92,11 +91,6 @@ def stageValue(String name, String kind) {
             if (kind == 'state') return env.SMS_STAGE_Publish_Verified_Release
             if (kind == 'detail') return env.SMS_STAGE_Publish_Verified_Release_DETAIL
             if (kind == 'error') return env.SMS_STAGE_Publish_Verified_Release_ERROR
-            break
-        case 'Import Verified Release':
-            if (kind == 'state') return env.SMS_STAGE_Import_Verified_Release
-            if (kind == 'detail') return env.SMS_STAGE_Import_Verified_Release_DETAIL
-            if (kind == 'error') return env.SMS_STAGE_Import_Verified_Release_ERROR
             break
         case 'Deploy Local Docker':
             if (kind == 'state') return env.SMS_STAGE_Deploy_Local_Docker
@@ -186,11 +180,6 @@ def setStageValue(String name, String kind, String value) {
             else if (kind == 'detail') env.SMS_STAGE_Publish_Verified_Release_DETAIL = value
             else if (kind == 'error') env.SMS_STAGE_Publish_Verified_Release_ERROR = value
             break
-        case 'Import Verified Release':
-            if (kind == 'state') env.SMS_STAGE_Import_Verified_Release = value
-            else if (kind == 'detail') env.SMS_STAGE_Import_Verified_Release_DETAIL = value
-            else if (kind == 'error') env.SMS_STAGE_Import_Verified_Release_ERROR = value
-            break
         case 'Deploy Local Docker':
             if (kind == 'state') env.SMS_STAGE_Deploy_Local_Docker = value
             else if (kind == 'detail') env.SMS_STAGE_Deploy_Local_Docker_DETAIL = value
@@ -204,10 +193,6 @@ def setStageValue(String name, String kind, String value) {
         default:
             echo "CI evidence limitation: unknown stage ${name}."
     }
-}
-
-def runsCI() {
-    return env.SMS_PIPELINE_MODE in ['FULL', 'CI_ONLY']
 }
 
 def releaseBranch() {
@@ -430,20 +415,8 @@ pipeline {
         buildDiscarder(logRotator(numToKeepStr: '20'))
     }
 
-    // Configure GitHub push / fallback polling on the CI owner job ONLY.
-    // FULL runs CI once and deploys automatically. The server job is reserved for explicit retries.
-
-    parameters {
-        choice(name: 'PIPELINE_MODE', choices: ['FULL', 'CI_ONLY', 'DEPLOY_LOCAL_ONLY', 'DEPLOY_SERVER_ONLY'],
-               description: 'FULL automatically deploys after CI passes; CD-only requires an explicit verified release.')
-        string(name: 'RELEASE_BUILD', defaultValue: '', description: 'Exact SMS-CICD build number for CD-only')
-        string(name: 'RELEASE_SHA', defaultValue: '', description: 'Full commit SHA for CD-only')
-        booleanParam(
-            name: 'RUN_SONAR',
-            defaultValue: true,
-            description: 'Chạy SonarQube trên build nhánh. Có thể tắt khi chạy thủ công.'
-        )
-    }
+    // SMS-CICD is the sole automatic CI/CD job. Configure its SCM triggers in Jenkins.
+    // No build parameters: Build Now and SCM changes use the same flow.
 
     stages {
 
@@ -463,23 +436,7 @@ pipeline {
                 script {
                     env.SMS_TIMING_DIR = "${pwd(tmp: true)}/sms-timings-${env.BUILD_NUMBER}"
                     recordStage('Checkout', 'started')
-                    env.SMS_PIPELINE_MODE = params.PIPELINE_MODE ?: 'FULL'
-                    if (env.JOB_NAME == 'SMS-CICD-Server' && env.SMS_PIPELINE_MODE != 'DEPLOY_SERVER_ONLY') {
-                        error('Server job accepts only DEPLOY_SERVER_ONLY; disable its SCM triggers.')
-                    }
-                    if (env.SMS_PIPELINE_MODE == 'DEPLOY_SERVER_ONLY' && env.JOB_NAME != 'SMS-CICD-Server') {
-                        error('Use the dedicated server deployment job.')
-                    }
-                    if (env.SMS_PIPELINE_MODE in ['FULL', 'DEPLOY_LOCAL_ONLY'] && env.JOB_NAME != 'SMS-CICD') {
-                        error('Local deployment requires the SMS-CICD job.')
-                    }
-                    if (env.SMS_PIPELINE_MODE in ['DEPLOY_LOCAL_ONLY', 'DEPLOY_SERVER_ONLY']) {
-                        if (!(params.RELEASE_BUILD ==~ /[1-9][0-9]{0,9}/) || !(params.RELEASE_SHA ==~ /[0-9a-f]{40}/)) {
-                            error('Provide an exact release build number and full SHA.')
-                        }
-                        env.RELEASE_BUILD = params.RELEASE_BUILD
-                        env.RELEASE_SHA = params.RELEASE_SHA
-                    }
+                    env.SMS_PIPELINE_MODE = 'FULL'
                     def checkedOut = checkout(scm)
                     ['artifacts/reports', 'artifacts/ci-assets', 'backend/target/surefire-reports',
                      'backend/target/site/jacoco', 'backend/target/sonar', 'frontend/coverage'].each { path ->
@@ -488,24 +445,9 @@ pipeline {
                     env.SMS_CHECKOUT_BRANCH = (
                         env.BRANCH_NAME ?: checkedOut.GIT_BRANCH ?: env.GIT_BRANCH ?: ''
                     ).replaceFirst(/^refs\/(remotes\/|heads\/)/, '').replaceFirst(/^origin\//, '')
-                    if (!runsCI()) {
-                        if (!releaseBranch() || (env.SMS_PIPELINE_MODE == 'DEPLOY_SERVER_ONLY' &&
-                                env.SMS_CHECKOUT_BRANCH != (env.SMS_SERVER_BRANCH ?: 'quyen/admin'))) {
-                            error('Deployment branch is not allowed.')
-                        }
-                        // Check membership in the configured branch before detaching to the exact release.
-                        if (isUnix()) {
-                            sh "git merge-base --is-ancestor ${env.RELEASE_SHA} HEAD && git checkout --detach ${env.RELEASE_SHA}"
-                        } else {
-                            bat "git merge-base --is-ancestor ${env.RELEASE_SHA} HEAD && git checkout --detach ${env.RELEASE_SHA}"
-                        }
-                    }
-                    if (env.SMS_PIPELINE_MODE == 'FULL' && !releaseBranch()) {
+                    if (!releaseBranch()) {
                         env.SMS_PIPELINE_MODE = 'CI_ONLY'
                         echo 'Unapproved branch, PR or tag: CI only; no deployment.'
-                    }
-                    if (env.SMS_PIPELINE_MODE == 'FULL' && !params.RUN_SONAR) {
-                        error('FULL requires enabled SonarQube.')
                     }
                     env.IMAGE_TAG = isUnix()
                         ? sh(
@@ -521,6 +463,9 @@ pipeline {
                         error('Không lấy được Git commit SHA hợp lệ.')
                     }
                     env.SMS_REPORTS_READY = 'true'
+                    if (env.JOB_NAME != 'SMS-CICD') {
+                        error('Use SMS-CICD only. Disable triggers on the obsolete SMS-CICD-Server job.')
+                    }
 
                     echo "Building commit: ${env.IMAGE_TAG} on ${env.SMS_CHECKOUT_BRANCH ?: 'unknown branch'}"
                     notifyDiscord('Checkout', '', 'STARTED')
@@ -545,14 +490,13 @@ pipeline {
                 script {
                     configureDocker()
                     env.SMS_ENVIRONMENT_CHECK = 'Validate the Jenkins agent and Docker Linux Engine'
-                    executeStep(runsCI() ? 'preflight' : 'docker-ready')
+                    executeStep('preflight')
                     env.SMS_DOCKER_READY = 'true'
                 }
             }
         }
 
         stage('Prepare') {
-            when { expression { runsCI() } }
             post {
                 success { script { recordStage('Prepare', 'passed') } }
                 aborted { script { recordStage('Prepare', 'aborted') } }
@@ -571,7 +515,6 @@ pipeline {
         }
 
         stage('Validate Docker Compose') {
-            when { expression { runsCI() } }
             post {
                 success { script { recordStage('Validate Docker Compose', 'passed') } }
                 aborted { script { recordStage('Validate Docker Compose', 'aborted') } }
@@ -595,7 +538,6 @@ pipeline {
         }
 
         stage('Tests') {
-            when { expression { runsCI() } }
             failFast true
             parallel {
 
@@ -641,16 +583,7 @@ pipeline {
                 }
             }
 
-            when {
-                allOf {
-                    expression {
-                        runsCI() && params.RUN_SONAR
-                    }
-                    not {
-                        changeRequest()
-                    }
-                }
-            }
+            when { not { changeRequest() } }
 
             steps {
                 script { recordStage('SonarQube Analysis', 'started') }
@@ -672,16 +605,7 @@ pipeline {
                 }
             }
 
-            when {
-                allOf {
-                    expression {
-                        runsCI() && params.RUN_SONAR
-                    }
-                    not {
-                        changeRequest()
-                    }
-                }
-            }
+            when { not { changeRequest() } }
 
             steps {
                 script { recordStage('SonarQube Quality Gate', 'started') }
@@ -708,7 +632,6 @@ pipeline {
         }
 
         stage('Build Docker Images') {
-            when { expression { runsCI() } }
             post {
                 success { script { recordStage('Build Docker Images', 'passed') } }
                 aborted { script { recordStage('Build Docker Images', 'aborted') } }
@@ -730,7 +653,6 @@ pipeline {
         }
 
         stage('MySQL Integration Tests') {
-            when { expression { runsCI() } }
             post {
                 success { script { recordStage('MySQL Integration Tests', 'passed') } }
                 aborted { script { recordStage('MySQL Integration Tests', 'aborted') } }
@@ -750,7 +672,6 @@ pipeline {
         }
 
         stage('Export Scan Images') {
-            when { expression { runsCI() } }
             post {
                 success { script { recordStage('Export Scan Images', 'passed') } }
                 aborted { script { recordStage('Export Scan Images', 'aborted') } }
@@ -764,7 +685,6 @@ pipeline {
         }
 
         stage('Security Scan') {
-            when { expression { runsCI() } }
             post {
                 success {
                     script {
@@ -809,7 +729,7 @@ pipeline {
         stage('Publish Verified Release') {
             when {
                 expression {
-                    runsCI() && releaseBranch() && env.JOB_NAME == 'SMS-CICD' && params.RUN_SONAR
+                    releaseBranch() && env.JOB_NAME == 'SMS-CICD'
                 }
             }
             post {
@@ -829,26 +749,6 @@ pipeline {
                     archiveArtifacts artifacts: 'artifacts/reports/verified-release.json,artifacts/reports/*.json,backend/target/surefire-reports/TEST-*.xml,frontend/coverage/junit.xml',
                         allowEmptyArchive: false, fingerprint: true
                     env.SMS_IMAGES_PUBLISHED = 'true'
-                }
-            }
-        }
-
-        stage('Import Verified Release') {
-            when { expression { !runsCI() } }
-            post {
-                success { script { recordStage('Import Verified Release', 'passed') } }
-                aborted { script { recordStage('Import Verified Release', 'aborted') } }
-                failure { script { recordStageFailure('Import Verified Release', 'promote-release') } }
-            }
-            steps {
-                script {
-                    recordStage('Import Verified Release', 'started')
-                    withCredentials([usernamePassword(credentialsId: 'sms-jenkins-console-reader',
-                        usernameVariable: 'SMS_JENKINS_CONSOLE_USER', passwordVariable: 'SMS_JENKINS_CONSOLE_TOKEN')]) {
-                        executeStep('promote-release')
-                    }
-                    env.SMS_RELEASE_IMPORTED = 'true'
-                    env.QUALITY_GATE_PASSED = 'true'
                 }
             }
         }
@@ -873,7 +773,7 @@ pipeline {
                 allOf {
                     expression {
                         return env.JOB_NAME == 'SMS-CICD' &&
-                            env.SMS_PIPELINE_MODE in ['FULL', 'DEPLOY_LOCAL_ONLY'] && releaseBranch()
+                            releaseBranch()
                     }
 
                     not {
@@ -888,7 +788,7 @@ pipeline {
             steps {
                 script { recordStage('Deploy Local Docker', 'started') }
                 script {
-                    if ((env.SMS_IMAGES_PUBLISHED != 'true' && env.SMS_RELEASE_IMPORTED != 'true') || env.QUALITY_GATE_PASSED != 'true') {
+                    if (env.SMS_IMAGES_PUBLISHED != 'true' || env.QUALITY_GATE_PASSED != 'true') {
                         error('Local deployment requires a verified release.')
                     }
                     env.SMS_DEPLOY_STARTED = 'true'
@@ -907,8 +807,7 @@ pipeline {
                 allOf {
                     expression {
                         return releaseBranch() && env.SMS_CHECKOUT_BRANCH == (env.SMS_SERVER_BRANCH ?: 'quyen/admin') &&
-                            ((env.JOB_NAME == 'SMS-CICD' && env.SMS_PIPELINE_MODE == 'FULL') ||
-                             (env.JOB_NAME == 'SMS-CICD-Server' && env.SMS_PIPELINE_MODE == 'DEPLOY_SERVER_ONLY'))
+                            env.JOB_NAME == 'SMS-CICD'
                     }
                     not { changeRequest() }
                     not { buildingTag() }
@@ -932,7 +831,7 @@ pipeline {
                 script { recordStage('Deploy Server SSH', 'started') }
                 script {
                     if (env.QUALITY_GATE_PASSED != 'true' ||
-                            (env.SMS_PIPELINE_MODE == 'FULL' ? env.SMS_IMAGES_PUBLISHED != 'true' : env.SMS_RELEASE_IMPORTED != 'true')) {
+                            env.SMS_IMAGES_PUBLISHED != 'true') {
                         error('Server deployment requires a verified release.')
                     }
                     // Local success must never be reported as server success if SSH fails.
