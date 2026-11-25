@@ -751,6 +751,10 @@ pipeline {
                 failure {
                     script {
                         recordStageFailure('Deploy Server SSH', env.SMS_SERVER_CHECK ?: '')
+                        if (env.SMS_PIPELINE_MODE == 'FULL' && env.SMS_IMAGES_PUBLISHED == 'true') {
+                            writeFile file: 'artifacts/reports/server-deploy-failed.json',
+                                text: """{"commit":"${env.IMAGE_TAG}","build":"${env.BUILD_NUMBER}","stage":"Deploy Server SSH"}"""
+                        }
                     }
                 }
             }
