@@ -408,6 +408,7 @@ def main(step):
             try:
                 record_check('MySQL integration: start database, migrations and application containers')
                 runtime.run('up','-d','--no-build','--wait','--wait-timeout','300','frontend','backend')
+                initial_images = artifacts.verify_runtime_images(runtime, tested_images)
                 collect_fixture_timeline(runtime)
                 record_check('MySQL integration: provision test accounts')
                 runtime.run('run','--rm','--no-deps','provision','--initialize')
@@ -464,10 +465,14 @@ def main(step):
                 record_check('MySQL integration: restart and persistence')
                 print('MySQL integration: restart and persistence',flush=True)
                 before=runtime.sql('SELECT COUNT(*) FROM students UNION ALL SELECT COUNT(*) FROM payments')
-                runtime.run('restart','db');runtime.run('up','-d','--wait','--wait-timeout','180','backend','frontend')
+                runtime.run('restart','db');runtime.run('up','-d','--no-build','--wait','--wait-timeout','180','backend','frontend')
                 if before!=runtime.sql('SELECT COUNT(*) FROM students UNION ALL SELECT COUNT(*) FROM payments'):raise RuntimeError('Persistence check failed')
                 record_check('MySQL integration: smoke test after restart')
                 smoke(runtime, report=record_check)
+                final_images = artifacts.verify_runtime_images(runtime, tested_images)
+                if initial_images != final_images:
+                    raise RuntimeError('CI image identity changed after restart')
+                artifacts.write('mysql-runtime-images', {'initial': initial_images, 'final': final_images})
                 (REPORTS/'mysql-integration.json').write_text(json.dumps({'passed':True,'created_at':dt.datetime.now().isoformat(),'image_tag':os.getenv('IMAGE_TAG','local'),'checks':results,'workflows':workflows,'restore':True,'restart_persistence':True},indent=2))
                 record_check('MySQL integration: collect logs and remove CI containers')
             finally:
