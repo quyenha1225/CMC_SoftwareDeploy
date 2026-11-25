@@ -236,12 +236,13 @@ class OperationsTests(unittest.TestCase):
             with self.assertRaises(RuntimeError):initialize(env,ci=True)
             self.assertEqual(original,env.read_bytes())
     def test_frontend_failure_stops_following_commands(self):
-        with tempfile.TemporaryDirectory() as folder, patch.object(ci,'ROOT',Path(folder)), patch.object(ci,'run',side_effect=[None,RuntimeError('lint failed')]) as command:
+        with tempfile.TemporaryDirectory() as folder, patch.object(ci,'ROOT',Path(folder)), patch.object(ci, 'build_artifacts'), patch.dict(os.environ, {}, clear=True), patch.object(ci,'run',side_effect=[None,RuntimeError('lint failed')]) as command:
             with self.assertRaises(RuntimeError):ci.main('frontend')
             self.assertEqual(command.call_count,2)
     def test_frontend_keeps_checks_and_uses_content_cache(self):
-        with tempfile.TemporaryDirectory() as folder, patch.object(ci, 'ROOT', Path(folder)), patch.object(ci, 'run') as execute:
+        with tempfile.TemporaryDirectory() as folder, patch.object(ci, 'ROOT', Path(folder)), patch.object(ci, 'build_artifacts') as artifacts, patch.dict(os.environ, {}, clear=True), patch.object(ci, 'run') as execute:
             ci.main('frontend')
+            artifacts.return_value.record_input.assert_called_once_with('frontend')
         commands = [call.args[0] for call in execute.call_args_list]
         self.assertEqual(len(commands), 4)
         self.assertIn('--prefer-offline', commands[0])
