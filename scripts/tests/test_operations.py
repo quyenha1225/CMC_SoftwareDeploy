@@ -202,4 +202,26 @@ class OperationsTests(unittest.TestCase):
         with patch.dict(os.environ,{},clear=True):
             with self.assertRaises(RuntimeError):ci.main('publish')
 
+
+    def test_server_deploy_starts_monitoring_stack_and_waits(self):
+        events = []
+        class Runtime:
+            def run(self, *args, **kwargs):
+                events.append(args)
+                return ""
+        with tempfile.TemporaryDirectory() as folder, patch.object(deploy, 'ROOT', Path(folder)):
+            monitor = Path(folder) / 'infrastructure' / 'monitoring'
+            monitor.mkdir(parents=True)
+            (monitor / 'prometheus.yml').write_text('test config')
+            (monitor / 'alerts.yml').write_text('test rules')
+            with patch.dict(os.environ, {}, clear=True):
+                revision = deploy.start_monitoring(Runtime())
+                overlay = ('-f', str(Path(folder) / 'compose.monitoring.yaml'), '--profile', 'monitoring')
+                services = ('prometheus', 'grafana', 'alertmanager', 'blackbox', 'cadvisor', 'node-exporter', 'volume-size')
+                self.assertEqual(events[0], (*overlay, 'up', '-d', '--no-build', '--wait', '--wait-timeout', '180', *services))
+                self.assertEqual(events[1], (*overlay, 'ps'))
+                self.assertEqual(os.environ['SMS_MONITORING_DIR'], monitor.as_posix())
+                self.assertEqual(os.environ['SMS_MONITORING_REVISION'], revision)
+                self.assertEqual(len(revision), 64)
+
 if __name__=='__main__':unittest.main()

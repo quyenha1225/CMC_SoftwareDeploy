@@ -5,7 +5,7 @@
   "sms"
  ],
  "schemaVersion": 39,
- "version": 2,
+ "version": 3,
  "refresh": "30s",
  "time": {
   "from": "now-3h",
@@ -195,15 +195,15 @@
   {
    "id": 3,
    "type": "gauge",
-   "title": "\u1ed4 \u0111\u0129a Docker tr\u1ed1ng (%)",
+   "title": "Ổ đĩa Docker trống (%)",
    "datasource": {
     "type": "prometheus"
    },
    "gridPos": {
-    "x": 12,
-    "y": 0,
-    "w": 6,
-    "h": 4
+    "x": 0,
+    "y": 4,
+    "w": 12,
+    "h": 8
    },
    "targets": [
     {
@@ -232,10 +232,10 @@
     "type": "prometheus"
    },
    "gridPos": {
-    "x": 18,
-    "y": 0,
-    "w": 6,
-    "h": 4
+    "x": 12,
+    "y": 4,
+    "w": 12,
+    "h": 8
    },
    "targets": [
     {
@@ -257,13 +257,13 @@
   {
    "id": 5,
    "type": "bargauge",
-   "title": "Dung l\u01b0\u1ee3ng volume",
+   "title": "Dung lượng volume",
    "datasource": {
     "type": "prometheus"
    },
    "gridPos": {
     "x": 0,
-    "y": 4,
+    "y": 12,
     "w": 12,
     "h": 8
    },
@@ -287,13 +287,13 @@
   {
    "id": 6,
    "type": "timeseries",
-   "title": "Dung l\u01b0\u1ee3ng volume theo th\u1eddi gian",
+   "title": "Dung lượng volume theo thời gian",
    "datasource": {
     "type": "prometheus"
    },
    "gridPos": {
     "x": 12,
-    "y": 4,
+    "y": 12,
     "w": 12,
     "h": 8
    },
@@ -323,7 +323,7 @@
    },
    "gridPos": {
     "x": 0,
-    "y": 12,
+    "y": 20,
     "w": 12,
     "h": 8
    },
@@ -353,7 +353,7 @@
    },
    "gridPos": {
     "x": 12,
-    "y": 12,
+    "y": 20,
     "w": 12,
     "h": 8
    },
@@ -377,13 +377,13 @@
   {
    "id": 9,
    "type": "timeseries",
-   "title": "Backend 5xx / gi\u00e2y (0 n\u1ebfu kh\u00f4ng l\u1ed7i)",
+   "title": "Backend 5xx / giây (0 nếu không lỗi)",
    "datasource": {
     "type": "prometheus"
    },
    "gridPos": {
     "x": 0,
-    "y": 20,
+    "y": 28,
     "w": 12,
     "h": 8
    },
@@ -407,13 +407,13 @@
   {
    "id": 10,
    "type": "timeseries",
-   "title": "Backend 4xx / gi\u00e2y",
+   "title": "Backend 4xx / giây",
    "datasource": {
     "type": "prometheus"
    },
    "gridPos": {
     "x": 12,
-    "y": 20,
+    "y": 28,
     "w": 12,
     "h": 8
    },
@@ -443,7 +443,7 @@
    },
    "gridPos": {
     "x": 0,
-    "y": 28,
+    "y": 36,
     "w": 12,
     "h": 8
    },
@@ -467,13 +467,13 @@
   {
    "id": 12,
    "type": "timeseries",
-   "title": "Lu\u1ed3ng JVM",
+   "title": "Luồng JVM",
    "datasource": {
     "type": "prometheus"
    },
    "gridPos": {
     "x": 12,
-    "y": 28,
+    "y": 36,
     "w": 12,
     "h": 8
    },
@@ -481,6 +481,130 @@
     {
      "refId": "A",
      "expr": "jvm_threads_live_threads{job=\"sms-backend\"}",
+     "legendFormat": "",
+     "datasource": {
+      "type": "prometheus"
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short"
+    },
+    "overrides": []
+   }
+  },
+  {
+   "id": 15,
+   "type": "gauge",
+   "title": "CPU host sử dụng (%)",
+   "datasource": {
+    "type": "prometheus"
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 44,
+    "w": 6,
+    "h": 6
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "100 * (1 - avg(rate(node_cpu_seconds_total{job=\"sms-node\",mode=\"idle\"}[5m])))",
+     "legendFormat": "",
+     "datasource": {
+      "type": "prometheus"
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "percent",
+     "min": 0,
+     "max": 100
+    },
+    "overrides": []
+   }
+  },
+  {
+   "id": 16,
+   "type": "gauge",
+   "title": "RAM host sử dụng (%)",
+   "datasource": {
+    "type": "prometheus"
+   },
+   "gridPos": {
+    "x": 6,
+    "y": 44,
+    "w": 6,
+    "h": 6
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "100 * (1 - node_memory_MemAvailable_bytes{job=\"sms-node\"} / node_memory_MemTotal_bytes{job=\"sms-node\"})",
+     "legendFormat": "",
+     "datasource": {
+      "type": "prometheus"
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "percent",
+     "min": 0,
+     "max": 100
+    },
+    "overrides": []
+   }
+  },
+  {
+   "id": 17,
+   "type": "stat",
+   "title": "Host uptime",
+   "datasource": {
+    "type": "prometheus"
+   },
+   "gridPos": {
+    "x": 12,
+    "y": 44,
+    "w": 6,
+    "h": 6
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "time() - node_boot_time_seconds{job=\"sms-node\"}",
+     "legendFormat": "",
+     "datasource": {
+      "type": "prometheus"
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "dtdurations"
+    },
+    "overrides": []
+   }
+  },
+  {
+   "id": 18,
+   "type": "stat",
+   "title": "Load average 1m",
+   "datasource": {
+    "type": "prometheus"
+   },
+   "gridPos": {
+    "x": 18,
+    "y": 44,
+    "w": 6,
+    "h": 6
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "expr": "node_load1{job=\"sms-node\"}",
      "legendFormat": "",
      "datasource": {
       "type": "prometheus"
