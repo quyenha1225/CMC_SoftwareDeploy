@@ -123,6 +123,28 @@ class OperationsTests(unittest.TestCase):
                         self.assertRaisesRegex(RuntimeError, 'clean checked-out commit'):
                     ci.require_clean_release()
 
+    def test_windows_jenkins_key_acl_only_applies_to_bound_credentials(self):
+        from types import SimpleNamespace
+        with tempfile.TemporaryDirectory() as folder:
+            workspace = Path(folder) / 'workspace'
+            key = Path(str(workspace) + '@tmp') / 'secretFiles' / 'test' / 'key.tmp'
+            key.parent.mkdir(parents=True)
+            key.write_text('test-placeholder', encoding='utf-8')
+            values = {'BUILD_NUMBER': '1', 'WORKSPACE': str(workspace), 'DEPLOY_KEY': str(key)}
+            fake_os = SimpleNamespace(name='nt', environ=values, getenv=values.get)
+            with patch.object(deploy, 'os', fake_os), patch.object(deploy.subprocess, 'run') as execute:
+                deploy.protect_jenkins_ssh_key()
+                command = execute.call_args.args[0]
+                self.assertEqual(command[0], 'powershell.exe')
+                self.assertIn('SetAccessRuleProtection($true, $false)', command[-1])
+                self.assertIn('Set-Acl -LiteralPath $path', command[-1])
+                self.assertTrue(execute.call_args.kwargs['check'])
+                execute.reset_mock()
+                values['DEPLOY_KEY'] = str(workspace / 'unrelated-key')
+                with self.assertRaisesRegex(RuntimeError, 'outside Jenkins temporary credentials'):
+                    deploy.protect_jenkins_ssh_key()
+                execute.assert_not_called()
+
     def test_remote_rollout_preserves_original_failure_and_archives_ssh_logs(self):
         failure = subprocess.CalledProcessError(1, ['ssh'])
         ssh_logs = subprocess.CompletedProcess(['ssh'], 0, b'password=fixture-secret\n', b'')
