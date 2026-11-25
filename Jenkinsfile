@@ -261,11 +261,11 @@ pipeline {
     }
 
     // Configure GitHub push / fallback polling on the CI owner job ONLY.
-    // CD jobs are manually triggered with a specific release.
+    // FULL runs CI once and deploys automatically. The server job is reserved for explicit retries.
 
     parameters {
-        choice(name: 'PIPELINE_MODE', choices: ['CI_ONLY', 'FULL', 'DEPLOY_LOCAL_ONLY', 'DEPLOY_SERVER_ONLY'],
-               description: 'CI_ONLY is the safe default. CD-only requires an explicit verified release.')
+        choice(name: 'PIPELINE_MODE', choices: ['FULL', 'CI_ONLY', 'DEPLOY_LOCAL_ONLY', 'DEPLOY_SERVER_ONLY'],
+               description: 'FULL automatically deploys after CI passes; CD-only requires an explicit verified release.')
         string(name: 'RELEASE_BUILD', defaultValue: '', description: 'Exact SMS-CICD build number for CD-only')
         string(name: 'RELEASE_SHA', defaultValue: '', description: 'Full commit SHA for CD-only')
         booleanParam(
@@ -293,7 +293,7 @@ pipeline {
                 script {
                     env.SMS_TIMING_DIR = "${pwd(tmp: true)}/sms-timings-${env.BUILD_NUMBER}"
                     recordStage('Checkout', 'started')
-                    env.SMS_PIPELINE_MODE = params.PIPELINE_MODE ?: 'CI_ONLY'
+                    env.SMS_PIPELINE_MODE = params.PIPELINE_MODE ?: 'FULL'
                     if (env.JOB_NAME == 'SMS-CICD-Server' && env.SMS_PIPELINE_MODE != 'DEPLOY_SERVER_ONLY') {
                         error('Server job accepts only DEPLOY_SERVER_ONLY; disable its SCM triggers.')
                     }
@@ -320,7 +320,7 @@ pipeline {
                     ).replaceFirst(/^refs\/(remotes\/|heads\/)/, '').replaceFirst(/^origin\//, '')
                     if (!runsCI()) {
                         if (!releaseBranch() || (env.SMS_PIPELINE_MODE == 'DEPLOY_SERVER_ONLY' &&
-                                env.SMS_CHECKOUT_BRANCH != (env.SMS_SERVER_BRANCH ?: 'develop'))) {
+                                env.SMS_CHECKOUT_BRANCH != (env.SMS_SERVER_BRANCH ?: 'quyen/admin'))) {
                             error('Deployment branch is not allowed.')
                         }
                         // Check membership in the configured branch before detaching to the exact release.
@@ -330,8 +330,12 @@ pipeline {
                             bat "git merge-base --is-ancestor ${env.RELEASE_SHA} HEAD && git checkout --detach ${env.RELEASE_SHA}"
                         }
                     }
-                    if (env.SMS_PIPELINE_MODE == 'FULL' && (!releaseBranch() || !params.RUN_SONAR)) {
-                        error('FULL requires an approved branch and enabled SonarQube.')
+                    if (env.SMS_PIPELINE_MODE == 'FULL' && !releaseBranch()) {
+                        env.SMS_PIPELINE_MODE = 'CI_ONLY'
+                        echo 'Unapproved branch, PR or tag: CI only; no deployment.'
+                    }
+                    if (env.SMS_PIPELINE_MODE == 'FULL' && !params.RUN_SONAR) {
+                        error('FULL requires enabled SonarQube.')
                     }
                     env.IMAGE_TAG = isUnix()
                         ? sh(
@@ -732,8 +736,9 @@ pipeline {
             when {
                 allOf {
                     expression {
-                        return env.JOB_NAME == 'SMS-CICD-Server' && env.SMS_PIPELINE_MODE == 'DEPLOY_SERVER_ONLY' &&
-                            env.SMS_CHECKOUT_BRANCH == (env.SMS_SERVER_BRANCH ?: 'develop')
+                        return releaseBranch() && env.SMS_CHECKOUT_BRANCH == (env.SMS_SERVER_BRANCH ?: 'quyen/admin') &&
+                            ((env.JOB_NAME == 'SMS-CICD' && env.SMS_PIPELINE_MODE == 'FULL') ||
+                             (env.JOB_NAME == 'SMS-CICD-Server' && env.SMS_PIPELINE_MODE == 'DEPLOY_SERVER_ONLY'))
                     }
                     not { changeRequest() }
                     not { buildingTag() }
@@ -752,9 +757,12 @@ pipeline {
             steps {
                 script { recordStage('Deploy Server SSH', 'started') }
                 script {
-                    if (env.SMS_RELEASE_IMPORTED != 'true' || env.QUALITY_GATE_PASSED != 'true') {
-                        error('Server deployment requires a verified imported release.')
+                    if (env.QUALITY_GATE_PASSED != 'true' ||
+                            (env.SMS_PIPELINE_MODE == 'FULL' ? env.SMS_IMAGES_PUBLISHED != 'true' : env.SMS_RELEASE_IMPORTED != 'true')) {
+                        error('Server deployment requires a verified release.')
                     }
+                    // Local success must never be reported as server success if SSH fails.
+                    env.SMS_DEPLOY_COMPLETED = 'false'
                     env.SMS_DEPLOY_STAGE = 'Deploy Server SSH'
                     env.SMS_DEPLOY_STARTED = 'true'
                     notifyDiscord('Deploy Server SSH', '', 'STARTED')
