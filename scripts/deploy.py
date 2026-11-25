@@ -49,6 +49,44 @@ def save_env(path,data):
     finally:
         temp.unlink(missing_ok=True)
 
+def protect_jenkins_ssh_key():
+    # Windows OpenSSH rejects inherited access for BUILTIN\\Users on Jenkins
+    # file credentials. Restrict only the temporary bound key, not other files.
+    if os.name != 'nt' or not os.getenv('BUILD_NUMBER'):
+        return
+    workspace = os.environ.get('WORKSPACE')
+    if not workspace:
+        raise RuntimeError('Windows Jenkins workspace is missing')
+    key = Path(os.environ['DEPLOY_KEY'])
+    credential_dir = Path(workspace + '@tmp') / 'secretFiles'
+    if key.is_symlink() or not key.resolve().is_relative_to(credential_dir.resolve()):
+        raise RuntimeError('Refusing to modify SSH key outside Jenkins temporary credentials')
+    # Use the actual process identity (including LocalSystem or a service user).
+    # No key content, password, or token is printed or copied.
+    command = r"""
+$ErrorActionPreference = 'Stop'
+$path = $env:DEPLOY_KEY
+$sid = [System.Security.Principal.WindowsIdentity]::GetCurrent().User
+$acl = New-Object System.Security.AccessControl.FileSecurity
+$acl.SetAccessRuleProtection($true, $false)
+$acl.SetOwner($sid)
+$rule = New-Object System.Security.AccessControl.FileSystemAccessRule($sid, 'FullControl', 'Allow')
+$acl.AddAccessRule($rule)
+Set-Acl -LiteralPath $path -AclObject $acl
+$actual = Get-Acl -LiteralPath $path
+$rules = @($actual.GetAccessRules($true, $true, [System.Security.Principal.SecurityIdentifier]))
+if (-not $actual.AreAccessRulesProtected -or
+    $actual.GetOwner([System.Security.Principal.SecurityIdentifier]).Value -ne $sid.Value -or
+    $rules.Count -ne 1 -or $rules[0].IdentityReference.Value -ne $sid.Value -or
+    $rules[0].IsInherited -or
+    $rules[0].AccessControlType -ne [System.Security.AccessControl.AccessControlType]::Allow) {
+    throw 'SSH key ACL verification failed'
+}
+"""
+    subprocess.run(['powershell.exe', '-NoProfile', '-NonInteractive',
+                    '-Command', command], check=True)
+    print('Jenkins temporary SSH key ACL verified for the current service identity.', flush=True)
+
 def remote_target():
     target=os.environ.get('DEPLOY_TARGET', 'production')
     if target not in ['staging','production']:raise RuntimeError('Invalid deployment environment')
@@ -63,6 +101,7 @@ def remote_target():
         raise RuntimeError('SMS_SERVER_PUBLIC_URL must be an HTTPS origin')
     approver=os.getenv('RELEASE_APPROVER','jenkins-ci')
     if not re.fullmatch(r'[A-Za-z0-9_.@-]+',approver):raise RuntimeError('Invalid approval identity')
+    protect_jenkins_ssh_key()
     options=['-i',os.environ['DEPLOY_KEY'],'-o','BatchMode=yes','-o','StrictHostKeyChecking=yes',
              '-o','ConnectTimeout=10','-o','IdentitiesOnly=yes',
              '-o','UserKnownHostsFile="'+os.environ['DEPLOY_KNOWN_HOSTS']+'"']
