@@ -131,8 +131,9 @@ def validate(manifest, files, *, commit, branch, build_url, now, age):
     def report(name):
         return decode(files[REPORT + name + '.json'])
     identity = report('build')
-    require(identity == {'commit': commit, 'dirty': False, 'build_id': source['build'],
-                         'build_url': build_url}, 'Release build identity is not clean or trusted')
+    require(identity.get('commit') == commit and identity.get('dirty') is False
+            and identity.get('build_id') == source['build']
+            and identity.get('build_url', '').rstrip('/') + '/' == build_url, 'Release build identity is not clean or trusted')
     images = manifest.get('images', {})
     ids = manifest.get('image_ids', {})
     require(set(images) == set(ids) == set(SERVICES)
@@ -165,7 +166,7 @@ def validate(manifest, files, *, commit, branch, build_url, now, age):
                     == archives[service]['config_id'] == ids[service], 'Scanned image differs: ' + service)
         for service in ('filesystem', *SERVICES):
             scan = report(prefix + '-' + service)
-            require(isinstance(scan.get('Results'), list) or scan.get('Results') is None,
+            require('Results' in scan and (isinstance(scan['Results'], list) or scan['Results'] is None),
                     'Invalid scan report')
             for result in scan.get('Results') or []:
                 if scanner == 'secret':
@@ -257,6 +258,15 @@ def promote(root, env, *, get=None):
     if metadata['result'] == 'FAILURE':
         require(manifest.get('source', {}).get('mode') == 'FULL',
                 'A failed CI_ONLY build cannot be promoted')
+        timing_path = REPORT + 'stage-timings.json'
+        require(timing_path in archived, 'Failed FULL build has no deployment timing evidence')
+        # A separately archived checkpoint exists before CD. Still require an explicit
+        # deployment failure receipt, not merely a failed build after the checkpoint.
+        failure_path = REPORT + 'local-deploy-failed.json'
+        require(failure_path in archived, 'Failure was not identified as a local deployment failure')
+        failure = decode(get('artifact/' + failure_path))
+        require(failure == {'commit': commit, 'build': env['RELEASE_BUILD'], 'stage': 'Deploy Local Docker'},
+                'Local deployment failure receipt does not match the release')
     checks = manifest.get('evidence', {})
     require(isinstance(checks, dict) and len(checks) <= 300
             and all(p in archived and (p in REQUIRED or p == FRONTEND_TEST or BACKEND_TEST.fullmatch(p))
