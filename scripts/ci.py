@@ -371,9 +371,20 @@ def main(step):
              '-Dsonar.sourceEncoding=UTF-8', *properties], ROOT/'backend', env=env)
     elif step=='build':
         build_artifacts().build_images(ci_build_command(), run, record_check)
-    elif step=='deploy-local':
+    elif step=='seal-release':
+        from ci_release import seal
         require_clean_release()
-        build_artifacts().verify_gate_images()
+        seal(ROOT, source_identity(), build_artifacts().verify_gate_images(), os.environ)
+    elif step=='promote-release':
+        from ci_release import promote
+        if source_identity()['dirty']:
+            raise RuntimeError('Promotion requires a clean checkout')
+        promote(ROOT, os.environ)
+    elif step=='deploy-local':
+        from ci_release import verify_local, pin_published
+        if source_identity()['dirty']:
+            raise RuntimeError('Deployment requires a clean checkout')
+        pin_published(verify_local(ROOT, os.environ), docker_command(), ROOT)
         deploy_local()
     elif step=='deploy-local-logs':
         collect_local_logs()
@@ -553,7 +564,7 @@ def main(step):
 
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('step',choices=['preflight','docker-ready','monitoring-config','prepare','backend','frontend','sonar','build','deploy-local','deploy-local-logs','mysql','scan-export','security','secrets','cleanup-assets','publish'])
+    parser.add_argument('step',choices=['preflight','docker-ready','monitoring-config','prepare','backend','frontend','sonar','build','deploy-local','deploy-local-logs','mysql','scan-export','security','secrets','cleanup-assets','publish','seal-release','promote-release'])
     try:main(parser.parse_args().step)
     except (RuntimeError,subprocess.SubprocessError,OSError) as error:
         print(f'CI failure: {error}', flush=True)
