@@ -31,7 +31,10 @@ def fixture():
         values[name] = {'build': identity, 'data': data}
     for prefix in ('trivy', 'trivy-secret'):
         for service in ('filesystem', *release.SERVICES):
-            values[prefix + '-' + service] = {'Results': [], 'Metadata': {'ImageID': IDS.get(service)}}
+            values[prefix + '-' + service] = {
+                'SchemaVersion': 2, 'ArtifactName': '.' if service == 'filesystem' else '/image.tar',
+                'ArtifactType': 'filesystem' if service == 'filesystem' else 'container_image',
+                'Results': [], 'Metadata': {'ImageID': IDS.get(service)}}
     files = {release.REPORT + name + '.json': json.dumps(value).encode()
              for name, value in values.items()}
     xml = b'<testsuite tests="1" failures="0" errors="0" skipped="0"><testcase name="test"/></testsuite>'
@@ -57,6 +60,29 @@ class ReleaseTests(unittest.TestCase):
 
     def test_valid(self):
         self.check(*fixture())
+
+    def test_valid_empty_trivy_report_without_results(self):
+        manifest, files = fixture()
+        for name in ('trivy-secret-filesystem', 'trivy-secret-backend'):
+            path = release.REPORT + name + '.json'
+            value = json.loads(files[path])
+            del value['Results']
+            files[path] = json.dumps(value).encode()
+            manifest['evidence'][path] = release.sha(files[path])
+        self.check(manifest, files)
+
+    def test_invalid_scan_envelope_or_findings_rejected(self):
+        for update in ({'SchemaVersion': None}, {'ArtifactType': 'wrong'},
+                       {'Results': {}}, {'Results': [None]}, {'Results': [{'Secrets': [{}]}]}):
+            with self.subTest(update=update):
+                manifest, files = fixture()
+                path = release.REPORT + 'trivy-secret-filesystem.json'
+                value = json.loads(files[path])
+                value.update(update)
+                files[path] = json.dumps(value).encode()
+                manifest['evidence'][path] = release.sha(files[path])
+                with self.assertRaises(RuntimeError):
+                    self.check(manifest, files)
 
     def test_wrong_commit(self):
         with self.assertRaises(RuntimeError):
