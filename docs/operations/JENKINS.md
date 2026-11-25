@@ -116,3 +116,37 @@ Each build clears Jenkins report outputs after checkout, before publishing JUnit
 MySQL CI writes `mysql-runtime.log`. Local deployment failures collect `docker-local.log` from the resolved local Compose project. Server apply and public smoke failures attempt `docker-server.log` over the same verified SSH connection. The console records failed log collection separately from the original deployment failure.
 
 Local and SSH deployments require a passing Quality Gate and a clean checkout that matches the current build identity. For an existing demo database, provision verifies the mounted secret before replacing frontend/backend and verifies it again after startup. Missing, disabled or mismatched accounts block rollout without resetting passwords. Reconcile intentional changes explicitly before retrying. Fresh initialization starts from an empty schema. It records a private pending marker tied to the MySQL server UUID and schema so an interruption after migration can be retried with the same database. The marker is removed after a successful transaction. Keep the existing runtime secret directory with the matching database if a fresh deployment is interrupted.
+
+
+## Phase 3–4: one CI owner, explicit promotion
+
+Install Lockable Resources and configure resources sms-deploy-local and sms-deploy-server. Keep SMS-CICD as the only push-triggered job. Disable GitHub Push Trigger and Poll SCM in SMS-CICD-Server; the Jenkinsfile no longer installs polling. Verify actual webhook delivery before removing polling from the CI owner. Restrict job configuration, Replay, credentials and artifact modification to trusted administrators; the Jenkins controller is the release trust boundary.
+
+| Mode | Job | Inputs |
+|---|---|---|
+| CI_ONLY (default) | SMS-CICD | RUN_SONAR=true for a promotable release |
+| FULL | SMS-CICD | RUN_SONAR=true; publishes, then local rollout |
+| DEPLOY_LOCAL_ONLY | SMS-CICD | RELEASE_BUILD and RELEASE_SHA |
+| DEPLOY_SERVER_ONLY | SMS-CICD-Server | RELEASE_BUILD and RELEASE_SHA |
+
+CI_ONLY on approved branches now requires registry access to publish a verified release (not a deployment). Configure REGISTRY_NAMESPACE and registry authentication for the service account on the CI owner, and pull authorization for deployment agents. Sonar-disabled diagnostic runs cannot create a release. Set SMS_SERVER_BRANCH to the approved branch configured in the server job. Set JENKINS_URL to the actual trusted controller URL; HTTP is accepted only on loopback. The existing sms-jenkins-console-reader credential must have read access to the exact source build and artifacts. CD checks out the specified SHA only if it is an ancestor of the configured allowed branch; ensure the clone has adequate history. Do not enable CD on arbitrary branches or PRs.
+
+The checkpoint records three immutable digests, image IDs, CI stage statuses, exact Sonar task/analysis, test and scan evidence checksums. Default freshness is 24 hours (SMS_RELEASE_MAX_AGE_HOURS, administrator controlled, 1–168 hours). CD rejects stale, wrong, dirty, incomplete or altered evidence. A failed FULL build can be reused only with an archived checkpoint and explicit local deployment failure receipt. Older releases without this checkpoint need new CI. Do not bypass a failed verification. Build logs and archives must be retained for the promotion window.
+
+After a CI_ONLY build on the approved branch, copy the source build number and full SHA from verified-release.json in the Jenkins archive. Run DEPLOY_LOCAL_ONLY or DEPLOY_SERVER_ONLY with these exact inputs. No Maven/npm/Trivy or image build is executed in these modes. Local deployment resolves the published digest and checks the image ID. Server deployment continues the existing SSH backup, restore rehearsal, migration and smoke/rollback flow. Do not run simultaneous manual deployment commands outside Jenkins locks. If local rollout fails after changing containers, use the existing backup and review schema compatibility before restoring previous images; never automatically revert database migrations.
+
+### Retention (review only)
+
+Run when the Docker Engine is idle, with the same context as Jenkins:
+
+```powershell
+python scripts/docker_retention.py --protected-release C:/secure/current.json --protected-release C:/secure/rollback1.json --protected-release C:/secure/rollback2.json
+docker system df -v
+docker buildx du --builder sms-jenkins-linux
+```
+
+Supply verified-release.json files for ALL current releases, at least two rollback releases per environment and pending releases. Keep copies outside expiring Jenkins archives. The report excludes images used by any container (including stopped), protected release IDs/digests, foreign/shared tags, published digests and unlabelled images. Candidates are old SMS SHA tags (minimum 30 days). The script never deletes anything. Review registry retention separately. Measure dedicated builder cache and configure BuildKit GC only after choosing a host-specific budget; no automatic prune is introduced. Do not prune volumes or backups. Recheck protected references immediately before any operator-approved removal.
+
+### Acceptance before merging
+
+Run Declarative Linter and Sandbox, all operations tests, a full CI_ONLY build with registry, exact local and staging/server-only promotions, wrong SHA/digest, expired/modified evidence, failed FULL retry, cancellation, and Discord/incident delivery. Verify no CI steps execute during CD-only, and compare timings. Confirm the CI owner and server job triggers and lock configuration. Retention must be reviewed against actual running and stopped containers and rollback receipts. Do not deploy production merely to test this change.
