@@ -262,11 +262,16 @@ def promote(root, env, *, get=None):
         require(timing_path in archived, 'Failed FULL build has no deployment timing evidence')
         # A separately archived checkpoint exists before CD. Still require an explicit
         # deployment failure receipt, not merely a failed build after the checkpoint.
-        failure_path = REPORT + 'local-deploy-failed.json'
-        require(failure_path in archived, 'Failure was not identified as a local deployment failure')
-        failure = decode(get('artifact/' + failure_path))
-        require(failure == {'commit': commit, 'build': env['RELEASE_BUILD'], 'stage': 'Deploy Local Docker'},
-                'Local deployment failure receipt does not match the release')
+        receipts = [('local-deploy-failed.json', 'Deploy Local Docker'),
+                    ('server-deploy-failed.json', 'Deploy Server SSH')]
+        valid_failure = False
+        for name, stage in receipts:
+            path = REPORT + name
+            if path in archived:
+                failure = decode(get('artifact/' + path))
+                if failure == {'commit': commit, 'build': env['RELEASE_BUILD'], 'stage': stage}:
+                    valid_failure = True
+        require(valid_failure, 'Deployment failure receipt does not match the release')
     checks = manifest.get('evidence', {})
     require(isinstance(checks, dict) and len(checks) <= 300
             and all(p in archived and (p in REQUIRED or p == FRONTEND_TEST or BACKEND_TEST.fullmatch(p))
