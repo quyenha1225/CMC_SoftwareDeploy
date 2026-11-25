@@ -12,7 +12,10 @@ import subprocess
 import sys
 import time
 from uuid import uuid4
-from docker import ROOT, Runtime, initialize, invoke, smoke, backup, restore_test, docker_command, settings
+from ci_artifacts import BuildArtifacts, DOCKERFILES
+from docker import (ROOT, Runtime, initialize, invoke, smoke, backup, restore_test, docker_command,
+                    settings, prepare_demo_deployment, verify_demo_after_rollout)
+from jenkins_reports import redact, timing_event
 
 REPORTS=ROOT/'artifacts/reports'
 REPORTS.mkdir(parents=True,exist_ok=True)
@@ -23,6 +26,7 @@ NPM='npm.cmd' if WIN else 'npm'
 
 def record_check(label):
     print('CI check: ' + label, flush=True)
+    timing_event(label)
     destination = os.getenv('SMS_CI_DETAIL_FILE')
     if destination:
         try:
@@ -71,6 +75,7 @@ def scan_report(command,path):
             finding.pop('Match',None);finding.pop('Code',None)
     path.write_text(json.dumps(report,indent=2),encoding='utf-8')
     if result.returncode:raise RuntimeError('Security gate failed: '+path.name)
+    return report
 
 def ci_build_command():
     docker = docker_command()
@@ -162,10 +167,11 @@ def deploy_local():
         record_check('Back up local database and files')
         backup(runtime)
 
+    prepare_demo_deployment(runtime, record_check)
     record_check('Start frontend and backend, wait for health checks')
     runtime.run('up', '-d', '--no-build', '--wait', '--wait-timeout', '300', 'frontend', 'backend')
-    record_check('Provision local demo accounts')
-    runtime.run('--profile', 'tools', 'run', '--rm', 'provision')
+    record_check('Revalidate local demo credentials after rollout')
+    verify_demo_after_rollout(runtime)
     record_check('Run HTTP, role login and SQL smoke checks')
     smoke(runtime)
     record_check('Deploy Prometheus, Grafana, Alertmanager and infrastructure exporters')
@@ -181,6 +187,66 @@ def deploy_local():
                 'prometheus', 'grafana', 'alertmanager', 'blackbox', 'cadvisor', 'node-exporter', 'volume-size')
     record_check('Read Docker container status')
     runtime.run(*overlay, 'ps')
+
+
+def collect_local_logs():
+    runtime = local_deploy_runtime(require_existing=True)
+    os.environ['SMS_SECRETS_DIR'] = runtime.secret_dir.as_posix()
+    result = subprocess.run(
+        runtime.compose + ['logs', '--no-color', '--tail', '100', 'db', 'migrate', 'backend', 'frontend'],
+        cwd=ROOT, capture_output=True, timeout=30)
+    (REPORTS / 'docker-local.log').write_text(
+        redact((result.stdout + result.stderr).decode('utf-8', 'replace'))[-65536:], encoding='utf-8')
+    if result.returncode:
+        raise RuntimeError('Local Docker log collection returned a nonzero exit code')
+
+
+def check_source():
+    tracked = subprocess.check_output(['git', 'ls-files'], cwd=ROOT, text=True).splitlines()
+    if any('/.local/' in path or path.startswith(('.secrets/', 'backups/', 'scrip_password/'))
+           or (Path(path).name.startswith('.env') and Path(path).name != '.env.example')
+           for path in tracked):
+        raise RuntimeError('Sensitive runtime files are tracked in Git')
+
+
+def source_identity():
+    commit = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip()
+    dirty = bool(subprocess.check_output(
+        ['git', 'status', '--porcelain', '--untracked-files=all'], cwd=ROOT, text=True))
+    return {'commit': commit, 'dirty': dirty, 'build_id': os.getenv('BUILD_NUMBER'),
+            'build_url': os.getenv('BUILD_URL', 'local')}
+
+
+def require_clean_release():
+    previous = json.loads((REPORTS / 'build.json').read_text(encoding='utf-8'))
+    current = source_identity()
+    if (current != previous or current['dirty'] or not (current['build_id'] or '').isdecimal()
+            or current['build_url'] == 'local'
+            or current['commit'] != os.environ.get('IMAGE_TAG')):
+        raise RuntimeError('Deployment requires the current build and its clean checked-out commit')
+
+
+def build_artifacts():
+    current = source_identity()
+    if (current != json.loads((REPORTS / 'build.json').read_text(encoding='utf-8'))
+            or current['commit'] != os.environ.get('IMAGE_TAG')):
+        raise RuntimeError('CI inputs require the current checkout and build ID')
+    return BuildArtifacts(ROOT, REPORTS, current, docker_command())
+
+
+def collect_fixture_timeline(runtime):
+    ids = runtime.run('ps', '--all', '--quiet', 'db', 'migrate', 'backend', 'frontend',
+                      capture=True).splitlines()
+    snapshots = json.loads(subprocess.check_output(runtime.docker + ['inspect', *ids], cwd=ROOT))
+    data = {}
+    for container in snapshots:
+        state = container['State']
+        name = container['Config']['Labels']['com.docker.compose.service']
+        data[name] = {'started_at': state['StartedAt'], 'finished_at': state['FinishedAt'],
+                      'exit_code': state['ExitCode'],
+                      'health_samples': [{key: probe[key] for key in ('Start', 'End', 'ExitCode')}
+                                         for probe in state.get('Health', {}).get('Log', [])]}
+    (REPORTS / 'mysql-container-timeline.json').write_text(json.dumps(data, indent=2), encoding='utf-8')
 
 
 def wait_for_docker():
@@ -219,7 +285,31 @@ def wait_for_docker():
 
 def main(step):
     record_check(step)
-    if step=='docker-ready':
+    if step=='preflight':
+        record_check('Check Python 3.10+ and Docker CLI/Compose')
+        if sys.version_info < (3, 10):
+            raise RuntimeError('Python 3.10+ is required')
+        for command in [docker_command()+['--version'], docker_command()+['compose','version']]:
+            run(command)
+        record_check('Check Java 21, Node 22.12+, npm and Chrome')
+        java = run(['java','-version'], capture_output=True, text=True)
+        print((java.stderr + java.stdout).strip(), flush=True)
+        if not re.search(r'version "21[.]', java.stderr + java.stdout):
+            raise RuntimeError('JDK 21 is required')
+        node = run(['node','--version'], capture_output=True, text=True)
+        version = node.stdout.strip().lstrip('v')
+        print('Node ' + version, flush=True)
+        major, minor = map(int, version.split('.')[:2])
+        if major < 22 or (major == 22 and minor < 12):
+            raise RuntimeError('Node 22.12+ is required')
+        run([NPM,'--version'])
+        chrome = os.getenv('CHROME_PATH', 'C:/Program Files/Google/Chrome/Application/chrome.exe'
+                           if WIN else '/usr/bin/google-chrome')
+        if not Path(chrome).is_file():
+            raise RuntimeError('Google Chrome or CHROME_PATH is required for browser tests')
+        record_check('Connect to the configured Docker Linux Engine')
+        wait_for_docker()
+    elif step=='docker-ready':
         wait_for_docker()
     elif step=='monitoring-config':
         root = (ROOT / 'infrastructure/monitoring').as_posix()
@@ -231,23 +321,21 @@ def main(step):
         record_check('Test Prometheus alert firing and recovery rules')
         run(command + ['test', 'rules', 'alerts-infra.test.yml'])
     elif step=='prepare':
+        record_check('Check tracked source and record the build identity')
+        check_source()
+        (REPORTS/'build.json').write_text(json.dumps(source_identity(), indent=2), encoding='utf-8')
+        record_check('Run operations unit tests')
         run([sys.executable,'-m','unittest','discover','-s','scripts/tests','-v'])
-        for command in [['java','-version'],['node','--version'],[NPM,'--version'],docker_command()+['version'],docker_command()+['compose','version']]:run(command)
-        ci_build_command()
-        java=subprocess.run(['java','-version'],capture_output=True,text=True)
-        if not re.search(r'version "21[.]',java.stderr+java.stdout):raise RuntimeError('JDK 21 is required')
-        version=subprocess.check_output(['node','--version'],text=True).strip().lstrip('v')
-        major,minor=map(int,version.split('.')[:2])
-        if major<22 or (major==22 and minor<12):raise RuntimeError('Node 22.12+ is required')
-        chrome=os.getenv('CHROME_PATH','C:/Program Files/Google/Chrome/Application/chrome.exe' if WIN else '/usr/bin/google-chrome')
-        if not Path(chrome).is_file():raise RuntimeError('Google Chrome or CHROME_PATH is required for browser tests')
-        sha=subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip()
-        dirty=bool(subprocess.check_output(['git','status','--porcelain'],cwd=ROOT,text=True))
-        (REPORTS/'build.json').write_text(json.dumps({'commit':sha,'dirty':dirty,'build_url':os.getenv('BUILD_URL','local')},indent=2))
     elif step=='backend':
+        artifacts = build_artifacts()
         record_check('Backend Java: Maven clean verify (compile, tests, verification)')
         run([*MAVEN,'-B','-ntp','clean','verify'],ROOT/'backend',track_maven=True)
+        artifacts.record_input('backend')
     elif step=='frontend':
+        artifacts = build_artifacts()
+        dotenv = [ROOT/'frontend'/name for name in ('.env','.env.local','.env.production','.env.production.local')]
+        if any(path.exists() for path in dotenv) or any(key.startswith('VITE_') for key in os.environ):
+            raise RuntimeError('CI production Vite build requires a checkout without local dotenv or VITE_* overrides')
         for filename in ['junit.xml','lcov.info','coverage-summary.json']:
             (ROOT/'frontend/coverage'/filename).unlink(missing_ok=True)
         for label, command in [
@@ -257,7 +345,12 @@ def main(step):
             ('Frontend production build', [NPM,'run','build']),
         ]:
             record_check(label)
-            run(command,ROOT/'frontend')
+            if label == 'Frontend production build':
+                env = {**os.environ, 'NODE_ENV': 'production'}
+                run(command, ROOT/'frontend', env=env)
+            else:
+                run(command,ROOT/'frontend')
+        artifacts.record_input('frontend')
     elif step=='sonar':
         if not os.getenv('SONAR_HOST_URL') or not os.getenv('SONAR_AUTH_TOKEN'):raise RuntimeError('Configure the Jenkins SonarQube server/credential first.')
         env={**os.environ,'SONAR_TOKEN':os.environ['SONAR_AUTH_TOKEN']}
@@ -277,15 +370,16 @@ def main(step):
              '-Dsonar.projectBaseDir=' + ROOT.as_posix(), '-Dsonar.projectKey=cmc-sms',
              '-Dsonar.sourceEncoding=UTF-8', *properties], ROOT/'backend', env=env)
     elif step=='build':
-        tag=os.environ.get('IMAGE_TAG','local')
-        if not re.fullmatch(r'[a-zA-Z0-9_.-]+',tag):raise RuntimeError('Invalid image tag')
-        build = ci_build_command()
-        for service,path in [('backend','backend/Dockerfile'),('frontend','frontend/Dockerfile'),('migration','infrastructure/migration/Dockerfile')]:
-            record_check('Docker image build: ' + service)
-            run(build+['--label','org.opencontainers.image.revision='+tag,'-f',path,'-t','sms-'+service+':'+tag,'.'])
+        build_artifacts().build_images(ci_build_command(), run, record_check)
     elif step=='deploy-local':
+        require_clean_release()
+        build_artifacts().verify_gate_images()
         deploy_local()
+    elif step=='deploy-local-logs':
+        collect_local_logs()
     elif step=='mysql':
+        artifacts = build_artifacts()
+        tested_images = artifacts.pin_images()
         (REPORTS/'mysql-integration.json').unlink(missing_ok=True)
         actors={'PRINCIPAL':'principal','TRAINING_OFFICE':'training_demo','CTSV':'ctsv_demo','LECTURER':'lecturer_demo_01','STUDENT':'student_demo_001','APPLICANT':'applicant_demo_03'}
         for role in actors:
@@ -303,10 +397,11 @@ def main(step):
             try:
                 record_check('MySQL integration: start database, migrations and application containers')
                 runtime.run('up','-d','--no-build','--wait','--wait-timeout','300','frontend','backend')
+                collect_fixture_timeline(runtime)
                 record_check('MySQL integration: provision test accounts')
-                runtime.run('run','--rm','--no-deps','provision')
+                runtime.run('run','--rm','--no-deps','provision','--initialize')
                 record_check('MySQL integration: HTTP, role login and SQL smoke checks')
-                results=smoke(runtime)
+                results=smoke(runtime, report=record_check)
                 record_check('MySQL integration: business workflow checks')
                 from mysql_workflows import verify_workflows
                 try:
@@ -320,6 +415,7 @@ def main(step):
 
                 def check_browser(actor):
                     role, username = actor
+                    started = time.monotonic()
                     browser_env = {
                         **os.environ,
                         'SMS_UI_BASE_URL': base_url,
@@ -343,18 +439,24 @@ def main(step):
                                 detail = detail.replace(password, '[REDACTED]')
                         print(detail, flush=True)
                         raise
+                    return role, round(time.monotonic() - started, 3)
 
                 with ThreadPoolExecutor(max_workers=2) as browsers:
-                    list(browsers.map(check_browser, actors.items()))
+                    browser_times = dict(browsers.map(check_browser, actors.items()))
+                (REPORTS / 'mysql-browser-timings.json').write_text(
+                    json.dumps(browser_times, indent=2), encoding='utf-8')
                 record_check('MySQL integration: backup and restore')
                 print('MySQL integration: backup and restore',flush=True)
-                snapshot=backup(runtime);restore_test(runtime,snapshot)
+                snapshot=backup(runtime)
+                record_check('MySQL integration: restore the backup into an isolated container')
+                restore_test(runtime,snapshot)
                 record_check('MySQL integration: restart and persistence')
                 print('MySQL integration: restart and persistence',flush=True)
                 before=runtime.sql('SELECT COUNT(*) FROM students UNION ALL SELECT COUNT(*) FROM payments')
                 runtime.run('restart','db');runtime.run('up','-d','--wait','--wait-timeout','180','backend','frontend')
                 if before!=runtime.sql('SELECT COUNT(*) FROM students UNION ALL SELECT COUNT(*) FROM payments'):raise RuntimeError('Persistence check failed')
-                smoke(runtime)
+                record_check('MySQL integration: smoke test after restart')
+                smoke(runtime, report=record_check)
                 (REPORTS/'mysql-integration.json').write_text(json.dumps({'passed':True,'created_at':dt.datetime.now().isoformat(),'image_tag':os.getenv('IMAGE_TAG','local'),'checks':results,'workflows':workflows,'restore':True,'restart_persistence':True},indent=2))
                 record_check('MySQL integration: collect logs and remove CI containers')
             finally:
@@ -381,15 +483,26 @@ def main(step):
                 if not had_failure:
                     raise
                 print(f'CI cleanup warning: fixture removal failed ({type(error).__name__})', flush=True)
+        artifacts.write('mysql-image-evidence', tested_images)
+    elif step=='scan-export':
+        build_artifacts().export_scans(run, record_check)
+    elif step=='cleanup-assets':
+        # Use the recorded identity here so a late checkout change cannot prevent cleanup.
+        path = REPORTS / 'build.json'
+        if path.is_file():
+            identity = json.loads(path.read_text(encoding='utf-8'))
+            if (identity['build_id'] != os.getenv('BUILD_NUMBER')
+                    or identity['build_url'] != os.getenv('BUILD_URL', 'local')):
+                raise RuntimeError('Refusing temporary artifact cleanup for another build')
+            BuildArtifacts(ROOT, REPORTS, identity, docker_command()).cleanup()
     elif step in ['security','secrets']:
+        check_source()
+        artifacts = build_artifacts()
         scanner='vuln' if step=='security' else 'secret'
         severity='CRITICAL' if step=='security' else 'UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL'
         prefix='trivy' if step=='security' else 'trivy-secret'
         for name in ['filesystem','backend','frontend','migration']:
             (REPORTS/(prefix+'-'+name+'.json')).unlink(missing_ok=True)
-        tracked=subprocess.check_output(['git','ls-files'],cwd=ROOT,text=True).splitlines()
-        prohibited=[p for p in tracked if '/.local/' in p or p.startswith(('.secrets/','backups/')) or (Path(p).name.startswith('.env') and Path(p).name!='.env.example')]
-        if prohibited:raise RuntimeError('Sensitive runtime files are tracked in Git')
         if step == 'security':
             record_check('Frontend dependency audit (npm audit)')
             with open(REPORTS/'npm-audit.json','wb') as out:
@@ -402,34 +515,45 @@ def main(step):
         command+=['--skip-files','.env','--skip-files','backend/.env.local','--skip-files','frontend/.env.local','--format','json','.']
         record_check('Trivy filesystem scan: ' + scanner)
         scan_report(command,REPORTS/(prefix+'-filesystem.json'))
-        for service in ['backend','frontend','migration']:
+        scanned = {}
+        for service in DOCKERFILES:
             record_check('Trivy image scan: ' + service + ' (' + scanner + ')')
-            target='sms-'+service+':'+os.getenv('IMAGE_TAG','local')
-            archive=ROOT/'artifacts'/('scan-'+step+'-'+service+'.tar')
-            run(docker_command()+['save','-o',str(archive),target])
-            try:
-                scan_report(docker_command()+['run','--rm','-v',str(archive)+':/image.tar:ro','-v','sms_trivy_cache:/root/.cache/',image,'image','--timeout','15m','--no-progress','--input','/image.tar','--scanners',scanner,'--severity',severity,'--exit-code','1','--format','json'],REPORTS/(prefix+'-'+service+'.json'))
-            finally:archive.unlink(missing_ok=True)
+            archive, entry = artifacts.scan_input(service)
+            report = scan_report(docker_command()+['run','--rm','-v',str(archive)+':/image.tar:ro','-v','sms_trivy_cache:/root/.cache/',image,'image','--timeout','15m','--no-progress','--input','/image.tar','--scanners',scanner,'--severity',severity,'--exit-code','1','--format','json'],REPORTS/(prefix+'-'+service+'.json'))
+            if report.get('Metadata', {}).get('ImageID') != entry['config_id']:
+                raise RuntimeError('Trivy reported a different image config: ' + service)
+            scanned[service] = entry
+        artifacts.write('scan-completed-' + scanner, scanned)
     elif step=='publish':
         # Publish only the exact local images already tested/scanned. Registry login is external.
         if os.getenv('CHANGE_ID'):raise RuntimeError('Pull requests may not publish images')
         if os.getenv('QUALITY_GATE_PASSED')!='true':raise RuntimeError('Quality gate is not approved')
+        require_clean_release()
+        artifacts = build_artifacts()
+        verified = artifacts.verify_gate_images()
         repository=os.environ['REGISTRY_NAMESPACE'].lower().rstrip('/')
         if not re.fullmatch(r'[a-z0-9.-]+(?:/[a-z0-9_.-]+)+',repository):raise RuntimeError('Invalid registry namespace')
         tag=os.environ['IMAGE_TAG'];manifest={'commit':tag,'images':{}}
         if not re.fullmatch(r'[0-9a-f]{40}',tag):raise RuntimeError('Publishing requires full commit SHA')
-        for service in ['backend','frontend','migration']:
+        for service in DOCKERFILES:
             target=repository+'/sms-'+service+':'+tag
-            run(docker_command()+['tag','sms-'+service+':'+tag,target]);run(docker_command()+['push',target])
-            digests=json.loads(subprocess.check_output(docker_command()+['image','inspect',target,'--format','{{json .RepoDigests}}'],text=True))
-            digest=next(value for value in digests if value.startswith(repository+'/sms-'+service+'@sha256:'))
+            run(docker_command()+['tag',verified[service]['id'],target])
+            result = subprocess.run(docker_command()+['push',target], cwd=ROOT, capture_output=True, text=True)
+            print(redact(result.stdout + result.stderr), flush=True)
+            matches = re.findall(r'\bdigest: (sha256:[0-9a-f]{64})\b', result.stdout)
+            if result.returncode or len(matches) != 1:
+                raise RuntimeError('Registry did not return one published digest: ' + service)
+            digest = repository+'/sms-'+service+'@'+matches[0]
+            published = artifacts.inspect(digest)
+            if published['id'] != verified[service]['id']:
+                raise RuntimeError('Registry digest did not identify the scanned image: ' + service)
             manifest['images'][service]=digest
         (REPORTS/'release.json').write_text(json.dumps(manifest,indent=2))
     else:raise RuntimeError('Unknown step')
 
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('step',choices=['docker-ready','monitoring-config','prepare','backend','frontend','sonar','build','deploy-local','mysql','security','secrets','publish'])
+    parser.add_argument('step',choices=['preflight','docker-ready','monitoring-config','prepare','backend','frontend','sonar','build','deploy-local','deploy-local-logs','mysql','scan-export','security','secrets','cleanup-assets','publish'])
     try:main(parser.parse_args().step)
     except (RuntimeError,subprocess.SubprocessError,OSError) as error:
         print(f'CI failure: {error}', flush=True)

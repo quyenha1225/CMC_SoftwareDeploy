@@ -85,21 +85,49 @@ def public_smoke(public_url):
             time.sleep(5)
 
 def remote(manifest_path):
-    read_manifest(manifest_path)
+    from jenkins_reports import redact, timing_event
+    manifest = read_manifest(manifest_path)
+    if os.getenv('BUILD_NUMBER'):
+        from ci import require_clean_release
+        require_clean_release()
+        if manifest['commit'] != os.environ['IMAGE_TAG']:
+            raise RuntimeError('Server release manifest does not match the checked-out commit')
     target, destination, options, public_url, approver=remote_target()
+    timing_event('Package the server release bundle')
     bundle=ROOT/'artifacts/release-bundle.tar.gz';bundle.parent.mkdir(exist_ok=True)
     with tarfile.open(bundle,'w:gz') as archive:
         for item in ['compose.prod.yaml','compose.tls.yaml','compose.monitoring.yaml','scripts/docker.py','scripts/deploy.py','infrastructure']:
             archive.add(ROOT/item,arcname=item)
         archive.add(manifest_path,arcname='artifacts/reports/release.json')
     location='/opt/sms/'+target
+    timing_event('Transfer the release bundle over SSH')
     subprocess.run(['scp',*options,str(bundle),f'{destination}:{location}/incoming-release.tar.gz'],check=True)
     command=(f'cd {location} && tar -xzf incoming-release.tar.gz && '
              f'RELEASE_APPROVER={approver} SMS_EXPECTED_DEPLOY_ENV={target} '
              f'SMS_EXPECTED_PUBLIC_URL={shlex.quote(public_url)} '
              'python3 scripts/deploy.py apply --manifest artifacts/reports/release.json --allow-migration')
-    subprocess.run(['ssh',*options,destination,command],check=True)
-    public_smoke(public_url)
+    try:
+        timing_event('Apply the release on the remote server')
+        subprocess.run(['ssh',*options,destination,command],check=True)
+        timing_event('Check public HTTPS and backend readiness')
+        public_smoke(public_url)
+    except (RuntimeError, OSError, subprocess.SubprocessError):
+        timing_event('Collect logs from the remote Compose target')
+        log_command = (f'cd {location} && docker compose --env-file .env -f compose.prod.yaml '
+                       'logs --no-color --tail=100 db migrate backend frontend')
+        try:
+            result = subprocess.run(['ssh', *options, destination, log_command],
+                                    capture_output=True, timeout=30)
+            destination_log = ROOT / 'artifacts/reports/docker-server.log'
+            destination_log.parent.mkdir(parents=True, exist_ok=True)
+            content = (result.stdout + result.stderr).decode('utf-8', 'replace')
+            destination_log.write_text(redact(content)[-65536:], encoding='utf-8')
+            if result.returncode:
+                print('CI evidence limitation: remote Compose log command failed.', file=sys.stderr)
+        except (OSError, subprocess.SubprocessError) as error:
+            print(f'CI evidence limitation: server logs unavailable ({type(error).__name__}).',
+                  file=sys.stderr)
+        raise
 
 def start_monitoring(runtime):
     monitoring=ROOT/'infrastructure/monitoring'

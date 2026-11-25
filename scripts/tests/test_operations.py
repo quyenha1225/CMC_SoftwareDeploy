@@ -12,7 +12,7 @@ from unittest.mock import patch
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 import ci
 import deploy
-from docker import docker_command,initialize,settings
+from docker import docker_command, initialize, prepare_demo_deployment, settings
 
 class OperationsTests(unittest.TestCase):
     def test_discord_lookup_does_not_initialize_a_deployment(self):
@@ -53,6 +53,8 @@ class OperationsTests(unittest.TestCase):
             def run(self, *args, **kwargs):
                 events.append(args)
                 return 'db\nbackend\n' if args[0] == 'ps' else ''
+            def sql(self, query):
+                return 'fixture-server\tsms_db\t1'
 
         with patch.dict(os.environ, {'IMAGE_TAG': 'a' * 40}, clear=True), \
                 patch.object(ci, 'local_deploy_runtime', return_value=LocalRuntime()), \
@@ -64,13 +66,81 @@ class OperationsTests(unittest.TestCase):
             ('config', '--quiet'),
             ('ps', '--status', 'running', '--services', 'db', 'backend'),
             'backup',
+            ('ps', '--status', 'running', '--services', 'db'),
+            ('--profile', 'tools', 'run', '--rm', '--no-deps', 'provision'),
             ('up', '-d', '--no-build', '--wait', '--wait-timeout', '300', 'frontend', 'backend'),
-            ('--profile', 'tools', 'run', '--rm', 'provision'),
+            ('--profile', 'tools', 'run', '--rm', '--no-deps', 'provision'),
             'smoke',
             (*overlay, 'up', '-d', '--no-build', '--wait', '--wait-timeout', '180',
              'prometheus', 'grafana', 'alertmanager', 'blackbox', 'cadvisor', 'node-exporter', 'volume-size'),
             (*overlay, 'ps'),
         ])
+
+    def test_local_deploy_stops_before_rollout_on_preflight_mismatch(self):
+        from unittest.mock import Mock
+        runtime = Mock(env_file=Path('.env'), secret_dir=Path('.secrets'))
+        runtime.run.return_value = 'db\nbackend'
+        with patch.dict(os.environ, {'IMAGE_TAG': 'a' * 40}, clear=True), \
+                patch.object(ci, 'local_deploy_runtime', return_value=runtime), \
+                patch.object(ci, 'backup'), \
+                patch.object(ci, 'prepare_demo_deployment', side_effect=RuntimeError('password mismatch')), \
+                patch.object(ci, 'smoke') as smoke:
+            with self.assertRaisesRegex(RuntimeError, 'password mismatch'):
+                ci.deploy_local()
+        self.assertFalse(any(call.args[0] == 'up' for call in runtime.run.call_args_list))
+        smoke.assert_not_called()
+
+    def test_new_demo_initialization_can_retry_after_migration_without_resetting_existing_databases(self):
+        from unittest.mock import Mock
+        with tempfile.TemporaryDirectory() as directory:
+            runtime = Mock(secret_dir=Path(directory))
+            runtime.sql.side_effect = ['fixture-server\tsms_db\t0',
+                                       'fixture-server\tsms_db\t20', 'fixture-server\tsms_db\t20']
+            runtime.run.side_effect = ['db', RuntimeError('interrupted after Flyway'), 'db', '', 'db', '']
+            with self.assertRaisesRegex(RuntimeError, 'interrupted after Flyway'):
+                prepare_demo_deployment(runtime)
+            self.assertTrue((Path(directory) / '.demo-bootstrap-pending').is_file())
+            prepare_demo_deployment(runtime)
+            self.assertFalse((Path(directory) / '.demo-bootstrap-pending').exists())
+            prepare_demo_deployment(runtime)
+            self.assertEqual(runtime.run.call_args_list[1].args[-2:], ('provision', '--initialize'))
+            self.assertEqual(runtime.run.call_args_list[3].args[-2:], ('provision', '--initialize'))
+            self.assertEqual(runtime.run.call_args_list[5].args[-2:], ('--no-deps', 'provision'))
+
+    def test_deploy_refuses_dirty_or_different_build_evidence(self):
+        sha = 'a' * 40
+        metadata = {'commit': sha, 'dirty': False, 'build_id': '75',
+                    'build_url': 'http://jenkins.test/job/fixture/75/'}
+        with tempfile.TemporaryDirectory() as directory, \
+                patch.object(ci, 'REPORTS', Path(directory)), \
+                patch.dict(os.environ, {'IMAGE_TAG': sha}, clear=True):
+            (Path(directory) / 'build.json').write_text(json.dumps(metadata), encoding='utf-8')
+            with patch.object(ci, 'source_identity', return_value=metadata):
+                ci.require_clean_release()
+            for changed in ({'dirty': True}, {'build_id': '76'}, {'build_id': None},
+                            {'commit': 'b' * 40}):
+                with patch.object(ci, 'source_identity', return_value={**metadata, **changed}), \
+                        self.assertRaisesRegex(RuntimeError, 'clean checked-out commit'):
+                    ci.require_clean_release()
+
+    def test_remote_rollout_preserves_original_failure_and_archives_ssh_logs(self):
+        failure = subprocess.CalledProcessError(1, ['ssh'])
+        ssh_logs = subprocess.CompletedProcess(['ssh'], 0, b'password=fixture-secret\n', b'')
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            with patch.dict(os.environ, {}, clear=True), patch.object(deploy, 'ROOT', root), \
+                    patch.object(deploy, 'read_manifest'), patch.object(deploy.tarfile, 'open'), \
+                    patch.object(deploy, 'remote_target', return_value=(
+                        'staging', 'test@example.test', [], 'https://example.test', 'fixture')), \
+                    patch.object(deploy.subprocess, 'run', side_effect=[None, failure, ssh_logs]) as run:
+                with self.assertRaises(subprocess.CalledProcessError) as raised:
+                    deploy.remote(root / 'release.json')
+            self.assertIs(raised.exception, failure)
+            self.assertEqual(run.call_args_list[-1].args[0][:2], ['ssh', 'test@example.test'])
+            self.assertIn('compose.prod.yaml logs', run.call_args_list[-1].args[0][-1])
+            log = (root / 'artifacts/reports/docker-server.log').read_text(encoding='utf-8')
+            self.assertIn('[REDACTED]', log)
+            self.assertNotIn('fixture-secret', log)
 
     def test_ci_creates_and_loads_images_from_the_dedicated_builder(self):
         endpoint = 'npipe:////./pipe/dockerDesktopLinuxEngine'

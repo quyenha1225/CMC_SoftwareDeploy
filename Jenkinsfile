@@ -3,13 +3,14 @@ def diagnosticStages() {
         'Checkout',
         'Check Environment',
         'Prepare',
+        'Validate Docker Compose',
         'Backend Test',
         'Frontend Test',
-        'Validate Docker Compose',
         'SonarQube Analysis',
         'SonarQube Quality Gate',
         'Build Docker Images',
         'MySQL Integration Tests',
+        'Export Scan Images',
         'Dependency and Image Scan',
         'Secret Scan',
         'Deploy Local Docker',
@@ -68,6 +69,11 @@ def stageValue(String name, String kind) {
             if (kind == 'state') return env.SMS_STAGE_MySQL_Integration_Tests
             if (kind == 'detail') return env.SMS_STAGE_MySQL_Integration_Tests_DETAIL
             if (kind == 'error') return env.SMS_STAGE_MySQL_Integration_Tests_ERROR
+            break
+        case 'Export Scan Images':
+            if (kind == 'state') return env.SMS_STAGE_Export_Scan_Images
+            if (kind == 'detail') return env.SMS_STAGE_Export_Scan_Images_DETAIL
+            if (kind == 'error') return env.SMS_STAGE_Export_Scan_Images_ERROR
             break
         case 'Dependency and Image Scan':
             if (kind == 'state') return env.SMS_STAGE_Dependency_and_Image_Scan
@@ -147,6 +153,11 @@ def setStageValue(String name, String kind, String value) {
             else if (kind == 'detail') env.SMS_STAGE_MySQL_Integration_Tests_DETAIL = value
             else if (kind == 'error') env.SMS_STAGE_MySQL_Integration_Tests_ERROR = value
             break
+        case 'Export Scan Images':
+            if (kind == 'state') env.SMS_STAGE_Export_Scan_Images = value
+            else if (kind == 'detail') env.SMS_STAGE_Export_Scan_Images_DETAIL = value
+            else if (kind == 'error') env.SMS_STAGE_Export_Scan_Images_ERROR = value
+            break
         case 'Dependency and Image Scan':
             if (kind == 'state') env.SMS_STAGE_Dependency_and_Image_Scan = value
             else if (kind == 'detail') env.SMS_STAGE_Dependency_and_Image_Scan_DETAIL = value
@@ -176,6 +187,17 @@ def recordStage(String name, String state) {
     if (stageValue(name, 'state') != state) {
         setStageValue(name, 'state', state)
         echo "CI stage ${state}: ${name}"
+        if (env.SMS_TIMING_DIR) {
+            def fileName = name.replaceAll('[^A-Za-z0-9]+', '-')
+            def timestamp = new Date().getTime()
+            if (state == 'started') {
+                writeFile file: "${env.SMS_TIMING_DIR}/stage-${fileName}.start",
+                    text: "${name}\n${timestamp}\n", encoding: 'UTF-8'
+            } else {
+                writeFile file: "${env.SMS_TIMING_DIR}/stage-${fileName}.end",
+                    text: "${state}\n${timestamp}\n", encoding: 'UTF-8'
+            }
+        }
     }
 }
 
@@ -212,10 +234,12 @@ def runPythonScript(String arguments) {
     }
 }
 
-def executeStep(String step) {
+def executeStep(String step, String deploymentCommand = '') {
     def detailFile = "${pwd(tmp: true)}/sms-${env.BUILD_NUMBER}-${step}.txt"
-    withEnv(["IMAGE_TAG=${env.IMAGE_TAG ?: 'local'}", "SMS_CI_DETAIL_FILE=${detailFile}"]) {
-        runPythonScript("scripts/jenkins_reports.py ${step}")
+    withEnv(["IMAGE_TAG=${env.IMAGE_TAG ?: 'local'}", "SMS_CI_DETAIL_FILE=${detailFile}",
+             "SMS_CI_TIMING_FILE=${env.SMS_TIMING_DIR}/work-${step}.jsonl"]) {
+        def command = deploymentCommand ? "--deploy ${deploymentCommand}" : step
+        runPythonScript("scripts/jenkins_reports.py ${command}")
     }
 }
 
@@ -514,9 +538,14 @@ pipeline {
             }
 
             steps {
-                script { recordStage('Checkout', 'started') }
                 script {
+                    env.SMS_TIMING_DIR = "${pwd(tmp: true)}/sms-timings-${env.BUILD_NUMBER}"
+                    recordStage('Checkout', 'started')
                     def checkedOut = checkout(scm)
+                    ['artifacts/reports', 'artifacts/ci-assets', 'backend/target/surefire-reports',
+                     'backend/target/site/jacoco', 'frontend/coverage'].each { path ->
+                        dir(path) { deleteDir() }
+                    }
                     env.SMS_CHECKOUT_BRANCH = (
                         env.BRANCH_NAME ?: checkedOut.GIT_BRANCH ?: env.GIT_BRANCH ?: ''
                     ).replaceFirst(/^refs\/(remotes\/|heads\/)/, '').replaceFirst(/^origin\//, '')
@@ -533,6 +562,7 @@ pipeline {
                     if (!(env.IMAGE_TAG ==~ /[0-9a-f]{40}/)) {
                         error('Không lấy được Git commit SHA hợp lệ.')
                     }
+                    env.SMS_REPORTS_READY = 'true'
 
                     echo "Building commit: ${env.IMAGE_TAG} on ${env.SMS_CHECKOUT_BRANCH ?: 'unknown branch'}"
                     notifyDiscord('Checkout', '', 'STARTED')
@@ -547,8 +577,7 @@ pipeline {
                 unstable { script { recordStage('Check Environment', 'unstable') } }
                 failure {
                     script {
-                        def detailFile = "${pwd(tmp: true)}/sms-${env.BUILD_NUMBER}-docker-ready.txt"
-                        recordStageFailure('Check Environment', fileExists(detailFile) ? 'docker-ready' : '')
+                        recordStageFailure('Check Environment', 'preflight')
                     }
                 }
             }
@@ -557,18 +586,8 @@ pipeline {
                 script { recordStage('Check Environment', 'started') }
                 script {
                     configureDocker()
-                    def checks = [
-                        'Python': isUnix() ? 'python3 --version' : 'call scripts/jenkins-python.cmd --version',
-                        'Docker CLI': 'docker --version',
-                        'Docker Compose': 'docker compose version',
-                        'Java': 'java -version'
-                    ]
-                    checks.each { name, command ->
-                        env.SMS_ENVIRONMENT_CHECK = "${name}: ${command}"
-                        runLocalCommand(command)
-                    }
-                    env.SMS_ENVIRONMENT_CHECK = 'Connect to the configured Docker Linux Engine'
-                    executeStep('docker-ready')
+                    env.SMS_ENVIRONMENT_CHECK = 'Validate the Jenkins agent and Docker Linux Engine'
+                    executeStep('preflight')
                     env.SMS_DOCKER_READY = 'true'
                 }
             }
@@ -589,6 +608,29 @@ pipeline {
             steps {
                 script { recordStage('Prepare', 'started') }
                 executeStep('prepare')
+            }
+        }
+
+        stage('Validate Docker Compose') {
+            post {
+                success { script { recordStage('Validate Docker Compose', 'passed') } }
+                aborted { script { recordStage('Validate Docker Compose', 'aborted') } }
+                unstable { script { recordStage('Validate Docker Compose', 'unstable') } }
+                failure {
+                    script {
+                        recordStageFailure('Validate Docker Compose', 'monitoring-config')
+                    }
+                }
+            }
+
+            steps {
+                script { recordStage('Validate Docker Compose', 'started') }
+                withEnv(["IMAGE_TAG=${env.IMAGE_TAG}"]) {
+                    runLocalCommand(
+                        'docker compose -f compose.yaml -f compose.monitoring.yaml --profile monitoring config --quiet'
+                    )
+                }
+                executeStep('monitoring-config')
             }
         }
 
@@ -623,29 +665,6 @@ pipeline {
                         }
                     }
                 }
-            }
-        }
-
-        stage('Validate Docker Compose') {
-            post {
-                success { script { recordStage('Validate Docker Compose', 'passed') } }
-                aborted { script { recordStage('Validate Docker Compose', 'aborted') } }
-                unstable { script { recordStage('Validate Docker Compose', 'unstable') } }
-                failure {
-                    script {
-                        recordStageFailure('Validate Docker Compose', 'monitoring-config')
-                    }
-                }
-            }
-
-            steps {
-                script { recordStage('Validate Docker Compose', 'started') }
-                withEnv(["IMAGE_TAG=${env.IMAGE_TAG}"]) {
-                    runLocalCommand(
-                        'docker compose -f compose.yaml -f compose.monitoring.yaml --profile monitoring config --quiet'
-                    )
-                }
-                executeStep('monitoring-config')
             }
         }
 
@@ -762,6 +781,19 @@ pipeline {
             }
         }
 
+        stage('Export Scan Images') {
+            post {
+                success { script { recordStage('Export Scan Images', 'passed') } }
+                aborted { script { recordStage('Export Scan Images', 'aborted') } }
+                unstable { script { recordStage('Export Scan Images', 'unstable') } }
+                failure { script { recordStageFailure('Export Scan Images', 'scan-export') } }
+            }
+            steps {
+                script { recordStage('Export Scan Images', 'started') }
+                executeStep('scan-export')
+            }
+        }
+
         stage('Security Scan') {
             post {
                 success {
@@ -835,6 +867,9 @@ pipeline {
             steps {
                 script { recordStage('Deploy Local Docker', 'started') }
                 script {
+                    if (env.SMS_CI_COMPLETED != 'true' || env.QUALITY_GATE_PASSED != 'true') {
+                        error('Local deployment requires successful CI and SonarQube Quality Gate.')
+                    }
                     env.SMS_DEPLOY_STARTED = 'true'
                     env.SMS_DEPLOY_STAGE = 'Deploy Local Docker'
                     notifyDiscord('Deploy Local Docker', '', 'STARTED')
@@ -861,7 +896,7 @@ pipeline {
                 unstable { script { recordStage('Deploy Server SSH', 'unstable') } }
                 failure {
                     script {
-                        recordStageFailure('Deploy Server SSH', 'publish')
+                        recordStageFailure('Deploy Server SSH', env.SMS_SERVER_CHECK ?: '')
                     }
                 }
             }
@@ -879,10 +914,13 @@ pipeline {
                                 keyFileVariable: 'DEPLOY_KEY', usernameVariable: 'DEPLOY_USER'),
                         file(credentialsId: 'sms-server-known-hosts', variable: 'DEPLOY_KNOWN_HOSTS')
                     ]) {
-                        runPythonScript('scripts/deploy.py check-target')
+                        env.SMS_SERVER_CHECK = 'server-preflight'
+                        executeStep('server-preflight', 'check-target')
+                        env.SMS_SERVER_CHECK = 'publish'
                         executeStep('publish')
                         env.SMS_IMAGES_PUBLISHED = 'true'
-                        runPythonScript('scripts/deploy.py remote --manifest artifacts/reports/release.json')
+                        env.SMS_SERVER_CHECK = 'server-rollout'
+                        executeStep('server-rollout', 'remote --manifest artifacts/reports/release.json')
                     }
                     env.SMS_DEPLOY_COMPLETED = 'true'
                 }
@@ -893,15 +931,41 @@ pipeline {
     post {
 
         always {
-            junit(
-                testResults: 'backend/target/surefire-reports/*.xml,frontend/coverage/junit.xml',
-                allowEmptyResults: true
-            )
+            script {
+                if (env.SMS_REPORTS_READY == 'true') {
+                    catchError(buildResult: 'FAILURE', catchInterruptions: false,
+                               message: 'Could not remove this build-specific temporary scan archives') {
+                        executeStep('cleanup-assets')
+                    }
 
-            archiveArtifacts(
-                artifacts: 'artifacts/reports/**/*,backend/target/site/jacoco/**/*,frontend/coverage/**/*',
-                allowEmptyArchive: true
-            )
+                    if (env.SMS_DEPLOY_STAGE == 'Deploy Local Docker' &&
+                            env.SMS_DEPLOY_COMPLETED != 'true' && env.SMS_DOCKER_READY == 'true') {
+                        catchError(buildResult: 'FAILURE', catchInterruptions: false,
+                                   message: 'Could not collect logs from the local deployment') {
+                            executeStep('deploy-local-logs')
+                        }
+                    }
+                    try {
+                        junit(
+                            testResults: 'backend/target/surefire-reports/*.xml,frontend/coverage/junit.xml',
+                            allowEmptyResults: true
+                        )
+                    } finally {
+                        try {
+                            withEnv(["SMS_BUILD_RESULT=${currentBuild.currentResult}"]) {
+                                runPythonScript('scripts/jenkins_reports.py --timings')
+                            }
+                        } finally {
+                            archiveArtifacts(
+                                artifacts: 'artifacts/reports/**/*,backend/target/site/jacoco/**/*,frontend/coverage/**/*',
+                                allowEmptyArchive: true
+                            )
+                        }
+                    }
+                } else {
+                    echo 'CI evidence limitation: checkout and report initialization did not complete.'
+                }
+            }
         }
 
         success {
@@ -918,24 +982,6 @@ pipeline {
 
         failure {
             echo 'Pipeline failed. Check the failed stage and archived reports.'
-
-            script {
-                if (env.SMS_DEPLOY_STARTED != 'true') {
-                    echo 'Application logs are collected for deployment failures.'
-                } else if (env.SMS_DOCKER_READY != 'true') {
-                    echo 'Docker logs unavailable because the Docker Engine preflight did not pass.'
-                } else if (isUnix()) {
-                    sh(
-                        script: 'docker compose -f compose.yaml logs --tail=100',
-                        returnStatus: true
-                    )
-                } else {
-                    bat(
-                        script: 'docker compose -f compose.yaml logs --tail=100',
-                        returnStatus: true
-                    )
-                }
-            }
         }
 
         cleanup {

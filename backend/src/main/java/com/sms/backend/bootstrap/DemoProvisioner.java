@@ -7,12 +7,30 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.LinkedHashSet;
+import java.util.Map;
 import java.util.Properties;
 
 /** Explicit Docker CLI utility. Never exposed over HTTP or run on normal app startup. */
 public final class DemoProvisioner {
+    // These are the disabled placeholder hashes from the immutable Flyway demo seed (V2).
+    // Keep them per username so a disabled account with a real password is never reactivated.
+    private static final Map<String, String> SEED_HASHES = Map.ofEntries(
+            Map.entry("principal_demo", "$2a$12$PPLg2JpIqF/i8uD3f./c/OGMiyvCe41EPTMEO.dv1YiHl4vDmyCrq"),
+            Map.entry("training_demo", "$2a$12$H4Q9k5WMeYU8CH41jA5Wiu8zcLrZdX8sQDNOEhtburyaXDmGk4odS"),
+            Map.entry("lecturer_demo_01", "$2a$12$hKhjq7XPqPuYouPULY.1MukAtJ7A4YfqcwlBxVRuO44pKXzBv6fFi"),
+            Map.entry("lecturer_demo_02", "$2a$12$jjif502I6evD0LSRnqS3b.RM0YzuxEipNz/6rAsl3JWkZpw.Sm.4q"),
+            Map.entry("lecturer_demo_03", "$2a$12$Z0DqJ.PQ0WCmzZyCXjJwAeWkSl2C.HsAs2K06NZsecWPhTx1Kzff."),
+            Map.entry("student_demo_001", "$2a$12$WB/jAHTw2ENa0vnNC.xVmOT2flWz2/Iv5N3Zn5KnVTUop/cimjQ.K"),
+            Map.entry("student_demo_002", "$2a$12$Tg9Jo96w2K7kdz9LzVDHf.AnimqanhFurXSr/U0DWq8VZ5Xaitya."),
+            Map.entry("student_demo_003", "$2a$12$ENdpuKHgvJkgeU1aGXBPx.mkKsjlvPfOuuWSQOpwxU2je5KZgkjse"),
+            Map.entry("student_demo_004", "$2a$12$OZQwkC2ynwhTnlxGuI0Fbu/lP3RyfwmC0iKomBwEIUCAijZOR7eri"),
+            Map.entry("student_demo_005", "$2a$12$3Cm74ibG.6AmcbKr1la6SueEBvbq4H2ZDGwBgsKVWM7k55mhYp.6O"),
+            Map.entry("student_demo_006", "$2a$12$if.fXzUgpA.sXbMOXXt.EO.nMpzutTfTuwegBbcMw67VXTQkb04QO"),
+            Map.entry("ctsv_demo", "!ACCOUNT_DISABLED"),
+            Map.entry("applicant_demo_03", "!ACCOUNT_DISABLED"),
+            Map.entry("applicant_demo_04", "!ACCOUNT_DISABLED"));
+
     private DemoProvisioner() {}
 
     public static void main(String[] args) throws Exception {
@@ -21,25 +39,18 @@ public final class DemoProvisioner {
             throw new IllegalStateException(
                     "Demo provisioning is allowed only on local demo databases.");
         }
-        boolean syncPasswords = "true".equals(System.getenv("SMS_DEMO_SYNC_PASSWORDS"));
+        boolean initialize = args.length == 1 && args[0].equals("--initialize");
+        if (args.length != 0 && !initialize) {
+            throw new IllegalArgumentException("Demo provision accepts only --initialize for a fresh seed.");
+        }
         var passwords = new Properties();
         try (Reader reader = Files.newBufferedReader(Path.of("/run/secrets/demo_accounts"))) {
             passwords.load(reader);
         }
-        List<String> names =
-                new ArrayList<>(
-                        List.of(
-                                "principal",
-                                "principal_demo",
-                                "training_demo",
-                                "ctsv_demo",
-                                "lecturer_demo_01",
-                                "lecturer_demo_02",
-                                "lecturer_demo_03",
-                                "applicant_demo_03",
-                                "applicant_demo_04"));
-        for (int i = 1; i <= 6; i++) names.add("student_demo_%03d".formatted(i));
-        if (!passwords.stringPropertyNames().equals(new java.util.HashSet<>(names))) {
+        var names = new LinkedHashSet<String>();
+        names.add("principal");
+        names.addAll(SEED_HASHES.keySet().stream().sorted().toList());
+        if (!passwords.stringPropertyNames().equals(names)) {
             throw new IllegalStateException("Expected exactly the 15 named demo accounts.");
         }
         String password = Files.readString(Path.of("/run/secrets/DB_PASSWORD")).strip();
@@ -48,6 +59,7 @@ public final class DemoProvisioner {
                 DriverManager.getConnection(System.getenv("DB_URL"), "sms_app", password)) {
             connection.setAutoCommit(false);
             try {
+                boolean freshSeed = false;
                 for (String name : names) {
                     String plain = passwords.getProperty(name);
                     validatePassword(name, plain);
@@ -58,14 +70,17 @@ public final class DemoProvisioner {
                         select.setString(1, name);
                         try (var rows = select.executeQuery()) {
                             if (!rows.next()) {
-                                if (!name.equals("principal"))
-                                    throw new IllegalStateException("Demo seed incomplete.");
+                                if (!initialize || !name.equals("principal")) {
+                                    throw new IllegalStateException("Required demo account missing: " + name);
+                                }
+                                freshSeed = true;
                                 createPrincipal(connection, encoder.encode(plain));
                             } else if (shouldUpdatePassword(
+                                    name,
                                     rows.getBoolean("enabled"),
                                     plain,
                                     rows.getString("password_hash"),
-                                    syncPasswords,
+                                    freshSeed,
                                     encoder)) {
                                 try (var update =
                                         connection.prepareStatement(
@@ -100,18 +115,21 @@ public final class DemoProvisioner {
     }
 
     static boolean shouldUpdatePassword(
+            String username,
             boolean enabled,
             String plain,
             String passwordHash,
-            boolean syncPasswords,
+            boolean initialize,
             BCryptPasswordEncoder encoder) {
-        if (!enabled) return true;
-        if (encoder.matches(plain, passwordHash)) return false;
-        if (!syncPasswords) {
-            throw new IllegalStateException(
-                    "Enabled account password differs; no password was reset.");
+        if (!enabled) {
+            if (initialize && passwordHash.equals(SEED_HASHES.get(username))) return true;
+            throw new IllegalStateException("Demo account is disabled; activation refused: " + username);
         }
-        return true;
+        if (!encoder.matches(plain, passwordHash)) {
+            throw new IllegalStateException(
+                    "Enabled demo account password differs; no password was reset: " + username);
+        }
+        return false;
     }
 
     private static void createPrincipal(Connection connection, String hash) throws Exception {

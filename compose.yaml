@@ -24,7 +24,7 @@ services:
       options: {max-size: 10m, max-file: '3'}
   migrate:
     build: {context: ., dockerfile: infrastructure/migration/Dockerfile}
-    image: sms-migration:${IMAGE_TAG:-local}
+    image: ${SMS_CI_MIGRATION_IMAGE:-sms-migration:${IMAGE_TAG:-local}}
     command: [migrate]
     environment:
       FLYWAY_URL: jdbc:mysql://db:3306/${DB_NAME:-sms_db}?allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=Asia/Ho_Chi_Minh
@@ -41,7 +41,7 @@ services:
     logging: *logging
   backend:
     build: {context: ., dockerfile: backend/Dockerfile}
-    image: sms-backend:${IMAGE_TAG:-local}
+    image: ${SMS_CI_BACKEND_IMAGE:-sms-backend:${IMAGE_TAG:-local}}
     restart: unless-stopped
     environment:
       SPRING_PROFILES_ACTIVE: docker
@@ -90,7 +90,7 @@ services:
     logging: *logging
   frontend:
     build: {context: ., dockerfile: frontend/Dockerfile}
-    image: sms-frontend:${IMAGE_TAG:-local}
+    image: ${SMS_CI_FRONTEND_IMAGE:-sms-frontend:${IMAGE_TAG:-local}}
     restart: unless-stopped
     ports: ['${APP_BIND:-127.0.0.1}:${APP_PORT:-8088}:8080']
     tmpfs: [/tmp]
@@ -102,7 +102,7 @@ services:
       backend: {condition: service_healthy}
     logging: *logging
   provision:
-    image: sms-backend:${IMAGE_TAG:-local}
+    image: ${SMS_CI_BACKEND_IMAGE:-sms-backend:${IMAGE_TAG:-local}}
     profiles: [tools]
     entrypoint: [java, '-Dloader.main=com.sms.backend.bootstrap.DemoProvisioner', -cp, /app/backend.jar, org.springframework.boot.loader.launch.PropertiesLauncher]
     environment:

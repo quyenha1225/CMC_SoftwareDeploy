@@ -131,9 +131,11 @@ def initialize(path,ci=False):
     destination.write_text('# Docker local accounts\n\n'+account_note+'\n| Username | Password |\n|---|---|\n'+'\n'.join(f'| `{name}` | `{passwords[name]}` |' for name in accounts)+'\n\nGrafana admin password is in the protected grafana_password secret file.\n',encoding='utf-8')
     print('Initialized non-secret environment and protected secret files. Credentials: '+str(destination))
 
-def smoke(runtime,login=True):
+def smoke(runtime,login=True,report=None):
     url=runtime.url()
     results=[]
+    if report:
+        report('HTTP smoke and backend readiness')
     for route in ['/','/healthz','/api/actuator/health']:
         with urllib.request.urlopen(url+route,timeout=15) as response:
             body=response.read()
@@ -141,6 +143,8 @@ def smoke(runtime,login=True):
             if route.endswith('/health') and json.loads(body)['status']!='UP':raise RuntimeError('Database readiness is not UP')
         results.append(route)
     if login:
+        if report:
+            report('Smoke: authenticate all 15 demo accounts')
         credentials=settings(runtime.secret_dir/'demo_accounts')
         for username,password in credentials.items():
             opener=urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
@@ -151,12 +155,46 @@ def smoke(runtime,login=True):
             csrf=json.load(opener.open(url+'/api/auth/csrf',timeout=15))
             opener.open(urllib.request.Request(url+'/api/auth/logout',data=b'{}',headers={'Content-Type':'application/json',csrf['headerName']:csrf['token']}),timeout=15).close()
         results.append('15 role logins')
+    if report:
+        report('Smoke: run SQL integrity checks')
     for view in ['v_normalization_checks','v_approval_workflow_checks']:
         records=runtime.sql('SELECT check_name,violation_count FROM '+view)
         if any(int(line.rsplit('\t',1)[1]) for line in records.splitlines()):raise RuntimeError('SQL integrity failed: '+view)
     results.append('16 SQL integrity checks')
     print('PASS smoke '+url+': '+', '.join(results))
     return results
+
+
+def prepare_demo_deployment(runtime, report=print):
+    """Verify an existing database, or initialize only an empty schema before rollout."""
+    report('Check the demo database and account credentials before rollout')
+    running = runtime.run('ps', '--status', 'running', '--services', 'db', capture=True)
+    if 'db' not in running.splitlines():
+        runtime.run('up', '-d', '--no-recreate', '--wait', '--wait-timeout', '240', 'db')
+    server_id, schema, tables = runtime.sql(
+        'SELECT @@server_uuid, DATABASE(), COUNT(*) FROM information_schema.tables '
+        'WHERE table_schema=DATABASE()').split('\t')
+    database_identity = f'{server_id}\t{schema}'
+    pending = runtime.secret_dir / '.demo-bootstrap-pending'
+    if tables == '0':
+        try:
+            with pending.open('x', encoding='utf-8') as marker:
+                marker.write(database_identity + '\n')
+        except FileExistsError:
+            pass
+    if pending.is_file():
+        if pending.read_text(encoding='utf-8').strip() != database_identity:
+            raise RuntimeError('Pending demo initialization belongs to a different MySQL database')
+        report('Initialize the newly migrated demo seed before starting the application')
+        runtime.run('--profile', 'tools', 'run', '--rm', 'provision', '--initialize')
+        pending.unlink(missing_ok=True)
+    else:
+        runtime.run('--profile', 'tools', 'run', '--rm', '--no-deps', 'provision')
+
+
+def verify_demo_after_rollout(runtime):
+    # The provisioner locks and rechecks every account using the current secret and DB.
+    runtime.run('--profile', 'tools', 'run', '--rm', '--no-deps', 'provision')
 
 def table_counts(tables, query):
     names=list(tables)
@@ -218,7 +256,8 @@ def restore_test(runtime,folder):
             members=archive.getmembers()
             if any(not (member.isfile() or member.isdir()) for member in members):raise RuntimeError('Links or special archive entries forbidden')
             expected={member.name.removeprefix('./'):hashlib.sha256(archive.extractfile(member).read()).hexdigest() for member in members if member.isfile()}
-        image=runtime.config.get('BACKEND_IMAGE','sms-backend:'+runtime.config.get('IMAGE_TAG','local'))
+        image=(runtime.config.get('BACKEND_IMAGE') or os.getenv('SMS_CI_BACKEND_IMAGE')
+               or 'sms-backend:'+runtime.config.get('IMAGE_TAG','local'))
         output=invoke(runtime.docker+['run','--rm','-i','--network','none','--entrypoint','sh',image,'-c','mkdir -p /tmp/restore-check && tar -xzf - -C /tmp/restore-check && find /tmp/restore-check -type f -exec sha256sum {} +'],data=(folder/'private-files.tar.gz').read_bytes(),capture=True,timeout=timeout)
         actual={}
         for line in output.splitlines():
@@ -247,9 +286,12 @@ def main():
     if args.command=='config':runtime.run('config','--quiet')
     elif args.command in ['up','ci']:
         if args.production:raise RuntimeError('Use reviewed digest deployment, not local up.')
-        sync_demo_passwords=args.command=='up' and not args.ci and ensure_demo_credentials(runtime)
-        runtime.run('up','-d','--build','--wait','--wait-timeout','300','frontend','backend')
-        runtime.run(*(['run','--rm','-e','SMS_DEMO_SYNC_PASSWORDS=true','provision'] if sync_demo_passwords else ['run','--rm','provision']))
+        if args.command=='up' and not args.ci:
+            ensure_demo_credentials(runtime)
+        runtime.run('build','frontend','backend','migrate')
+        prepare_demo_deployment(runtime)
+        runtime.run('up','-d','--no-build','--wait','--wait-timeout','300','frontend','backend')
+        verify_demo_after_rollout(runtime)
         smoke(runtime)
         if args.command=='ci':
             try:

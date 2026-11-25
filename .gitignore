@@ -16,6 +16,7 @@ frontend/coverage/
 infrastructure/migration/target/
 
 frontend/.eslintcache
+backend/.sonar/spring-context-model.json
 
 backend/boot.log
 scripts/__pycache__/

@@ -30,21 +30,26 @@ class DemoProvisionerTests {
     }
 
     @Test
-    void passwordSyncOnlyChangesDisabledOrExplicitlySyncedAccounts() {
+    void activeAccountsAreVerifiedAndNeverOverwritten() {
         String hash = encoder.encode("OriginalPassword2026!");
-        assertTrue(
-                DemoProvisioner.shouldUpdatePassword(
-                        false, "NewPassword2026!", hash, false, encoder));
-        assertFalse(
-                DemoProvisioner.shouldUpdatePassword(
-                        true, "OriginalPassword2026!", hash, false, encoder));
-        assertTrue(
-                DemoProvisioner.shouldUpdatePassword(
-                        true, "NewPassword2026!", hash, true, encoder));
-        assertThrows(
-                IllegalStateException.class,
-                () ->
-                        DemoProvisioner.shouldUpdatePassword(
-                                true, "NewPassword2026!", hash, false, encoder));
+        for (boolean initialize : new boolean[] {false, true}) {
+            assertFalse(DemoProvisioner.shouldUpdatePassword(
+                    "ctsv_demo", true, "OriginalPassword2026!", hash, initialize, encoder));
+            assertThrows(IllegalStateException.class, () -> DemoProvisioner.shouldUpdatePassword(
+                    "ctsv_demo", true, "NewPassword2026!", hash, initialize, encoder));
+        }
+    }
+
+    @Test
+    void onlyTheExactDisabledSeedCanBeActivatedDuringInitialization() {
+        String realHash = encoder.encode("OriginalPassword2026!");
+        assertTrue(DemoProvisioner.shouldUpdatePassword(
+                "ctsv_demo", false, "NewPassword2026!", "!ACCOUNT_DISABLED", true, encoder));
+        assertThrows(IllegalStateException.class, () -> DemoProvisioner.shouldUpdatePassword(
+                "ctsv_demo", false, "NewPassword2026!", "!ACCOUNT_DISABLED", false, encoder));
+        assertThrows(IllegalStateException.class, () -> DemoProvisioner.shouldUpdatePassword(
+                "ctsv_demo", false, "OriginalPassword2026!", realHash, true, encoder));
+        assertThrows(IllegalStateException.class, () -> DemoProvisioner.shouldUpdatePassword(
+                "principal", false, "NewPassword2026!", "!ACCOUNT_DISABLED", true, encoder));
     }
 }

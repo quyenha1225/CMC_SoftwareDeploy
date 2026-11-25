@@ -15,7 +15,7 @@ COPY backend/src ./src
 RUN --mount=type=cache,target=/root/.m2,sharing=locked \
     mvn -B -ntp -DskipTests package
 
-FROM eclipse-temurin:21-jre-jammy@sha256:dff6eb46527bd293a3c06bbbe9e64e8c9f91f01905b5abbdad31761c03059d2c AS runtime
+FROM eclipse-temurin:21-jre-jammy@sha256:dff6eb46527bd293a3c06bbbe9e64e8c9f91f01905b5abbdad31761c03059d2c AS runtime-base
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends curl ca-certificates \
@@ -24,9 +24,6 @@ RUN apt-get update \
     && useradd --uid 10001 --gid sms --create-home sms
 
 WORKDIR /app
-
-COPY --from=build --chown=sms:sms \
-    /build/target/backend-0.0.1-SNAPSHOT.jar /app/backend.jar
 
 RUN mkdir -p /app/private-files \
     && chown sms:sms /app/private-files
@@ -41,3 +38,12 @@ HEALTHCHECK --interval=20s --timeout=5s --start-period=90s --retries=5 \
     CMD curl --fail --silent http://127.0.0.1:9092/actuator/health/readiness >/dev/null || exit 1
 
 ENTRYPOINT ["java", "-jar", "/app/backend.jar"]
+
+# CI supplies the exact, previously verified JAR as a named context.
+FROM runtime-base AS ci-runtime
+COPY --from=ci_artifact --chown=sms:sms /backend.jar /app/backend.jar
+
+# Default target for local builds without a CI artifact.
+FROM runtime-base AS runtime
+COPY --from=build --chown=sms:sms \
+    /build/target/backend-0.0.1-SNAPSHOT.jar /app/backend.jar

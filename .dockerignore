@@ -12,6 +12,7 @@ screenshots
 **/.secrets-ci
 artifacts
 backups
+scrip_password/
 
 **/.npmrc
 **/.ssh

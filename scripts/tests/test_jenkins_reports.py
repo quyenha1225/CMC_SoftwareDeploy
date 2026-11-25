@@ -10,12 +10,40 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from jenkins_incident import MAX_LOG_BYTES, read_console
-from jenkins_reports import redact, summaries
+from jenkins_reports import export_timings, redact, summaries
 
 ROOT = Path(__file__).resolve().parents[2]
 
 
 class JenkinsReportsTests(unittest.TestCase):
+    def test_timing_report_is_build_scoped_and_keeps_open_checks_on_abort(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            timing = root / "build-10"
+            timing.mkdir()
+            (root / "stage-Other.start").write_text("Other build\n1\n", encoding="utf-8")
+            (timing / "stage-Checkout.start").write_text("Checkout\n1000\n", encoding="utf-8")
+            (timing / "stage-Checkout.end").write_text("passed\n1150\n", encoding="utf-8")
+            (timing / "stage-Tests.start").write_text("Tests\n1200\n", encoding="utf-8")
+            (timing / "work-test.jsonl").write_text(
+                '{"check":"compile","at_ms":1200}\n{"check":"test","at_ms":1250}\n{"exit_code":',
+                encoding="utf-8")
+            (timing / "work-source.jsonl").write_text(
+                '{"check":"source check","at_ms":1100}\n{"exit_code":1,"at_ms":1150}\n',
+                encoding="utf-8")
+            export_timings(root, timing, {"IMAGE_TAG": "a" * 40, "BUILD_NUMBER": "10",
+                                         "JOB_NAME": "fixture", "SMS_BUILD_RESULT": "ABORTED"})
+            report = json.loads((root / "artifacts/reports/stage-timings.json").read_text())
+            self.assertEqual((report["job"], report["build_id"], report["commit"], report["result"]),
+                             ("fixture", "10", "a" * 40, "ABORTED"))
+            self.assertEqual([row["status"] for row in report["stages"]], ["passed", "interrupted"])
+            self.assertEqual(report["stages"][0]["duration_ms"], 150)
+            self.assertIsNone(report["stages"][1]["duration_ms"])
+            self.assertEqual(report["work"][0]["exit_code"], 1)
+            self.assertIsNone(report["work"][1]["exit_code"])
+            self.assertEqual([row["duration_ms"] for row in report["work"][1]["checks"]], [50, None])
+            self.assertEqual(report["limitations"], ["work-test.jsonl: last timing event was interrupted"])
+
     def test_reports_exclude_stale_files_and_preserve_structured_failure(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

@@ -232,6 +232,9 @@
 }
 .recovery-main { max-width: 550px; margin: 60px auto; padding: 0 20px; }
 .auth-text-button { display: block; margin-top: 16px; border: 0; padding: 8px 0; background: transparent; color: #246a55; text-decoration: underline; font: inherit; cursor: pointer; }
+.login-password-control { display: flex; align-items: center; gap: 12px; }
+.login-password-control .control { flex: 1; min-width: 0; }
+.login-password-control .auth-text-button { margin: 0; }
 .login-extra-actions { display: flex; justify-content: space-between; gap: 18px; flex-wrap: wrap; margin-top: 8px; }
 
 .v6-login-main .v6-fields { grid-template-columns: 1fr; }

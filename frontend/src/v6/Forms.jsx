@@ -1,11 +1,41 @@
-import React from 'react';
+import React, { useId, useState } from 'react';
 import { Field } from '../components/ui.jsx';
 import { labels, ROLE_LABELS } from './api.js';
 const relations = { room_id:'rooms', exam_type_id:'exam_types', faculty_id:'faculties', major_id:'majors', cohort_id:'cohorts', class_id:'academic_classes', academic_year_id:'academic_years', semester_id:'semesters', course_id:'courses', period_id:'admission_periods', student_id:'students', lecturer_id:'lecturers', fund_id:'ctsv_funds', invoice_id:'invoices', handled_by:'users', user_id:'users', payment_id:'payments' };
 const choices = { provisioning_status:['PROVISIONING','ACTIVE','FAILED','DISABLED'], recipient_role:Object.keys(ROLE_LABELS), identity_type:['CCCD','CMND','PASSPORT','OTHER'], graduation_status:['PENDING','GRADUATED','NOT_GRADUATED'], gender:['MALE','FEMALE','OTHER','UNDISCLOSED'], kind:['DEBIT','CREDIT'], channel:['CASH','BANK_TRANSFER'], request_type:['PROFILE_UPDATE','STUDY_STATUS','GRADE_QUESTION','TUITION_QUESTION','DOCUMENT_REQUEST','STUDENT_SUPPORT','COMPLAINT','OTHER'], category:['Sự kiện','Hội thảo','Thông báo'], grade_level:[10,11,12] };
-export default function Fields({ fields, value, onChange, lookups={}, resource, optional=[] }) {
+export default function Fields({ fields, value, onChange, lookups={}, resource, optional=[], loginPassword=false }) {
+  const [passwordVisible, setPasswordVisible] = useState(false);
+  const passwordId = useId();
   const set=(key,item)=>onChange({...value,[key]:item});
   return <div className="v6-fields">{fields.map(key=>{
+    if (key === 'password' && loginPassword) {
+      return (
+        <div className="field" key={key}>
+          <label htmlFor={passwordId}>{labels.password}</label>
+          <span className="login-password-control">
+            <input
+              className="control"
+              id={passwordId}
+              type={passwordVisible ? 'text' : 'password'}
+              autoComplete="current-password"
+              required
+              maxLength={128}
+              value={value.password ?? ''}
+              onChange={event => set(key, event.target.value)}
+            />
+            <button
+              className="auth-text-button"
+              type="button"
+              aria-controls={passwordId}
+              aria-label={passwordVisible ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+              onClick={() => setPasswordVisible(visible => !visible)}
+            >
+              {passwordVisible ? 'Ẩn' : 'Hiện'}
+            </button>
+          </span>
+        </div>
+      );
+    }
     if (key==='allocations') return <div className="v6-wide" key={key}><h3>Phân bổ chứng từ</h3>{(value.allocations||[]).map((row,index)=><div className="v6-allocation" key={index}><select className="control" required value={row.payment_id||''} onChange={event=>set(key,value.allocations.map((item,i)=>i===index?{...item,payment_id:event.target.value}:item))}><option value="">Chọn khoản thu</option>{(lookups.payments||[]).map(item=><option key={item.id} value={item.id}>{item.reference_no} · {item.amount} đ · Quỹ {item.fund_id}</option>)}</select><input className="control" aria-label="Số tiền phân bổ" type="number" min="0.01" step="0.01" required value={row.allocated_amount||''} onChange={event=>set(key,value.allocations.map((item,i)=>i===index?{...item,allocated_amount:event.target.value}:item))}/><button type="button" className="btn btn-outline" onClick={()=>set(key,value.allocations.filter((_,i)=>i!==index))}>Bỏ</button></div>)}<button type="button" className="btn btn-outline" onClick={()=>set(key,[...(value.allocations||[]),{}])}>Thêm khoản phân bổ</button></div>;
     const options=choices[key]||(key==='status'?(resource==='posts'?['DRAFT','PUBLISHED']:resource==='students'?['STUDYING','SUSPENDED','WITHDRAWN','GRADUATED']:['PLANNED','OPEN','CLOSED']):null);
     const list=lookups[relations[key]];

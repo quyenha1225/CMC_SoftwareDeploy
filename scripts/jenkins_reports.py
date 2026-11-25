@@ -120,7 +120,68 @@ def build_metadata(env):
     return " | ".join(filter(None, lines))
 
 
-def capture_step(step):
+def timing_event(label=None, *, exit_code=None):
+    destination = os.getenv("SMS_CI_TIMING_FILE")
+    if destination:
+        event = {"at_ms": time.time_ns() // 1_000_000}
+        event.update({"check": label} if exit_code is None else {"exit_code": exit_code})
+        with Path(destination).open("a", encoding="utf-8") as stream:
+            stream.write(json.dumps(event) + "\n")
+
+
+def export_timings(root, timing_dir, env):
+    stages = []
+    limitations = []
+    observed_at = time.time_ns() // 1_000_000
+    for start_file in timing_dir.glob("stage-*.start"):
+        name, started = start_file.read_text(encoding="utf-8").splitlines()
+        finish_file = start_file.with_suffix(".end")
+        if finish_file.exists():
+            status, ended = finish_file.read_text(encoding="utf-8").splitlines()
+            duration = max(0, int(ended) - int(started))
+        else:
+            status, duration = "interrupted", None
+        stages.append({"stage": name, "status": status, "start_ms": int(started),
+                       "duration_ms": duration})
+
+    work = []
+    for step in sorted(timing_dir.glob("work-*.jsonl")):
+        events = []
+        lines = step.read_text(encoding="utf-8").splitlines(keepends=True)
+        for index, line in enumerate(lines):
+            try:
+                events.append(json.loads(line))
+            except json.JSONDecodeError:
+                if index != len(lines) - 1 or line.endswith("\n"):
+                    raise
+                limitations.append(f"{step.name}: last timing event was interrupted")
+        checks = [
+            {"name": current["check"], "start_ms": current["at_ms"],
+             "duration_ms": max(0, following["at_ms"] - current["at_ms"])}
+            for current, following in zip(events, events[1:]) if "check" in current
+        ]
+        if events:
+            last = events[-1]
+            if "check" in last:
+                checks.append({"name": last["check"], "start_ms": last["at_ms"],
+                               "duration_ms": None})
+            work.append({"step": step.stem.removeprefix("work-"),
+                         "exit_code": last.get("exit_code"), "checks": checks})
+    commit = env.get("IMAGE_TAG", "")
+    report = {"job": env.get("JOB_NAME"), "build_id": env.get("BUILD_NUMBER"),
+              "build_url": env.get("BUILD_URL"),
+              "commit": commit if re.fullmatch(r"[0-9a-f]{40}", commit) else None,
+              "result": env.get("SMS_BUILD_RESULT"), "observed_at_ms": observed_at,
+              "stages": sorted(stages, key=lambda stage: stage["start_ms"]),
+              "work": work, "limitations": limitations}
+    destination = root / "artifacts/reports/stage-timings.json"
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    temporary = destination.with_suffix(".tmp")
+    temporary.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+    temporary.replace(destination)
+
+
+def capture_step(step, command=None):
     """Keep a small excerpt for the Jenkins-only fallback when incident transfer fails."""
     destination = Path(os.environ["SMS_CI_DETAIL_FILE"] + ".error")
     try:
@@ -136,7 +197,9 @@ def capture_step(step):
         r"Restore (?:row mismatch|integrity failed)|SonarQube Quality Gate ERROR|"
         r"Security gate failed|Scanner did not produce|Smoke failed|Permission denied|"
         r"Core test schema already exists|Browser integration failed|npm (?:ERR!|error)", re.I)
-    with subprocess.Popen([sys.executable, str(Path(__file__).with_name("ci.py")), step],
+    if command is None:
+        command = [sys.executable, str(Path(__file__).with_name("ci.py")), step]
+    with subprocess.Popen(command,
                           stdout=subprocess.PIPE, stderr=subprocess.STDOUT) as child:
         for data in child.stdout:
             sys.stdout.buffer.write(data)
@@ -144,9 +207,10 @@ def capture_step(step):
             line = data.decode("utf-8", "replace").strip()
             if len(important) < 3 and specific.search(line) and not line.startswith("[WARNING]"):
                 important.append(line[:320])
-            elif line.startswith("CI failure:") and len(wrappers) < 2:
+            elif line.startswith(("CI failure:", "Deployment stopped:")) and len(wrappers) < 2:
                 wrappers.append(line[:320])
         result = child.wait()
+    timing_event(exit_code=result)
     if result and destination is not None:
         try:
             # Redact before the fallback excerpt reaches the workspace or Discord.
@@ -171,7 +235,14 @@ def redact(text):
 
 
 if __name__ == "__main__":
-    if sys.argv[1] == "--summary":
+    if sys.argv[1] == "--timings":
+        export_timings(Path.cwd(), Path(os.environ["SMS_TIMING_DIR"]), os.environ)
+    elif sys.argv[1] == "--deploy":
+        step = sys.argv[2]
+        command = [sys.executable, str(Path(__file__).with_name("deploy.py")), *sys.argv[2:]]
+        timing_event("Server deployment: " + step)
+        sys.exit(capture_step(step, command))
+    elif sys.argv[1] == "--summary":
         started = int(os.environ["SMS_BUILD_STARTED_MS"]) / 1000
         root = Path(__file__).resolve().parents[1]
         lines = [line.removeprefix("CI report: ") for line in summaries(root, started)
