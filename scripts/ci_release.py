@@ -165,16 +165,34 @@ def validate(manifest, files, *, commit, branch, build_url, now, age):
             require(report(prefix + '-' + service).get('Metadata', {}).get('ImageID')
                     == archives[service]['config_id'], 'Scanned image differs: ' + service)
         for service in ('filesystem', *SERVICES):
-            scan = report(prefix + '-' + service)
-            require('Results' in scan and (isinstance(scan['Results'], list) or scan['Results'] is None),
-                    'Invalid scan report')
-            for result in scan.get('Results') or []:
+            name = prefix + '-' + service
+            scan = report(name)
+            expected_type = 'filesystem' if service == 'filesystem' else 'container_image'
+            # Trivy v0.64.1 serializes Results with json:",omitempty".
+            # A completed, structurally valid scan can omit an empty Results list.
+            # Do not accept arbitrary empty JSON, malformed findings, or missing scan evidence.
+            require(isinstance(scan, dict) and scan.get('SchemaVersion') == 2
+                    and scan.get('ArtifactType') == expected_type
+                    and isinstance(scan.get('ArtifactName'), str) and bool(scan['ArtifactName'].strip())
+                    and isinstance(scan.get('Metadata'), dict),
+                    'Invalid scan report envelope: ' + name)
+            results = scan.get('Results')
+            require(results is None or isinstance(results, list), 'Invalid scan results: ' + name)
+            for result in results or []:
+                require(isinstance(result, dict), 'Invalid scan result entry: ' + name)
                 if scanner == 'secret':
-                    require(not result.get('Secrets'), 'Secret finding in release evidence')
+                    findings = result.get('Secrets')
+                    require(findings is None or isinstance(findings, list), 'Invalid secret findings: ' + name)
+                    require(not findings, 'Secret finding in release evidence: ' + name)
                 else:
-                    require(not any(v.get('Severity') == 'CRITICAL'
-                                    for v in result.get('Vulnerabilities') or []),
-                            'Critical vulnerability in release evidence')
+                    findings = result.get('Vulnerabilities')
+                    require(findings is None or isinstance(findings, list), 'Invalid vulnerability findings: ' + name)
+                    for finding in findings or []:
+                        require(isinstance(finding, dict) and finding.get('Severity') in
+                                ('UNKNOWN', 'LOW', 'MEDIUM', 'HIGH', 'CRITICAL'),
+                                'Invalid vulnerability entry: ' + name)
+                        require(finding['Severity'] != 'CRITICAL',
+                                'Critical vulnerability in release evidence: ' + name)
     audit = report('npm-audit')
     require(audit.get('metadata', {}).get('vulnerabilities', {}).get('critical') == 0,
             'npm critical vulnerability evidence missing or failed')
