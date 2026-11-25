@@ -13,174 +13,36 @@ def diagnosticStages() {
         'Export Scan Images',
         'Dependency and Image Scan',
         'Secret Scan',
+        'Publish Verified Release',
+        'Import Verified Release',
         'Deploy Local Docker',
         'Deploy Server SSH',
     ]
 }
 
-def stageValue(String name, String kind) {
-    switch (name) {
-        case 'Checkout':
-            if (kind == 'state') return env.SMS_STAGE_Checkout
-            if (kind == 'detail') return env.SMS_STAGE_Checkout_DETAIL
-            if (kind == 'error') return env.SMS_STAGE_Checkout_ERROR
-            break
-        case 'Check Environment':
-            if (kind == 'state') return env.SMS_STAGE_Check_Environment
-            if (kind == 'detail') return env.SMS_STAGE_Check_Environment_DETAIL
-            if (kind == 'error') return env.SMS_STAGE_Check_Environment_ERROR
-            break
-        case 'Prepare':
-            if (kind == 'state') return env.SMS_STAGE_Prepare
-            if (kind == 'detail') return env.SMS_STAGE_Prepare_DETAIL
-            if (kind == 'error') return env.SMS_STAGE_Prepare_ERROR
-            break
-        case 'Backend Test':
-            if (kind == 'state') return env.SMS_STAGE_Backend_Test
-            if (kind == 'detail') return env.SMS_STAGE_Backend_Test_DETAIL
-            if (kind == 'error') return env.SMS_STAGE_Backend_Test_ERROR
-            break
-        case 'Frontend Test':
-            if (kind == 'state') return env.SMS_STAGE_Frontend_Test
-            if (kind == 'detail') return env.SMS_STAGE_Frontend_Test_DETAIL
-            if (kind == 'error') return env.SMS_STAGE_Frontend_Test_ERROR
-            break
-        case 'Validate Docker Compose':
-            if (kind == 'state') return env.SMS_STAGE_Validate_Docker_Compose
-            if (kind == 'detail') return env.SMS_STAGE_Validate_Docker_Compose_DETAIL
-            if (kind == 'error') return env.SMS_STAGE_Validate_Docker_Compose_ERROR
-            break
-        case 'SonarQube Analysis':
-            if (kind == 'state') return env.SMS_STAGE_SonarQube_Analysis
-            if (kind == 'detail') return env.SMS_STAGE_SonarQube_Analysis_DETAIL
-            if (kind == 'error') return env.SMS_STAGE_SonarQube_Analysis_ERROR
-            break
-        case 'SonarQube Quality Gate':
-            if (kind == 'state') return env.SMS_STAGE_SonarQube_Quality_Gate
-            if (kind == 'detail') return env.SMS_STAGE_SonarQube_Quality_Gate_DETAIL
-            if (kind == 'error') return env.SMS_STAGE_SonarQube_Quality_Gate_ERROR
-            break
-        case 'Build Docker Images':
-            if (kind == 'state') return env.SMS_STAGE_Build_Docker_Images
-            if (kind == 'detail') return env.SMS_STAGE_Build_Docker_Images_DETAIL
-            if (kind == 'error') return env.SMS_STAGE_Build_Docker_Images_ERROR
-            break
-        case 'MySQL Integration Tests':
-            if (kind == 'state') return env.SMS_STAGE_MySQL_Integration_Tests
-            if (kind == 'detail') return env.SMS_STAGE_MySQL_Integration_Tests_DETAIL
-            if (kind == 'error') return env.SMS_STAGE_MySQL_Integration_Tests_ERROR
-            break
-        case 'Export Scan Images':
-            if (kind == 'state') return env.SMS_STAGE_Export_Scan_Images
-            if (kind == 'detail') return env.SMS_STAGE_Export_Scan_Images_DETAIL
-            if (kind == 'error') return env.SMS_STAGE_Export_Scan_Images_ERROR
-            break
-        case 'Dependency and Image Scan':
-            if (kind == 'state') return env.SMS_STAGE_Dependency_and_Image_Scan
-            if (kind == 'detail') return env.SMS_STAGE_Dependency_and_Image_Scan_DETAIL
-            if (kind == 'error') return env.SMS_STAGE_Dependency_and_Image_Scan_ERROR
-            break
-        case 'Secret Scan':
-            if (kind == 'state') return env.SMS_STAGE_Secret_Scan
-            if (kind == 'detail') return env.SMS_STAGE_Secret_Scan_DETAIL
-            if (kind == 'error') return env.SMS_STAGE_Secret_Scan_ERROR
-            break
-        case 'Deploy Local Docker':
-            if (kind == 'state') return env.SMS_STAGE_Deploy_Local_Docker
-            if (kind == 'detail') return env.SMS_STAGE_Deploy_Local_Docker_DETAIL
-            if (kind == 'error') return env.SMS_STAGE_Deploy_Local_Docker_ERROR
-            break
-        case 'Deploy Server SSH':
-            if (kind == 'state') return env.SMS_STAGE_Deploy_Server_SSH
-            if (kind == 'detail') return env.SMS_STAGE_Deploy_Server_SSH_DETAIL
-            if (kind == 'error') return env.SMS_STAGE_Deploy_Server_SSH_ERROR
-            break
-        default:
-            return null
+def stageKey(String name, String kind) {
+    if (!(name in diagnosticStages()) || !(kind in ['state', 'detail', 'error'])) {
+        error("Unknown CI diagnostic field: ${name}/${kind}")
     }
-    return null
+    return 'SMS_STAGE_' + name.replaceAll('[^A-Za-z0-9]+', '_') +
+        (kind == 'state' ? '' : '_' + kind.toUpperCase())
+}
+
+def stageValue(String name, String kind) {
+    return env[stageKey(name, kind)]
 }
 
 def setStageValue(String name, String kind, String value) {
-    switch (name) {
-        case 'Checkout':
-            if (kind == 'state') env.SMS_STAGE_Checkout = value
-            else if (kind == 'detail') env.SMS_STAGE_Checkout_DETAIL = value
-            else if (kind == 'error') env.SMS_STAGE_Checkout_ERROR = value
-            break
-        case 'Check Environment':
-            if (kind == 'state') env.SMS_STAGE_Check_Environment = value
-            else if (kind == 'detail') env.SMS_STAGE_Check_Environment_DETAIL = value
-            else if (kind == 'error') env.SMS_STAGE_Check_Environment_ERROR = value
-            break
-        case 'Prepare':
-            if (kind == 'state') env.SMS_STAGE_Prepare = value
-            else if (kind == 'detail') env.SMS_STAGE_Prepare_DETAIL = value
-            else if (kind == 'error') env.SMS_STAGE_Prepare_ERROR = value
-            break
-        case 'Backend Test':
-            if (kind == 'state') env.SMS_STAGE_Backend_Test = value
-            else if (kind == 'detail') env.SMS_STAGE_Backend_Test_DETAIL = value
-            else if (kind == 'error') env.SMS_STAGE_Backend_Test_ERROR = value
-            break
-        case 'Frontend Test':
-            if (kind == 'state') env.SMS_STAGE_Frontend_Test = value
-            else if (kind == 'detail') env.SMS_STAGE_Frontend_Test_DETAIL = value
-            else if (kind == 'error') env.SMS_STAGE_Frontend_Test_ERROR = value
-            break
-        case 'Validate Docker Compose':
-            if (kind == 'state') env.SMS_STAGE_Validate_Docker_Compose = value
-            else if (kind == 'detail') env.SMS_STAGE_Validate_Docker_Compose_DETAIL = value
-            else if (kind == 'error') env.SMS_STAGE_Validate_Docker_Compose_ERROR = value
-            break
-        case 'SonarQube Analysis':
-            if (kind == 'state') env.SMS_STAGE_SonarQube_Analysis = value
-            else if (kind == 'detail') env.SMS_STAGE_SonarQube_Analysis_DETAIL = value
-            else if (kind == 'error') env.SMS_STAGE_SonarQube_Analysis_ERROR = value
-            break
-        case 'SonarQube Quality Gate':
-            if (kind == 'state') env.SMS_STAGE_SonarQube_Quality_Gate = value
-            else if (kind == 'detail') env.SMS_STAGE_SonarQube_Quality_Gate_DETAIL = value
-            else if (kind == 'error') env.SMS_STAGE_SonarQube_Quality_Gate_ERROR = value
-            break
-        case 'Build Docker Images':
-            if (kind == 'state') env.SMS_STAGE_Build_Docker_Images = value
-            else if (kind == 'detail') env.SMS_STAGE_Build_Docker_Images_DETAIL = value
-            else if (kind == 'error') env.SMS_STAGE_Build_Docker_Images_ERROR = value
-            break
-        case 'MySQL Integration Tests':
-            if (kind == 'state') env.SMS_STAGE_MySQL_Integration_Tests = value
-            else if (kind == 'detail') env.SMS_STAGE_MySQL_Integration_Tests_DETAIL = value
-            else if (kind == 'error') env.SMS_STAGE_MySQL_Integration_Tests_ERROR = value
-            break
-        case 'Export Scan Images':
-            if (kind == 'state') env.SMS_STAGE_Export_Scan_Images = value
-            else if (kind == 'detail') env.SMS_STAGE_Export_Scan_Images_DETAIL = value
-            else if (kind == 'error') env.SMS_STAGE_Export_Scan_Images_ERROR = value
-            break
-        case 'Dependency and Image Scan':
-            if (kind == 'state') env.SMS_STAGE_Dependency_and_Image_Scan = value
-            else if (kind == 'detail') env.SMS_STAGE_Dependency_and_Image_Scan_DETAIL = value
-            else if (kind == 'error') env.SMS_STAGE_Dependency_and_Image_Scan_ERROR = value
-            break
-        case 'Secret Scan':
-            if (kind == 'state') env.SMS_STAGE_Secret_Scan = value
-            else if (kind == 'detail') env.SMS_STAGE_Secret_Scan_DETAIL = value
-            else if (kind == 'error') env.SMS_STAGE_Secret_Scan_ERROR = value
-            break
-        case 'Deploy Local Docker':
-            if (kind == 'state') env.SMS_STAGE_Deploy_Local_Docker = value
-            else if (kind == 'detail') env.SMS_STAGE_Deploy_Local_Docker_DETAIL = value
-            else if (kind == 'error') env.SMS_STAGE_Deploy_Local_Docker_ERROR = value
-            break
-        case 'Deploy Server SSH':
-            if (kind == 'state') env.SMS_STAGE_Deploy_Server_SSH = value
-            else if (kind == 'detail') env.SMS_STAGE_Deploy_Server_SSH_DETAIL = value
-            else if (kind == 'error') env.SMS_STAGE_Deploy_Server_SSH_ERROR = value
-            break
-        default:
-            echo "CI evidence limitation: unknown stage ${name}."
-    }
+    env[stageKey(name, kind)] = value
+}
+
+def runsCI() {
+    return env.SMS_PIPELINE_MODE in ['FULL', 'CI_ONLY']
+}
+
+def releaseBranch() {
+    return env.SMS_CHECKOUT_BRANCH in ['quyen/admin', 'develop'] &&
+        !env.CHANGE_ID && !env.TAG_NAME
 }
 
 def recordStage(String name, String state) {
@@ -298,119 +160,7 @@ def sendDiscord(String stageName, String step, String result) {
              "SMS_STAGE_SUMMARY=${stageSummary}", "SMS_BUILD_DURATION_MS=${currentBuild.duration}",
              "SMS_BUILD_STARTED_MS=${currentBuild.startTimeInMillis}",
              "SMS_STAGE_ERRORS=${errors}"]) {
-        def notifier = "sms-discord-${stageName.replaceAll('[^A-Za-z0-9]+', '-') ?: 'summary'}.py"
-        dir(pwd(tmp: true)) {
-            writeFile file: notifier, text: '''
-import json
-import os
-from pathlib import Path
-import re
-import time
-from urllib.error import HTTPError
-from urllib.parse import parse_qsl, urlencode, urlsplit
-from urllib.request import HTTPRedirectHandler, Request, build_opener
-
-env = os.environ
-result = env["SMS_BUILD_RESULT"]
-stage = env.get("SMS_EVENT_STAGE")
-commit = env.get("IMAGE_TAG", "")
-if re.fullmatch(r"[0-9a-f]{40}", commit):
-    commit = f"[{commit[:12]}](https://github.com/quyenha1225/CMC_SoftwareDeploy/commit/{commit})"
-duration = int(env.get("SMS_BUILD_DURATION_MS", 0)) / 1000
-if not duration and env.get("SMS_BUILD_STARTED_MS"):
-    duration = max(0, time.time() - int(env["SMS_BUILD_STARTED_MS"]) / 1000)
-fields = [
-    f"{env.get('JOB_NAME', 'Jenkins')} #{env.get('BUILD_NUMBER', '?')}",
-    f"Duration: {int(duration)}s",
-    "Branch: " + (env.get("SMS_CHECKOUT_BRANCH") or env.get("BRANCH_NAME") or "unknown"),
-    "Commit: " + (commit or "unknown"),
-]
-if stage:
-    fields.append("Stage: " + stage)
-if env.get("SMS_EVENT_CHECK"):
-    fields.append("Check: " + env["SMS_EVENT_CHECK"])
-if env.get("SMS_NOTIFICATION_CONTEXT"):
-    fields.append(env["SMS_NOTIFICATION_CONTEXT"])
-if env.get("SMS_CI_COMPLETED") == "true":
-    fields.append("CI: passed")
-if env.get("SMS_DEPLOY_COMPLETED") == "true":
-    fields.append("CD: deployment and smoke checks passed")
-    if env.get("SMS_DEPLOY_STAGE") == "Deploy Server SSH":
-        fields.append("Public URL: " + env.get("SMS_SERVER_PUBLIC_URL", ""))
-elif result == "STARTED" and stage in {"Deploy Local Docker", "Deploy Server SSH"}:
-    fields.append("CD: deployment started")
-elif env.get("SMS_DEPLOY_STARTED") == "true":
-    fields.append("CD: deployment did not complete")
-elif env.get("SMS_CI_COMPLETED") == "true":
-    fields.append("CD: not run for this build")
-if env.get("BUILD_URL"):
-    fields.append("Console: " + env["BUILD_URL"].rstrip("/") + "/console")
-
-summary = env.get("SMS_SUCCESS_REPORTS", "").splitlines()
-if env.get("QUALITY_GATE_PASSED") == "true":
-    summary.append("SonarQube Quality Gate: OK")
-if env.get("SMS_IMAGES_BUILT") == "true":
-    summary.append("Docker images: built")
-if env.get("SMS_IMAGES_PUBLISHED") == "true":
-    summary.append("Docker images: published")
-if result == "ABORTED":
-    fields.append("Build cancelled. See Jenkins for the cancellation source.")
-if result == "NOT_BUILT":
-    fields.append("Build did not execute. See Jenkins for details.")
-embed_fields = []
-if env.get("SMS_STAGE_SUMMARY") and result != "STARTED":
-    embed_fields.append({"name": "Stages", "value": env["SMS_STAGE_SUMMARY"][:800]})
-if env.get("SMS_STAGE_ERRORS") and result != "STARTED":
-    embed_fields.insert(0, {"name": "Evidence", "value": env["SMS_STAGE_ERRORS"][:800]})
-if summary:
-    embed_fields.append({"name": "Checks and images", "value": chr(10).join(summary)[:800]})
-payload = {
-    "username": "SMS Jenkins",
-    "allowed_mentions": {"parse": []},
-    "embeds": [{"title": "Jenkins " + result + (" - " + stage if stage else ""),
-                "description": chr(10).join(fields)[:2800],
-                "color": {"SUCCESS": 0x2ecc71, "FAILURE": 0xe74c3c, "UNSTABLE": 0xf1c40f,
-                          "STARTED": 0x3498db}.get(result, 0x7f8c8d),
-                "fields": embed_fields}],
-}
-
-class NoRedirect(HTTPRedirectHandler):
-    def redirect_request(self, req, fp, code, msg, headers, newurl):
-        return None
-
-try:
-    webhook = env.get("DISCORD_WEBHOOK_URL", "").strip()
-    if not webhook and env.get("SMS_DISCORD_WEBHOOK_FILE"):
-        webhook = Path(env["SMS_DISCORD_WEBHOOK_FILE"]).read_text(encoding="utf-8-sig").strip()
-    url = urlsplit(webhook)
-    if (url.scheme != "https" or url.netloc not in {"discord.com", "discordapp.com", "canary.discord.com", "ptb.discord.com"}
-        or not re.fullmatch(r"/api/(?:v[0-9]+/)?webhooks/[0-9]+/[A-Za-z0-9_-]+", url.path)):
-        raise ValueError("Invalid Discord webhook configuration")
-    query = dict(parse_qsl(url.query))
-    query["wait"] = "true"
-    request = Request(url._replace(query=urlencode(query), fragment="").geturl(),
-                      data=json.dumps(payload).encode("utf-8"),
-                      headers={"Content-Type": "application/json", "User-Agent": "SMS-Jenkins/1.0"},
-                      method="POST")
-    opener = build_opener(NoRedirect)
-    for attempt in range(2):
-        try:
-            with opener.open(request, timeout=4) as response:
-                message = json.load(response)
-                print(f"Discord notification delivered (HTTP {response.status}, message {message['id']}).")
-            break
-        except HTTPError as error:
-            delay = float(error.headers.get("Retry-After", "1"))
-            if attempt or error.code not in (429, 503) or not 0 <= delay <= 2:
-                raise
-            time.sleep(delay)
-except HTTPError as error:
-    print(f"Discord notification failed (HTTP {error.code}).")
-except (OSError, ValueError, KeyError, RuntimeError) as error:
-    print(f"Discord notification failed ({type(error).__name__}). Check the webhook and agent network.")
-'''
-            runPythonScript(notifier)
-        }
+        runPythonScript('scripts/jenkins_notify.py')
     }
 }
 
@@ -510,12 +260,14 @@ pipeline {
         buildDiscarder(logRotator(numToKeepStr: '20'))
     }
 
-    triggers {
-        // Dự phòng nếu GitHub webhook chưa được cấu hình.
-        pollSCM('H/2 * * * *')
-    }
+    // Configure GitHub push / fallback polling on the CI owner job ONLY.
+    // CD jobs are manually triggered with a specific release.
 
     parameters {
+        choice(name: 'PIPELINE_MODE', choices: ['CI_ONLY', 'FULL', 'DEPLOY_LOCAL_ONLY', 'DEPLOY_SERVER_ONLY'],
+               description: 'CI_ONLY is the safe default. CD-only requires an explicit verified release.')
+        string(name: 'RELEASE_BUILD', defaultValue: '', description: 'Exact SMS-CICD build number for CD-only')
+        string(name: 'RELEASE_SHA', defaultValue: '', description: 'Full commit SHA for CD-only')
         booleanParam(
             name: 'RUN_SONAR',
             defaultValue: true,
@@ -541,6 +293,23 @@ pipeline {
                 script {
                     env.SMS_TIMING_DIR = "${pwd(tmp: true)}/sms-timings-${env.BUILD_NUMBER}"
                     recordStage('Checkout', 'started')
+                    env.SMS_PIPELINE_MODE = params.PIPELINE_MODE ?: 'CI_ONLY'
+                    if (env.JOB_NAME == 'SMS-CICD-Server' && env.SMS_PIPELINE_MODE != 'DEPLOY_SERVER_ONLY') {
+                        error('Server job accepts only DEPLOY_SERVER_ONLY; disable its SCM triggers.')
+                    }
+                    if (env.SMS_PIPELINE_MODE == 'DEPLOY_SERVER_ONLY' && env.JOB_NAME != 'SMS-CICD-Server') {
+                        error('Use the dedicated server deployment job.')
+                    }
+                    if (env.SMS_PIPELINE_MODE in ['FULL', 'DEPLOY_LOCAL_ONLY'] && env.JOB_NAME != 'SMS-CICD') {
+                        error('Local deployment requires the SMS-CICD job.')
+                    }
+                    if (env.SMS_PIPELINE_MODE in ['DEPLOY_LOCAL_ONLY', 'DEPLOY_SERVER_ONLY']) {
+                        if (!(params.RELEASE_BUILD ==~ /[1-9][0-9]{0,9}/) || !(params.RELEASE_SHA ==~ /[0-9a-f]{40}/)) {
+                            error('Provide an exact release build number and full SHA.')
+                        }
+                        env.RELEASE_BUILD = params.RELEASE_BUILD
+                        env.RELEASE_SHA = params.RELEASE_SHA
+                    }
                     def checkedOut = checkout(scm)
                     ['artifacts/reports', 'artifacts/ci-assets', 'backend/target/surefire-reports',
                      'backend/target/site/jacoco', 'frontend/coverage'].each { path ->
@@ -549,6 +318,21 @@ pipeline {
                     env.SMS_CHECKOUT_BRANCH = (
                         env.BRANCH_NAME ?: checkedOut.GIT_BRANCH ?: env.GIT_BRANCH ?: ''
                     ).replaceFirst(/^refs\/(remotes\/|heads\/)/, '').replaceFirst(/^origin\//, '')
+                    if (!runsCI()) {
+                        if (!releaseBranch() || (env.SMS_PIPELINE_MODE == 'DEPLOY_SERVER_ONLY' &&
+                                env.SMS_CHECKOUT_BRANCH != (env.SMS_SERVER_BRANCH ?: 'develop'))) {
+                            error('Deployment branch is not allowed.')
+                        }
+                        // Check membership in the configured branch before detaching to the exact release.
+                        if (isUnix()) {
+                            sh "git merge-base --is-ancestor ${env.RELEASE_SHA} HEAD && git checkout --detach ${env.RELEASE_SHA}"
+                        } else {
+                            bat "git merge-base --is-ancestor ${env.RELEASE_SHA} HEAD && git checkout --detach ${env.RELEASE_SHA}"
+                        }
+                    }
+                    if (env.SMS_PIPELINE_MODE == 'FULL' && (!releaseBranch() || !params.RUN_SONAR)) {
+                        error('FULL requires an approved branch and enabled SonarQube.')
+                    }
                     env.IMAGE_TAG = isUnix()
                         ? sh(
                             script: 'git rev-parse HEAD',
@@ -587,13 +371,14 @@ pipeline {
                 script {
                     configureDocker()
                     env.SMS_ENVIRONMENT_CHECK = 'Validate the Jenkins agent and Docker Linux Engine'
-                    executeStep('preflight')
+                    executeStep(runsCI() ? 'preflight' : 'docker-ready')
                     env.SMS_DOCKER_READY = 'true'
                 }
             }
         }
 
         stage('Prepare') {
+            when { expression { runsCI() } }
             post {
                 success { script { recordStage('Prepare', 'passed') } }
                 aborted { script { recordStage('Prepare', 'aborted') } }
@@ -612,6 +397,7 @@ pipeline {
         }
 
         stage('Validate Docker Compose') {
+            when { expression { runsCI() } }
             post {
                 success { script { recordStage('Validate Docker Compose', 'passed') } }
                 aborted { script { recordStage('Validate Docker Compose', 'aborted') } }
@@ -635,6 +421,7 @@ pipeline {
         }
 
         stage('Tests') {
+            when { expression { runsCI() } }
             failFast true
             parallel {
 
@@ -683,7 +470,7 @@ pipeline {
             when {
                 allOf {
                     expression {
-                        params.RUN_SONAR
+                        runsCI() && params.RUN_SONAR
                     }
                     not {
                         changeRequest()
@@ -714,7 +501,7 @@ pipeline {
             when {
                 allOf {
                     expression {
-                        params.RUN_SONAR
+                        runsCI() && params.RUN_SONAR
                     }
                     not {
                         changeRequest()
@@ -735,6 +522,11 @@ pipeline {
                             }
                             error("SonarQube Quality Gate: ${gate.status}")
                         }
+                        withSonarQubeEnv(installationName: 'sonarqube', envOnly: true) {
+                            withEnv(['SMS_RECORD_SONAR_EVIDENCE=true']) {
+                                runPythonScript('scripts/sonar_gate_details.py')
+                            }
+                        }
                         env.QUALITY_GATE_PASSED = 'true'
                     }
                 }
@@ -742,6 +534,7 @@ pipeline {
         }
 
         stage('Build Docker Images') {
+            when { expression { runsCI() } }
             post {
                 success { script { recordStage('Build Docker Images', 'passed') } }
                 aborted { script { recordStage('Build Docker Images', 'aborted') } }
@@ -763,6 +556,7 @@ pipeline {
         }
 
         stage('MySQL Integration Tests') {
+            when { expression { runsCI() } }
             post {
                 success { script { recordStage('MySQL Integration Tests', 'passed') } }
                 aborted { script { recordStage('MySQL Integration Tests', 'aborted') } }
@@ -782,6 +576,7 @@ pipeline {
         }
 
         stage('Export Scan Images') {
+            when { expression { runsCI() } }
             post {
                 success { script { recordStage('Export Scan Images', 'passed') } }
                 aborted { script { recordStage('Export Scan Images', 'aborted') } }
@@ -795,6 +590,7 @@ pipeline {
         }
 
         stage('Security Scan') {
+            when { expression { runsCI() } }
             post {
                 success {
                     script {
@@ -836,6 +632,53 @@ pipeline {
             }
         }
 
+        stage('Publish Verified Release') {
+            when {
+                expression {
+                    runsCI() && releaseBranch() && env.JOB_NAME == 'SMS-CICD' && params.RUN_SONAR
+                }
+            }
+            post {
+                success { script { recordStage('Publish Verified Release', 'passed') } }
+                aborted { script { recordStage('Publish Verified Release', 'aborted') } }
+                failure { script { recordStageFailure('Publish Verified Release', 'seal-release') } }
+            }
+            steps {
+                script {
+                    recordStage('Publish Verified Release', 'started')
+                    if (currentBuild.currentResult != 'SUCCESS' || env.SMS_CI_COMPLETED != 'true' ||
+                            env.QUALITY_GATE_PASSED != 'true') {
+                        error('Release requires every CI gate to pass.')
+                    }
+                    executeStep('publish')
+                    executeStep('seal-release')
+                    archiveArtifacts artifacts: 'artifacts/reports/verified-release.json,artifacts/reports/*.json,backend/target/surefire-reports/TEST-*.xml,frontend/coverage/junit.xml',
+                        allowEmptyArchive: false, fingerprint: true
+                    env.SMS_IMAGES_PUBLISHED = 'true'
+                }
+            }
+        }
+
+        stage('Import Verified Release') {
+            when { expression { !runsCI() } }
+            post {
+                success { script { recordStage('Import Verified Release', 'passed') } }
+                aborted { script { recordStage('Import Verified Release', 'aborted') } }
+                failure { script { recordStageFailure('Import Verified Release', 'promote-release') } }
+            }
+            steps {
+                script {
+                    recordStage('Import Verified Release', 'started')
+                    withCredentials([usernamePassword(credentialsId: 'sms-jenkins-console-reader',
+                        usernameVariable: 'SMS_JENKINS_CONSOLE_USER', passwordVariable: 'SMS_JENKINS_CONSOLE_TOKEN')]) {
+                        executeStep('promote-release')
+                    }
+                    env.SMS_RELEASE_IMPORTED = 'true'
+                    env.QUALITY_GATE_PASSED = 'true'
+                }
+            }
+        }
+
         stage('Deploy Local Docker') {
             post {
                 success { script { recordStage('Deploy Local Docker', 'passed') } }
@@ -851,8 +694,8 @@ pipeline {
             when {
                 allOf {
                     expression {
-                        return env.JOB_BASE_NAME != 'SMS-CICD-Server' &&
-                            env.SMS_CHECKOUT_BRANCH in ['quyen/admin', 'develop']
+                        return env.JOB_NAME == 'SMS-CICD' &&
+                            env.SMS_PIPELINE_MODE in ['FULL', 'DEPLOY_LOCAL_ONLY'] && releaseBranch()
                     }
 
                     not {
@@ -867,13 +710,15 @@ pipeline {
             steps {
                 script { recordStage('Deploy Local Docker', 'started') }
                 script {
-                    if (env.SMS_CI_COMPLETED != 'true' || env.QUALITY_GATE_PASSED != 'true') {
-                        error('Local deployment requires successful CI and SonarQube Quality Gate.')
+                    if ((env.SMS_IMAGES_PUBLISHED != 'true' && env.SMS_RELEASE_IMPORTED != 'true') || env.QUALITY_GATE_PASSED != 'true') {
+                        error('Local deployment requires a verified release.')
                     }
                     env.SMS_DEPLOY_STARTED = 'true'
                     env.SMS_DEPLOY_STAGE = 'Deploy Local Docker'
                     notifyDiscord('Deploy Local Docker', '', 'STARTED')
-                    executeStep('deploy-local')
+                    lock(resource: 'sms-deploy-local') {
+                        executeStep('deploy-local')
+                    }
                     env.SMS_DEPLOY_COMPLETED = 'true'
                 }
             }
@@ -883,7 +728,7 @@ pipeline {
             when {
                 allOf {
                     expression {
-                        return env.JOB_BASE_NAME == 'SMS-CICD-Server' &&
+                        return env.JOB_NAME == 'SMS-CICD-Server' && env.SMS_PIPELINE_MODE == 'DEPLOY_SERVER_ONLY' &&
                             env.SMS_CHECKOUT_BRANCH == (env.SMS_SERVER_BRANCH ?: 'develop')
                     }
                     not { changeRequest() }
@@ -903,8 +748,8 @@ pipeline {
             steps {
                 script { recordStage('Deploy Server SSH', 'started') }
                 script {
-                    if (env.SMS_CI_COMPLETED != 'true' || env.QUALITY_GATE_PASSED != 'true') {
-                        error('Server deployment requires successful CI and SonarQube Quality Gate.')
+                    if (env.SMS_RELEASE_IMPORTED != 'true' || env.QUALITY_GATE_PASSED != 'true') {
+                        error('Server deployment requires a verified imported release.')
                     }
                     env.SMS_DEPLOY_STAGE = 'Deploy Server SSH'
                     env.SMS_DEPLOY_STARTED = 'true'
@@ -914,13 +759,12 @@ pipeline {
                                 keyFileVariable: 'DEPLOY_KEY', usernameVariable: 'DEPLOY_USER'),
                         file(credentialsId: 'sms-server-known-hosts', variable: 'DEPLOY_KNOWN_HOSTS')
                     ]) {
-                        env.SMS_SERVER_CHECK = 'server-preflight'
-                        executeStep('server-preflight', 'check-target')
-                        env.SMS_SERVER_CHECK = 'publish'
-                        executeStep('publish')
-                        env.SMS_IMAGES_PUBLISHED = 'true'
-                        env.SMS_SERVER_CHECK = 'server-rollout'
-                        executeStep('server-rollout', 'remote --manifest artifacts/reports/release.json')
+                        lock(resource: 'sms-deploy-server') {
+                            env.SMS_SERVER_CHECK = 'server-preflight'
+                            executeStep('server-preflight', 'check-target')
+                            env.SMS_SERVER_CHECK = 'server-rollout'
+                            executeStep('server-rollout', 'remote --manifest artifacts/reports/release.json')
+                        }
                     }
                     env.SMS_DEPLOY_COMPLETED = 'true'
                 }
@@ -957,7 +801,7 @@ pipeline {
                             }
                         } finally {
                             archiveArtifacts(
-                                artifacts: 'artifacts/reports/**/*,backend/target/site/jacoco/**/*,frontend/coverage/**/*',
+                                artifacts: 'artifacts/reports/**/*,backend/target/site/jacoco/**/*,backend/target/surefire-reports/TEST-*.xml,frontend/coverage/**/*',
                                 allowEmptyArchive: true
                             )
                         }
@@ -969,7 +813,7 @@ pipeline {
         }
 
         success {
-            echo "CI completed for ${env.IMAGE_TAG ?: 'unknown commit'}."
+            echo "${env.SMS_PIPELINE_MODE} completed for ${env.IMAGE_TAG ?: 'unknown commit'}."
 
             script {
                 if (env.SMS_DEPLOY_COMPLETED == 'true') {
