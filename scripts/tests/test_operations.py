@@ -187,6 +187,35 @@ class OperationsTests(unittest.TestCase):
                     self.assertIn('ci-runtime', command)
             self.assertEqual({k: v['id'] for k, v in artifacts.read('image-identities').items()}, ids)
 
+    def test_scan_archive_recovery_preserves_original_checksum(self):
+        from ci_artifacts import BuildArtifacts, sha256
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            reports = root / 'reports'
+            reports.mkdir()
+            artifacts = BuildArtifacts(root, reports, {'commit': 'a' * 40}, ['docker'])
+            paths = {}
+            for scanner in ('vuln', 'secret'):
+                path = artifacts.work / 'scans' / scanner / 'migration.tar'
+                path.parent.mkdir(parents=True)
+                path.write_bytes(b'verified migration archive')
+                paths[scanner] = path
+            entry = {'id': 'sha256:' + 'b' * 64, 'size': paths['vuln'].stat().st_size,
+                     'sha256': sha256(paths['vuln'])}
+            artifacts.write('scan-archives', {'migration': entry})
+            artifacts.write('image-identities', {'migration': {'id': entry['id']}})
+            paths['vuln'].write_bytes(b'corrupt')
+            with self.assertRaisesRegex(RuntimeError, 'archive size differs'):
+                artifacts.scan_input('migration', 'vuln', repair=False)
+            repaired, recorded = artifacts.scan_input('migration', 'vuln', record=lambda _: None)
+            self.assertEqual(recorded, entry)
+            self.assertEqual(sha256(repaired), entry['sha256'])
+            self.assertEqual(sha256(paths['secret']), entry['sha256'])
+            for path in paths.values():
+                path.write_bytes(b'X' * entry['size'])
+            with self.assertRaisesRegex(RuntimeError, 'SHA-256 differs'):
+                artifacts.scan_input('migration', 'vuln', record=lambda _: None)
+
     def test_ci_rejects_a_builder_bound_to_another_engine(self):
         inspected = subprocess.CompletedProcess([], 0, stdout='Driver: docker-container\nEndpoint: other-engine\n')
         with patch.dict(os.environ, {'SMS_CI_BUILDER': 'sms-jenkins-linux', 'DOCKER_CONTEXT': 'desktop-linux'}, clear=True), \
