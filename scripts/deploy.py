@@ -88,10 +88,13 @@ def remote(manifest_path):
     from jenkins_reports import redact, timing_event
     manifest = read_manifest(manifest_path)
     if os.getenv('BUILD_NUMBER'):
-        from ci import require_clean_release
-        require_clean_release()
-        if manifest['commit'] != os.environ['IMAGE_TAG']:
-            raise RuntimeError('Server release manifest does not match the checked-out commit')
+        from ci import source_identity
+        from ci_release import verify_local
+        if source_identity()['dirty']:
+            raise RuntimeError('Server deployment requires a clean checkout')
+        checkpoint = verify_local(ROOT, os.environ)
+        if manifest != {'commit': checkpoint['commit'], 'images': checkpoint['images']}:
+            raise RuntimeError('Server release manifest does not match verified CI evidence')
     target, destination, options, public_url, approver=remote_target()
     timing_event('Package the server release bundle')
     bundle=ROOT/'artifacts/release-bundle.tar.gz';bundle.parent.mkdir(exist_ok=True)
