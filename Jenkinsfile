@@ -20,20 +20,190 @@ def diagnosticStages() {
     ]
 }
 
-def stageKey(String name, String kind) {
-    if (!(name in diagnosticStages()) || !(kind in ['state', 'detail', 'error'])) {
-        error("Unknown CI diagnostic field: ${name}/${kind}")
-    }
-    return 'SMS_STAGE_' + name.replaceAll('[^A-Za-z0-9]+', '_') +
-        (kind == 'state' ? '' : '_' + kind.toUpperCase())
-}
-
 def stageValue(String name, String kind) {
-    return env[stageKey(name, kind)]
+    // Explicit environment properties are compatible with Jenkins Groovy Sandbox.
+    switch (name) {
+        case 'Checkout':
+            if (kind == 'state') return env.SMS_STAGE_Checkout
+            if (kind == 'detail') return env.SMS_STAGE_Checkout_DETAIL
+            if (kind == 'error') return env.SMS_STAGE_Checkout_ERROR
+            break
+        case 'Check Environment':
+            if (kind == 'state') return env.SMS_STAGE_Check_Environment
+            if (kind == 'detail') return env.SMS_STAGE_Check_Environment_DETAIL
+            if (kind == 'error') return env.SMS_STAGE_Check_Environment_ERROR
+            break
+        case 'Prepare':
+            if (kind == 'state') return env.SMS_STAGE_Prepare
+            if (kind == 'detail') return env.SMS_STAGE_Prepare_DETAIL
+            if (kind == 'error') return env.SMS_STAGE_Prepare_ERROR
+            break
+        case 'Validate Docker Compose':
+            if (kind == 'state') return env.SMS_STAGE_Validate_Docker_Compose
+            if (kind == 'detail') return env.SMS_STAGE_Validate_Docker_Compose_DETAIL
+            if (kind == 'error') return env.SMS_STAGE_Validate_Docker_Compose_ERROR
+            break
+        case 'Backend Test':
+            if (kind == 'state') return env.SMS_STAGE_Backend_Test
+            if (kind == 'detail') return env.SMS_STAGE_Backend_Test_DETAIL
+            if (kind == 'error') return env.SMS_STAGE_Backend_Test_ERROR
+            break
+        case 'Frontend Test':
+            if (kind == 'state') return env.SMS_STAGE_Frontend_Test
+            if (kind == 'detail') return env.SMS_STAGE_Frontend_Test_DETAIL
+            if (kind == 'error') return env.SMS_STAGE_Frontend_Test_ERROR
+            break
+        case 'SonarQube Analysis':
+            if (kind == 'state') return env.SMS_STAGE_SonarQube_Analysis
+            if (kind == 'detail') return env.SMS_STAGE_SonarQube_Analysis_DETAIL
+            if (kind == 'error') return env.SMS_STAGE_SonarQube_Analysis_ERROR
+            break
+        case 'SonarQube Quality Gate':
+            if (kind == 'state') return env.SMS_STAGE_SonarQube_Quality_Gate
+            if (kind == 'detail') return env.SMS_STAGE_SonarQube_Quality_Gate_DETAIL
+            if (kind == 'error') return env.SMS_STAGE_SonarQube_Quality_Gate_ERROR
+            break
+        case 'Build Docker Images':
+            if (kind == 'state') return env.SMS_STAGE_Build_Docker_Images
+            if (kind == 'detail') return env.SMS_STAGE_Build_Docker_Images_DETAIL
+            if (kind == 'error') return env.SMS_STAGE_Build_Docker_Images_ERROR
+            break
+        case 'MySQL Integration Tests':
+            if (kind == 'state') return env.SMS_STAGE_MySQL_Integration_Tests
+            if (kind == 'detail') return env.SMS_STAGE_MySQL_Integration_Tests_DETAIL
+            if (kind == 'error') return env.SMS_STAGE_MySQL_Integration_Tests_ERROR
+            break
+        case 'Export Scan Images':
+            if (kind == 'state') return env.SMS_STAGE_Export_Scan_Images
+            if (kind == 'detail') return env.SMS_STAGE_Export_Scan_Images_DETAIL
+            if (kind == 'error') return env.SMS_STAGE_Export_Scan_Images_ERROR
+            break
+        case 'Dependency and Image Scan':
+            if (kind == 'state') return env.SMS_STAGE_Dependency_and_Image_Scan
+            if (kind == 'detail') return env.SMS_STAGE_Dependency_and_Image_Scan_DETAIL
+            if (kind == 'error') return env.SMS_STAGE_Dependency_and_Image_Scan_ERROR
+            break
+        case 'Secret Scan':
+            if (kind == 'state') return env.SMS_STAGE_Secret_Scan
+            if (kind == 'detail') return env.SMS_STAGE_Secret_Scan_DETAIL
+            if (kind == 'error') return env.SMS_STAGE_Secret_Scan_ERROR
+            break
+        case 'Publish Verified Release':
+            if (kind == 'state') return env.SMS_STAGE_Publish_Verified_Release
+            if (kind == 'detail') return env.SMS_STAGE_Publish_Verified_Release_DETAIL
+            if (kind == 'error') return env.SMS_STAGE_Publish_Verified_Release_ERROR
+            break
+        case 'Import Verified Release':
+            if (kind == 'state') return env.SMS_STAGE_Import_Verified_Release
+            if (kind == 'detail') return env.SMS_STAGE_Import_Verified_Release_DETAIL
+            if (kind == 'error') return env.SMS_STAGE_Import_Verified_Release_ERROR
+            break
+        case 'Deploy Local Docker':
+            if (kind == 'state') return env.SMS_STAGE_Deploy_Local_Docker
+            if (kind == 'detail') return env.SMS_STAGE_Deploy_Local_Docker_DETAIL
+            if (kind == 'error') return env.SMS_STAGE_Deploy_Local_Docker_ERROR
+            break
+        case 'Deploy Server SSH':
+            if (kind == 'state') return env.SMS_STAGE_Deploy_Server_SSH
+            if (kind == 'detail') return env.SMS_STAGE_Deploy_Server_SSH_DETAIL
+            if (kind == 'error') return env.SMS_STAGE_Deploy_Server_SSH_ERROR
+            break
+        default:
+            return null
+    }
+    return null
 }
 
 def setStageValue(String name, String kind, String value) {
-    env[stageKey(name, kind)] = value
+    switch (name) {
+        case 'Checkout':
+            if (kind == 'state') env.SMS_STAGE_Checkout = value
+            else if (kind == 'detail') env.SMS_STAGE_Checkout_DETAIL = value
+            else if (kind == 'error') env.SMS_STAGE_Checkout_ERROR = value
+            break
+        case 'Check Environment':
+            if (kind == 'state') env.SMS_STAGE_Check_Environment = value
+            else if (kind == 'detail') env.SMS_STAGE_Check_Environment_DETAIL = value
+            else if (kind == 'error') env.SMS_STAGE_Check_Environment_ERROR = value
+            break
+        case 'Prepare':
+            if (kind == 'state') env.SMS_STAGE_Prepare = value
+            else if (kind == 'detail') env.SMS_STAGE_Prepare_DETAIL = value
+            else if (kind == 'error') env.SMS_STAGE_Prepare_ERROR = value
+            break
+        case 'Validate Docker Compose':
+            if (kind == 'state') env.SMS_STAGE_Validate_Docker_Compose = value
+            else if (kind == 'detail') env.SMS_STAGE_Validate_Docker_Compose_DETAIL = value
+            else if (kind == 'error') env.SMS_STAGE_Validate_Docker_Compose_ERROR = value
+            break
+        case 'Backend Test':
+            if (kind == 'state') env.SMS_STAGE_Backend_Test = value
+            else if (kind == 'detail') env.SMS_STAGE_Backend_Test_DETAIL = value
+            else if (kind == 'error') env.SMS_STAGE_Backend_Test_ERROR = value
+            break
+        case 'Frontend Test':
+            if (kind == 'state') env.SMS_STAGE_Frontend_Test = value
+            else if (kind == 'detail') env.SMS_STAGE_Frontend_Test_DETAIL = value
+            else if (kind == 'error') env.SMS_STAGE_Frontend_Test_ERROR = value
+            break
+        case 'SonarQube Analysis':
+            if (kind == 'state') env.SMS_STAGE_SonarQube_Analysis = value
+            else if (kind == 'detail') env.SMS_STAGE_SonarQube_Analysis_DETAIL = value
+            else if (kind == 'error') env.SMS_STAGE_SonarQube_Analysis_ERROR = value
+            break
+        case 'SonarQube Quality Gate':
+            if (kind == 'state') env.SMS_STAGE_SonarQube_Quality_Gate = value
+            else if (kind == 'detail') env.SMS_STAGE_SonarQube_Quality_Gate_DETAIL = value
+            else if (kind == 'error') env.SMS_STAGE_SonarQube_Quality_Gate_ERROR = value
+            break
+        case 'Build Docker Images':
+            if (kind == 'state') env.SMS_STAGE_Build_Docker_Images = value
+            else if (kind == 'detail') env.SMS_STAGE_Build_Docker_Images_DETAIL = value
+            else if (kind == 'error') env.SMS_STAGE_Build_Docker_Images_ERROR = value
+            break
+        case 'MySQL Integration Tests':
+            if (kind == 'state') env.SMS_STAGE_MySQL_Integration_Tests = value
+            else if (kind == 'detail') env.SMS_STAGE_MySQL_Integration_Tests_DETAIL = value
+            else if (kind == 'error') env.SMS_STAGE_MySQL_Integration_Tests_ERROR = value
+            break
+        case 'Export Scan Images':
+            if (kind == 'state') env.SMS_STAGE_Export_Scan_Images = value
+            else if (kind == 'detail') env.SMS_STAGE_Export_Scan_Images_DETAIL = value
+            else if (kind == 'error') env.SMS_STAGE_Export_Scan_Images_ERROR = value
+            break
+        case 'Dependency and Image Scan':
+            if (kind == 'state') env.SMS_STAGE_Dependency_and_Image_Scan = value
+            else if (kind == 'detail') env.SMS_STAGE_Dependency_and_Image_Scan_DETAIL = value
+            else if (kind == 'error') env.SMS_STAGE_Dependency_and_Image_Scan_ERROR = value
+            break
+        case 'Secret Scan':
+            if (kind == 'state') env.SMS_STAGE_Secret_Scan = value
+            else if (kind == 'detail') env.SMS_STAGE_Secret_Scan_DETAIL = value
+            else if (kind == 'error') env.SMS_STAGE_Secret_Scan_ERROR = value
+            break
+        case 'Publish Verified Release':
+            if (kind == 'state') env.SMS_STAGE_Publish_Verified_Release = value
+            else if (kind == 'detail') env.SMS_STAGE_Publish_Verified_Release_DETAIL = value
+            else if (kind == 'error') env.SMS_STAGE_Publish_Verified_Release_ERROR = value
+            break
+        case 'Import Verified Release':
+            if (kind == 'state') env.SMS_STAGE_Import_Verified_Release = value
+            else if (kind == 'detail') env.SMS_STAGE_Import_Verified_Release_DETAIL = value
+            else if (kind == 'error') env.SMS_STAGE_Import_Verified_Release_ERROR = value
+            break
+        case 'Deploy Local Docker':
+            if (kind == 'state') env.SMS_STAGE_Deploy_Local_Docker = value
+            else if (kind == 'detail') env.SMS_STAGE_Deploy_Local_Docker_DETAIL = value
+            else if (kind == 'error') env.SMS_STAGE_Deploy_Local_Docker_ERROR = value
+            break
+        case 'Deploy Server SSH':
+            if (kind == 'state') env.SMS_STAGE_Deploy_Server_SSH = value
+            else if (kind == 'detail') env.SMS_STAGE_Deploy_Server_SSH_DETAIL = value
+            else if (kind == 'error') env.SMS_STAGE_Deploy_Server_SSH_ERROR = value
+            break
+        default:
+            echo "CI evidence limitation: unknown stage ${name}."
+    }
 }
 
 def runsCI() {
