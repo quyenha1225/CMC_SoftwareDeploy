@@ -14,12 +14,12 @@ export default function LandingHero({ onLogin }) {
           <span>Vươn xa bằng tri thức.</span>
         </h1>
         <p>
-          Tra cứu thông tin học vụ, theo dõi tiến độ học tập và kết nối với nhà
+          Tra cứu thông tin học vụ, Theo dõi tiến độ học tập và kết nối với nhà
           trường trong một không gian rõ ràng, thuận tiện.
         </p>
         <div className="landing-actions">
           <button className="button-solid" onClick={onLogin}>
-            VÀO CỔNG ĐÀO TẠO <Icon name="arrow" size={17} />
+            Vào cổng đào tạo <Icon name="arrow" size={17} />
           </button>
           <a className="button-text" href="#training">
             Tìm hiểu chương trình <Icon name="chevron" size={15} />
