@@ -187,13 +187,30 @@ class BuildArtifacts:
             records[service] = {'id': image['id'], 'sha256': sha256(path), 'size': path.stat().st_size,
                                 'config_id': 'sha256:' + hashlib.sha256(config).hexdigest()}
         self.write('scan-archives', records)
+        for service in DOCKERFILES:
+            self.scan_input(service)
+            record('Exported archive verified: ' + service)
 
     def scan_input(self, service):
         entry = self.read('scan-archives')[service]
         image = self.read('image-identities')[service]
         path = self.work / 'scans' / (service + '.tar')
-        if entry['id'] != image['id'] or path.stat().st_size != entry['size'] or sha256(path) != entry['sha256']:
-            raise RuntimeError('Scan input failed verification: ' + service)
+        if entry['id'] != image['id']:
+            raise RuntimeError(f'Scan input failed verification: {service}; image ID differs '
+                               f'(expected {image["id"]}, recorded {entry["id"]})')
+        if not path.is_file() or path.is_symlink():
+            raise RuntimeError(f'Scan input failed verification: {service}; archive missing or symlink')
+        before = path.stat()
+        if before.st_size != entry['size']:
+            raise RuntimeError(f'Scan input failed verification: {service}; archive size differs '
+                               f'(expected {entry["size"]}, actual {before.st_size})')
+        actual = sha256(path)
+        after = path.stat()
+        if (before.st_size, before.st_mtime_ns) != (after.st_size, after.st_mtime_ns):
+            raise RuntimeError(f'Scan input failed verification: {service}; archive changed during hashing')
+        if actual != entry['sha256']:
+            raise RuntimeError(f'Scan input failed verification: {service}; archive SHA-256 differs '
+                               f'(expected {entry["sha256"]}, actual {actual})')
         return path, entry
 
     def verify_gate_images(self):
