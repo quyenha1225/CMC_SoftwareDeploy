@@ -32,6 +32,13 @@ Kiểm tra chỉ đọc: `python backend/scripts/Migrate-Database.py --check`. G
 
 ## SQL và tài khoản
 
+Để đổi toàn bộ mật khẩu trên máy chủ thực hành, chạy `python backend/scripts/Initialize-PracticeAccounts.py --prepare-rotation` từ thư mục gốc. Lệnh tạo hai tệp trong một thư mục riêng dưới `backend/.local/`:
+
+- `credentials.json` chứa tên đăng nhập và mật khẩu bản rõ để bàn giao riêng.
+- `apply.sql` chứa mã băm BCrypt. Trong phiên MySQL, chọn đúng cơ sở dữ liệu của EduPortal demo, rồi chạy `source /duong-dan/apply.sql`. Khi đủ danh sách, SQL đổi mật khẩu và bật cả 15 tài khoản thực hành, kể cả `principal`.
+
+Lần áp dụng đầu tiên cần trả về `changed_practice_accounts = 15`. Nếu trả về `0`, kiểm tra cơ sở dữ liệu đích và danh sách tài khoản. Chạy lại tệp đã áp dụng cũng có thể trả về `0` khi dữ liệu đã khớp. Dùng bảng mật khẩu từ cùng thư mục với tệp SQL đã áp dụng.
+
 Cài đầy đủ bằng `data/v6/Install-Original.ps1 -WithApplicationMigrations` trên database mới: SQL 01–03, sau đó migration 05–14. Không chạy file 04 tham khảo và không sửa migration đã áp dụng. Schema ứng dụng có 56 bảng, tính cả bảng quản lý migration.
 
 Sau khi bootstrap tài khoản quản trị theo tài liệu backend, chạy từ thư mục gốc:
