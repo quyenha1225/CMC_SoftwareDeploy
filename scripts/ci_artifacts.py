@@ -162,15 +162,18 @@ class BuildArtifacts:
         images = self.pin_images()
         directory = self.work / 'scans'
         directory.mkdir(parents=True, exist_ok=False)
-        required = sum(image['size'] for image in images.values()) * 2 + 256 * 1024 * 1024
+        for scanner in ('vuln', 'secret'):
+            (directory / scanner).mkdir()
+        # Two independent archives (one save, one copy) plus temporary repair headroom.
+        required = sum(image['size'] for image in images.values()) * 3 + 256 * 1024 * 1024
         free = shutil.disk_usage(directory).free
         record(f'Check scan disk space ({free} bytes free, {required} bytes required)')
         if free < required:
-            raise RuntimeError('Insufficient disk space for the three temporary scan archives')
+            raise RuntimeError('Insufficient disk space for isolated scan archives')
         records = {}
         for service, image in images.items():
             record('Export immutable image once: ' + service)
-            path = directory / (service + '.tar')
+            path = directory / 'vuln' / (service + '.tar')
             run(self.docker + ['save', '-o', str(path), image['id']])
             with tarfile.open(path, 'r:') as archive:
                 entries = json.load(archive.extractfile('manifest.json'))
@@ -184,20 +187,18 @@ class BuildArtifacts:
                     or (exported.get('config', {}).get('Labels') or {}).get(
                         'org.opencontainers.image.revision') != image['revision']):
                 raise RuntimeError('Scan archive does not match the built image identity: ' + service)
-            records[service] = {'id': image['id'], 'sha256': sha256(path), 'size': path.stat().st_size,
-                                'config_id': 'sha256:' + hashlib.sha256(config).hexdigest()}
+            entry = {'id': image['id'], 'sha256': sha256(path), 'size': path.stat().st_size,
+                     'config_id': 'sha256:' + hashlib.sha256(config).hexdigest()}
+            self.copy_scan_archive(path, directory / 'secret' / path.name, entry, service)
+            records[service] = entry
         self.write('scan-archives', records)
         for service in DOCKERFILES:
-            self.scan_input(service)
-            record('Exported archive verified: ' + service)
+            for scanner in ('vuln', 'secret'):
+                self.scan_input(service, scanner, repair=False)
+            record('Both isolated scan archives verified: ' + service)
 
-    def scan_input(self, service):
-        entry = self.read('scan-archives')[service]
-        image = self.read('image-identities')[service]
-        path = self.work / 'scans' / (service + '.tar')
-        if entry['id'] != image['id']:
-            raise RuntimeError(f'Scan input failed verification: {service}; image ID differs '
-                               f'(expected {image["id"]}, recorded {entry["id"]})')
+    @staticmethod
+    def check_scan_archive(path, entry, service):
         if not path.is_file() or path.is_symlink():
             raise RuntimeError(f'Scan input failed verification: {service}; archive missing or symlink')
         before = path.stat()
@@ -211,6 +212,39 @@ class BuildArtifacts:
         if actual != entry['sha256']:
             raise RuntimeError(f'Scan input failed verification: {service}; archive SHA-256 differs '
                                f'(expected {entry["sha256"]}, actual {actual})')
+
+    def copy_scan_archive(self, source, destination, entry, service):
+        # Never mount the same host file in the two scanner processes. A copy can
+        # replace only a scanner's own archive and must preserve the original hash.
+        self.check_scan_archive(source, entry, service)
+        if destination.is_symlink():
+            raise RuntimeError('Refusing to replace a scan archive symlink: ' + service)
+        with tempfile.TemporaryDirectory(prefix='copy-', dir=destination.parent) as folder:
+            temp = Path(folder) / destination.name
+            shutil.copyfile(source, temp)
+            self.check_scan_archive(temp, entry, service)
+            os.replace(temp, destination)
+        self.check_scan_archive(destination, entry, service)
+
+    def scan_input(self, service, scanner, *, repair=True, record=print):
+        if service not in DOCKERFILES or scanner not in ('vuln', 'secret'):
+            raise RuntimeError('Invalid scan input selection')
+        entry = self.read('scan-archives')[service]
+        image = self.read('image-identities')[service]
+        if entry['id'] != image['id']:
+            raise RuntimeError(f'Scan input failed verification: {service}; image ID differs '
+                               f'(expected {image["id"]}, recorded {entry["id"]})')
+        directory = self.work / 'scans'
+        path = directory / scanner / (service + '.tar')
+        try:
+            self.check_scan_archive(path, entry, service)
+        except RuntimeError as error:
+            if not repair or path.is_symlink():
+                raise
+            other = directory / ('secret' if scanner == 'vuln' else 'vuln') / path.name
+            record(f'{error}; checking independent archive before one recovery attempt ({scanner})')
+            self.copy_scan_archive(other, path, entry, service)
+            record(f'Recovered verified archive: {service} ({scanner})')
         return path, entry
 
     def verify_gate_images(self):
