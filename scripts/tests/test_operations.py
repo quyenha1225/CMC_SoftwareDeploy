@@ -146,19 +146,46 @@ class OperationsTests(unittest.TestCase):
         endpoint = 'npipe:////./pipe/dockerDesktopLinuxEngine'
         with patch.dict(os.environ, {'SMS_CI_BUILDER': 'sms-jenkins-linux', 'DOCKER_HOST': endpoint}, clear=True), \
                 patch.object(ci.subprocess, 'run', return_value=subprocess.CompletedProcess([], 1)) as inspect, \
-                patch.object(ci, 'run') as execute:
+                patch.object(ci, 'build_artifacts') as artifacts, patch.object(ci, 'run') as execute:
             ci.main('build')
+            artifacts.return_value.build_images.assert_called_once_with(
+                ['docker', 'buildx', 'build', '--builder', 'sms-jenkins-linux', '--load'],
+                execute, ci.record_check)
         inspect.assert_called_once_with(
             ['docker', 'buildx', 'inspect', 'sms-jenkins-linux'], cwd=ci.ROOT, capture_output=True, text=True)
-        commands = [call.args[0] for call in execute.call_args_list]
-        self.assertEqual(commands[0], ['docker', 'buildx', 'create', '--name', 'sms-jenkins-linux',
-                                       '--driver', 'docker-container',
-                                       '--driver-opt', 'env.CONTAINERD_DISABLE_PIGZ=1', endpoint])
-        self.assertEqual(commands[1], ['docker', 'buildx', 'inspect', '--bootstrap', 'sms-jenkins-linux'])
-        self.assertEqual(len(commands[2:]), 3)
-        for command, service in zip(commands[2:], ('backend', 'frontend', 'migration')):
-            self.assertEqual(command[:6], ['docker', 'buildx', 'build', '--builder', 'sms-jenkins-linux', '--load'])
-            self.assertIn('sms-' + service + ':local', command)
+        self.assertEqual([call.args[0] for call in execute.call_args_list], [
+            ['docker', 'buildx', 'create', '--name', 'sms-jenkins-linux',
+             '--driver', 'docker-container', '--driver-opt', 'env.CONTAINERD_DISABLE_PIGZ=1', endpoint],
+            ['docker', 'buildx', 'inspect', '--bootstrap', 'sms-jenkins-linux']])
+
+    def test_artifact_packaging_builds_three_images_with_verified_inputs(self):
+        from ci_artifacts import BuildArtifacts, DOCKERFILES
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            reports = root / 'artifacts/reports'
+            reports.mkdir(parents=True)
+            commit = 'a' * 40
+            artifacts = BuildArtifacts(root, reports, {'commit': commit}, ['docker'])
+            commands = []
+            ids = {service: 'sha256:' + str(i) * 64
+                   for i, service in enumerate(DOCKERFILES, 1)}
+            def execute(command):
+                commands.append(command)
+                service = next(name for name in DOCKERFILES if DOCKERFILES[name] == command[command.index('-f') + 1])
+                Path(command[command.index('--iidfile') + 1]).write_text(ids[service])
+            def inspect(image_id):
+                return {'id': image_id, 'revision': commit, 'architecture': 'amd64',
+                        'layers': [], 'size': 1, 'digests': []}
+            with patch.object(artifacts, 'stage_input') as stage, patch.object(artifacts, 'inspect', side_effect=inspect):
+                artifacts.build_images(['docker', 'buildx', 'build', '--load'], execute, lambda _: None)
+            self.assertEqual([call.args[0] for call in stage.call_args_list], ['backend', 'frontend'])
+            self.assertEqual(len(commands), 3)
+            for service, command in zip(DOCKERFILES, commands):
+                self.assertIn('sms-' + service + ':' + commit, command)
+                self.assertEqual('--build-context' in command, service != 'migration')
+                if service != 'migration':
+                    self.assertIn('ci-runtime', command)
+            self.assertEqual({k: v['id'] for k, v in artifacts.read('image-identities').items()}, ids)
 
     def test_ci_rejects_a_builder_bound_to_another_engine(self):
         inspected = subprocess.CompletedProcess([], 0, stdout='Driver: docker-container\nEndpoint: other-engine\n')
