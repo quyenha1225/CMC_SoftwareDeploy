@@ -534,10 +534,11 @@ def main(step):
         scanned = {}
         for service in DOCKERFILES:
             record_check('Trivy image scan: ' + service + ' (' + scanner + ')')
-            archive, entry = artifacts.scan_input(service)
+            archive, entry = artifacts.scan_input(service, scanner, record=record_check)
             report = scan_report(docker_command()+['run','--rm','-v',str(archive)+':/image.tar:ro','-v','sms_trivy_cache:/root/.cache/',image,'image','--timeout','15m','--no-progress','--input','/image.tar','--scanners',scanner,'--severity',severity,'--exit-code','1','--format','json'],REPORTS/(prefix+'-'+service+'.json'))
             if report.get('Metadata', {}).get('ImageID') != entry['config_id']:
                 raise RuntimeError('Trivy reported a different image config: ' + service)
+            artifacts.scan_input(service, scanner, repair=False)
             scanned[service] = entry
         artifacts.write('scan-completed-' + scanner, scanned)
     elif step=='publish':
