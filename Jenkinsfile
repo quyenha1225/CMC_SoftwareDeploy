@@ -312,7 +312,7 @@ pipeline {
                     }
                     def checkedOut = checkout(scm)
                     ['artifacts/reports', 'artifacts/ci-assets', 'backend/target/surefire-reports',
-                     'backend/target/site/jacoco', 'frontend/coverage'].each { path ->
+                     'backend/target/site/jacoco', 'backend/target/sonar', 'frontend/coverage'].each { path ->
                         dir(path) { deleteDir() }
                     }
                     env.SMS_CHECKOUT_BRANCH = (
@@ -687,6 +687,10 @@ pipeline {
                 failure {
                     script {
                         recordStageFailure('Deploy Local Docker', 'deploy-local')
+                        if (env.SMS_PIPELINE_MODE == 'FULL' && env.SMS_IMAGES_PUBLISHED == 'true') {
+                            writeFile file: 'artifacts/reports/local-deploy-failed.json',
+                                text: """{"commit":"${env.IMAGE_TAG}","build":"${env.BUILD_NUMBER}","stage":"Deploy Local Docker"}"""
+                        }
                     }
                 }
             }
