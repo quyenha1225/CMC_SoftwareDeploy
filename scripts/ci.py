@@ -354,21 +354,43 @@ def main(step):
     elif step=='sonar':
         if not os.getenv('SONAR_HOST_URL') or not os.getenv('SONAR_AUTH_TOKEN'):raise RuntimeError('Configure the Jenkins SonarQube server/credential first.')
         env={**os.environ,'SONAR_TOKEN':os.environ['SONAR_AUTH_TOKEN']}
-        # Maven resolves module paths against backend/, even with a project base override.
-        # Absolute paths keep both Java and frontend scope independent of that module base.
-        paths = {
-            'sonar.sources': ['backend/src/main/java', 'frontend/src'],
-            'sonar.tests': ['backend/src/test/java', 'frontend/tests'],
-            'sonar.java.binaries': ['backend/target/classes'],
-            'sonar.coverage.jacoco.xmlReportPaths': ['backend/target/site/jacoco/jacoco.xml'],
-            'sonar.javascript.lcov.reportPaths': ['frontend/coverage/lcov.info'],
+        # Run a standalone scanner at repository root: Maven module scope excludes frontend.
+        scanner_home = os.getenv('SONAR_SCANNER_HOME')
+        scanner = str(Path(scanner_home) / 'bin' / ('sonar-scanner.bat' if WIN else 'sonar-scanner')) if scanner_home else shutil.which('sonar-scanner')
+        if not scanner or not Path(scanner).is_file():
+            raise RuntimeError('Install SonarScanner CLI on the agent and set SONAR_SCANNER_HOME (or PATH).')
+        # Resolve Java dependencies for accurate semantic analysis outside Maven scanner.
+        classpath = ROOT/'backend/target/sonar-classpath.txt'
+        classpath.unlink(missing_ok=True)
+        run([*MAVEN, '-B', '-ntp', 'dependency:build-classpath',
+             '-Dmdep.outputFile='+str(classpath)], ROOT/'backend')
+        libraries = classpath.read_text(encoding='utf-8').strip().split(os.pathsep)
+        report = ROOT/'backend/target/sonar/report-task.txt'
+        report.unlink(missing_ok=True)
+        report.parent.mkdir(parents=True, exist_ok=True)
+        for required in [ROOT/'frontend/src', ROOT/'frontend/coverage/lcov.info',
+                         ROOT/'backend/target/classes', ROOT/'backend/target/site/jacoco/jacoco.xml']:
+            if not required.exists():
+                raise RuntimeError('Missing required Sonar input: '+str(required.relative_to(ROOT)))
+        properties = {
+            'sonar.projectBaseDir': ROOT.as_posix(),
+            'sonar.projectKey': 'cmc-sms',
+            'sonar.sourceEncoding': 'UTF-8',
+            'sonar.sources': 'backend/src/main/java,frontend/src',
+            'sonar.tests': 'backend/src/test/java,frontend/tests',
+            'sonar.java.binaries': 'backend/target/classes',
+            'sonar.java.test.binaries': 'backend/target/test-classes',
+            'sonar.java.libraries': ','.join(Path(p).as_posix() for p in libraries if p),
+            'sonar.java.test.libraries': ','.join(Path(p).as_posix() for p in libraries if p),
+            'sonar.java.source': '21',
+            'sonar.coverage.jacoco.xmlReportPaths': 'backend/target/site/jacoco/jacoco.xml',
+            'sonar.javascript.lcov.reportPaths': 'frontend/coverage/lcov.info',
+            'sonar.junit.reportPaths': 'backend/target/surefire-reports',
+            'sonar.scanner.metadataFilePath': report.as_posix(),
         }
-        properties = ['-D' + key + '=' + ','.join((ROOT / path).resolve().as_posix() for path in values)
-                      for key, values in paths.items()]
-        run([*MAVEN, '-B', '-ntp',
-             'org.sonarsource.scanner.maven:sonar-maven-plugin:5.1.0.4751:sonar',
-             '-Dsonar.projectBaseDir=' + ROOT.as_posix(), '-Dsonar.projectKey=cmc-sms',
-             '-Dsonar.sourceEncoding=UTF-8', *properties], ROOT/'backend', env=env)
+        run([scanner, *('-D'+key+'='+value for key,value in properties.items())], ROOT, env=env)
+        if not report.is_file():
+            raise RuntimeError('SonarScanner did not produce current task metadata')
     elif step=='build':
         build_artifacts().build_images(ci_build_command(), run, record_check)
     elif step=='seal-release':
@@ -526,7 +548,7 @@ def main(step):
             if result.returncode:raise RuntimeError('Dependency audit failed or could not complete')
         image=os.getenv('TRIVY_IMAGE','aquasec/trivy:0.64.1')
         skips=['backend/target','frontend/dist','.git','.secrets','backend/.local','backend/private-files','frontend/node_modules','frontend/.npm-cache','backups','artifacts']
-        command=docker_command()+['run','--rm','-v',str(ROOT)+':/work:ro','-v','sms_trivy_cache:/root/.cache/','-w','/work',image,'fs','--timeout','15m','--no-progress','--scanners',scanner,'--severity',severity,'--exit-code','1']
+        command=docker_command()+['run','--rm','-v',str(ROOT)+':/work:ro','-v','sms_trivy_cache:/root/.cache/','-w','/work',image,'fs','--timeout','15m','--no-progress','--parallel','1','--scanners',scanner,'--severity',severity,'--exit-code','1']
         for path in skips:command+=['--skip-dirs','/work/'+path]
         command+=['--skip-files','.env','--skip-files','backend/.env.local','--skip-files','frontend/.env.local','--format','json','.']
         record_check('Trivy filesystem scan: ' + scanner)
@@ -535,7 +557,7 @@ def main(step):
         for service in DOCKERFILES:
             record_check('Trivy image scan: ' + service + ' (' + scanner + ')')
             archive, entry = artifacts.scan_input(service, scanner, record=record_check)
-            report = scan_report(docker_command()+['run','--rm','-v',str(archive)+':/image.tar:ro','-v','sms_trivy_cache:/root/.cache/',image,'image','--timeout','15m','--no-progress','--input','/image.tar','--scanners',scanner,'--severity',severity,'--exit-code','1','--format','json'],REPORTS/(prefix+'-'+service+'.json'))
+            report = scan_report(docker_command()+['run','--rm','-v',str(archive)+':/image.tar:ro','-v','sms_trivy_cache:/root/.cache/',image,'image','--timeout','15m','--no-progress','--parallel','1','--input','/image.tar','--scanners',scanner,'--severity',severity,'--exit-code','1','--format','json'],REPORTS/(prefix+'-'+service+'.json'))
             if report.get('Metadata', {}).get('ImageID') != entry['config_id']:
                 raise RuntimeError('Trivy reported a different image config: ' + service)
             artifacts.scan_input(service, scanner, repair=False)
