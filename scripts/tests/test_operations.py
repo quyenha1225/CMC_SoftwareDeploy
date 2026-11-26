@@ -8,10 +8,12 @@ import tempfile
 import subprocess
 import unittest
 from unittest.mock import patch
+from types import SimpleNamespace
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 import ci
 import deploy
+import docker
 from docker import docker_command, initialize, prepare_demo_deployment, settings
 
 class OperationsTests(unittest.TestCase):
@@ -332,6 +334,92 @@ class OperationsTests(unittest.TestCase):
             def __init__(self,ddl):self.ddl=ddl
             def sql(self,query):return '1' if query.startswith('SELECT COALESCE') else self.ddl
         self.assertNotEqual(deploy.schema(Fake('old ddl')),deploy.schema(Fake('partially changed ddl')))
+
+    def test_restore_readiness_retries_a_probe_timeout_then_succeeds(self):
+        clock = [0.0]
+
+        def run(command, *, capture_output, timeout):
+            if clock[0] == 0:
+                clock[0] += timeout
+                raise subprocess.TimeoutExpired(command, timeout)
+            return subprocess.CompletedProcess(command, 0)
+
+        def sleep(seconds):
+            clock[0] += seconds
+
+        with patch.object(docker.time, 'monotonic', side_effect=lambda: clock[0]), \
+                patch.object(docker.time, 'sleep', side_effect=sleep) as pause, \
+                patch.object(docker.subprocess, 'run', side_effect=run) as probe, \
+                patch.object(docker, 'restore_mysql_diagnostics') as diagnostics:
+            docker.wait_for_restore_mysql(['docker'], 'sms-restore-fixture', 240)
+
+        self.assertEqual([call.kwargs['timeout'] for call in probe.call_args_list], [15, 15])
+        self.assertTrue(all(call.args[0][-1] == '--execute=SELECT 1' for call in probe.call_args_list))
+        pause.assert_called_once_with(1)
+        diagnostics.assert_not_called()
+
+    def test_restore_readiness_caps_the_last_probe_and_reports_expiration(self):
+        clock = [0.0]
+
+        def run(command, *, capture_output, timeout):
+            clock[0] += timeout
+            raise subprocess.TimeoutExpired(command, timeout)
+
+        def sleep(seconds):
+            clock[0] += seconds
+
+        with patch.object(docker.time, 'monotonic', side_effect=lambda: clock[0]), \
+                patch.object(docker.time, 'sleep', side_effect=sleep) as pause, \
+                patch.object(docker.subprocess, 'run', side_effect=run) as probe, \
+                patch.object(docker, 'restore_mysql_diagnostics') as diagnostics:
+            with self.assertRaisesRegex(RuntimeError, r'within 18s .*2 probes, 2 timed out'):
+                docker.wait_for_restore_mysql(['docker'], 'sms-restore-fixture', 18)
+
+        self.assertEqual([call.kwargs['timeout'] for call in probe.call_args_list], [15, 2])
+        self.assertEqual(clock[0], 18)
+        pause.assert_called_once_with(1)
+        diagnostics.assert_called_once_with(['docker'], 'sms-restore-fixture')
+
+    def test_restore_timeout_still_cleans_only_the_disposable_container(self):
+        runtime = SimpleNamespace(docker=['docker'], config={'COMPOSE_PROJECT_NAME': 'sms_ci_fixture'})
+        failure = RuntimeError('MySQL readiness expired')
+        with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, {}, clear=True), \
+                patch.object(docker.secrets, 'token_hex', return_value='fixture'), \
+                patch.object(docker, 'invoke') as invoke, \
+                patch.object(docker, 'wait_for_restore_mysql', side_effect=failure) as readiness, \
+                patch.object(docker.subprocess, 'run',
+                             return_value=subprocess.CompletedProcess([], 0, stdout='')) as cleanup:
+            folder = Path(directory)
+            manifest = folder / 'manifest.json'
+            manifest.write_text('{"sha256": {}}', encoding='utf-8')
+            with self.assertRaises(RuntimeError) as raised:
+                docker.restore_test(runtime, folder)
+            self.assertIs(raised.exception, failure)
+            self.assertTrue(manifest.is_file())
+            self.assertFalse((folder / 'restore-test.json').exists())
+
+        readiness.assert_called_once_with(['docker'], 'sms-restore-fixture', 240)
+        invoke.assert_called_once()
+        self.assertEqual(cleanup.call_args_list[0].args[0], ['docker', 'rm', '-f', 'sms-restore-fixture'])
+
+    def test_restore_timeout_prevents_production_rollout_and_env_changes(self):
+        config = {'SMS_ENVIRONMENT': 'production', 'SESSION_SECURE': 'true', 'APP_DOMAIN': 'example.test'}
+        manifest = self.manifest()
+        config.update({service.upper() + '_IMAGE': image for service, image in manifest['images'].items()})
+        runtime = SimpleNamespace(config=config)
+        failure = RuntimeError('MySQL readiness expired')
+        with patch.dict(os.environ, {}, clear=True), patch.object(deploy, 'Runtime', return_value=runtime), \
+                patch.object(deploy, 'read_manifest', return_value=manifest), \
+                patch.object(deploy, 'schema', return_value='previous'), \
+                patch.object(deploy, 'backup', return_value=Path('fixture-backup')), \
+                patch.object(deploy, 'restore_test', side_effect=failure) as restore, \
+                patch.object(deploy, 'save_env') as save:
+            with self.assertRaises(RuntimeError) as raised:
+                deploy.apply(Path('release.json'), allow_migration=True)
+
+        self.assertIs(raised.exception, failure)
+        restore.assert_called_once_with(runtime, Path('fixture-backup'))
+        save.assert_not_called()
     def test_init_generates_unique_secrets_without_passwords_in_env(self):
         with tempfile.TemporaryDirectory() as folder:
             env=Path(folder)/'.env';initialize(env,ci=True)

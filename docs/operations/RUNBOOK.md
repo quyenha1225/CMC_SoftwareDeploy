@@ -64,6 +64,8 @@ Receipt phải có schema_version khớp DB hiện tại, gồm phiên bản và
 
 Backup hằng ngày và trước release, lưu SQL + private archive + manifest/checksum; mã hóa và sao chép offsite theo chính sách của trường. Lệnh mẫu lịch cron trên VPS: `0 2 * * * cd /opt/sms/production && python3 scripts/docker.py --production backup` (thêm lịch restore-test định kỳ). Cần giám sát lỗi job, dung lượng, retention theo chính sách; script không tự xóa backup.
 
+Restore-test chờ MySQL cô lập sẵn sàng tối đa **240 giây** theo mặc định. Có thể đặt `SMS_RESTORE_STARTUP_TIMEOUT_SECONDS` trong `.env` của môi trường hoặc biến môi trường của tiến trình restore-test khi máy cần thêm thời gian (1–900 giây). Từng probe tối đa 15 giây và dùng phần ngân sách còn lại khi gần hết hạn. Hết hạn sẽ chặn deploy, ghi trạng thái container, CPU/RAM/I/O và tóm tắt log MySQL, rồi dọn container thử nghiệm. Chẩn đoán tối đa 5 giây mỗi lệnh, bên ngoài ngân sách readiness.
+
 Restore thật chỉ sau khi kiểm tra checksum, thử restore cô lập, xác nhận thời điểm mất dữ liệu có thể chấp nhận và dừng các tác vụ ghi. Không tự khôi phục backup lên DB đang phục vụ người dùng. Cần khôi phục đồng bộ SQL và private-files.
 
 ## Xử lý lỗi

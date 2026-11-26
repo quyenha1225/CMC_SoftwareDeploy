@@ -7,8 +7,8 @@ services:
       APP_DOMAIN: ${APP_DOMAIN:?Set the public DNS domain}
     volumes:
       - ./infrastructure/tls/Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
+      - caddy_data:/data #data và chứng chỉ 
+      - caddy_config:/config #cấu hình caddy
     networks: [app]
     depends_on: [frontend]
 volumes:

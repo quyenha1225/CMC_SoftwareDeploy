@@ -218,6 +218,77 @@ def backup(runtime):
     (folder/'manifest.json').write_text(json.dumps(manifest,indent=2),encoding='utf-8')
     print('Backup created: '+str(folder));return folder
 
+def restore_mysql_diagnostics(docker, name):
+    checks = {
+        'container state': ['inspect', '--format',
+                            'status={{.State.Status}} exit={{.State.ExitCode}} oom={{.State.OOMKilled}}', name],
+        'container resources': ['stats', '--no-stream', '--format',
+                                'cpu={{.CPUPerc}} memory={{.MemUsage}} block_io={{.BlockIO}} pids={{.PIDs}}', name],
+        'Docker Engine resources': ['info', '--format', 'cpus={{.NCPU}} memory_bytes={{.MemTotal}}'],
+        'MySQL startup log summary': ['logs', '--tail', '40', name],
+    }
+    for label, arguments in checks.items():
+        try:
+            result = subprocess.run(docker + arguments, capture_output=True, text=True,
+                                    errors='replace', timeout=5)
+            if result.returncode:
+                outcome = f'unavailable (Docker exit {result.returncode})'
+            elif arguments[0] == 'logs':
+                # Categorize rather than print raw database log lines into CI.
+                logs = (result.stdout + result.stderr).lower()
+                patterns = {
+                    'ready': 'ready for connections',
+                    'initializing': 'initializing database|initialization has started',
+                    'out of memory': 'out of memory|cannot allocate memory|oom.kill',
+                    'disk full': 'no space left on device|disk full',
+                    'permission denied': 'permission denied',
+                    'server error': r'\[error\]',
+                }
+                outcome = ', '.join(f'{key}={len(re.findall(pattern, logs))}'
+                                    for key, pattern in patterns.items())
+            else:
+                outcome = result.stdout.strip() or 'no data'
+        except (OSError, subprocess.TimeoutExpired) as error:
+            outcome = f'unavailable ({type(error).__name__})'
+        print(f'Restore: {label}: {outcome}', file=sys.stderr, flush=True)
+
+
+def wait_for_restore_mysql(docker, name, startup_timeout):
+    started = time.monotonic()
+    deadline = started + startup_timeout
+    probe_command = docker + ['exec', name, 'mysql', '--protocol=tcp',
+                              '--host=127.0.0.1', '-uroot', '--execute=SELECT 1']
+    attempts = timeouts = 0
+    last = 'no probe completed'
+    while (remaining := deadline - time.monotonic()) > 0:
+        attempts += 1
+        probe_timeout = min(15, remaining)
+        try:
+            probe = subprocess.run(probe_command, capture_output=True, timeout=probe_timeout)
+        except subprocess.TimeoutExpired:
+            timeouts += 1
+            last = f'probe timed out after {probe_timeout:.1f}s'
+            print(f'Restore: readiness attempt {attempts}: {last}', flush=True)
+        else:
+            if probe.returncode == 0:
+                print(f'Restore: MySQL ready after {time.monotonic() - started:.1f}s '
+                      f'({attempts} probes, {timeouts} timed out)', flush=True)
+                return
+            last = f'MySQL client exit {probe.returncode}'
+            if attempts == 1 or attempts % 10 == 0:
+                print(f'Restore: readiness attempt {attempts}: {last}', flush=True)
+        remaining = deadline - time.monotonic()
+        if remaining > 0:
+            time.sleep(min(1, remaining))
+
+    print(f'Restore: MySQL readiness expired for {name}: {startup_timeout}s, '
+          f'{attempts} probes, {timeouts} timed out, last result: {last}',
+          file=sys.stderr, flush=True)
+    restore_mysql_diagnostics(docker, name)
+    raise RuntimeError(f'Restore MySQL did not become ready within {startup_timeout}s '
+                       f'({attempts} probes, {timeouts} timed out; {last})')
+
+
 def restore_test(runtime,folder):
     folder=Path(folder).resolve();manifest=json.loads((folder/'manifest.json').read_text())
     for name,digest in manifest['sha256'].items():
@@ -225,15 +296,21 @@ def restore_test(runtime,folder):
     name='sms-restore-'+secrets.token_hex(5)
     command=runtime.docker+['exec','-i',name,'mysql','-uroot','--batch','--skip-column-names']
     timeout=180 if runtime.config['COMPOSE_PROJECT_NAME'].startswith('sms_ci_') else None
-    print('Restore: starting isolated MySQL',flush=True)
+    option = 'SMS_RESTORE_STARTUP_TIMEOUT_SECONDS'
+    value = os.getenv(option, runtime.config.get(option, '240'))
+    if not re.fullmatch(r'[0-9]{1,3}', value) or not 1 <= int(value) <= 900:
+        raise RuntimeError(f'{option} must be an integer between 1 and 900 seconds')
+    startup_timeout = int(value)
+    print(f'Restore: starting isolated MySQL (readiness budget {startup_timeout}s)', flush=True)
     try:
-        invoke(runtime.docker+['run','-d','--rm','--network','none','--name',name,'--tmpfs','/var/lib/mysql','-e','MYSQL_ALLOW_EMPTY_PASSWORD=yes','mysql:8.4.5'],capture=True,timeout=60)
-        deadline=time.monotonic()+90
-        while time.monotonic()<deadline:
-            probe=subprocess.run(runtime.docker+['exec',name,'mysql','--protocol=tcp','--host=127.0.0.1','-uroot','--execute=SELECT 1'],capture_output=True,timeout=15)
-            if probe.returncode==0:break
-            time.sleep(1)
-        else:raise RuntimeError('Restore database did not start')
+        try:
+            invoke(runtime.docker+['run','-d','--rm','--network','none','--name',name,'--tmpfs','/var/lib/mysql','-e','MYSQL_ALLOW_EMPTY_PASSWORD=yes','mysql:8.4.5'],capture=True,timeout=60)
+        except (OSError, RuntimeError, subprocess.TimeoutExpired):
+            print(f'Restore: could not start disposable MySQL container {name}',
+                  file=sys.stderr, flush=True)
+            restore_mysql_diagnostics(runtime.docker, name)
+            raise
+        wait_for_restore_mysql(runtime.docker, name, startup_timeout)
         print('Restore: importing SQL dump',flush=True)
         invoke(command,data=b'CREATE DATABASE sms_restore CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;',timeout=timeout)
         source=(folder/'database.sql').read_text(encoding='utf-8')
