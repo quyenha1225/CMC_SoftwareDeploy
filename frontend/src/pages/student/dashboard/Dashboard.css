@@ -344,7 +344,14 @@
   flex-direction: column;
 }
 
-.todo-list > div {
+.todo-list > button {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  width: 100%;
   display: flex;
   align-items: center;
   gap: 11px;
@@ -353,11 +360,16 @@
   cursor: pointer;
 }
 
-.todo-list > div:last-child {
+.todo-list > button:focus-visible {
+  outline: 2px solid #6281ed;
+  outline-offset: 2px;
+}
+
+.todo-list > button:last-child {
   border: 0;
 }
 
-.todo-list > div > span:nth-child(2) {
+.todo-list > button > span:nth-child(2) {
   flex: 1;
 }
 
@@ -377,7 +389,7 @@
   margin-top: 5px;
 }
 
-.todo-list > div > svg {
+.todo-list > button > svg {
   color: #9daabb;
 }
 
