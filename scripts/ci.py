@@ -373,7 +373,6 @@ def main(step):
             if not required.exists():
                 raise RuntimeError('Missing required Sonar input: '+str(required.relative_to(ROOT)))
         properties = {
-            'sonar.projectBaseDir': ROOT.as_posix(),
             'sonar.projectKey': 'cmc-sms',
             'sonar.sourceEncoding': 'UTF-8',
             'sonar.sources': 'backend/src/main/java,frontend/src',
@@ -388,7 +387,10 @@ def main(step):
             'sonar.junit.reportPaths': 'backend/target/surefire-reports',
             'sonar.scanner.metadataFilePath': report.as_posix(),
         }
-        run([scanner, *('-D'+key+'='+value for key,value in properties.items())], ROOT, env=env)
+        # Keep the full Java classpath out of the Windows command line.
+        config = report.parent / 'scanner.properties'
+        config.write_text(''.join(key + '=' + value + '\n' for key, value in properties.items()), encoding='utf-8')
+        run([scanner, '-Dproject.settings='+config.relative_to(ROOT).as_posix()], ROOT, env=env)
         if not report.is_file():
             raise RuntimeError('SonarScanner did not produce current task metadata')
     elif step=='build':
