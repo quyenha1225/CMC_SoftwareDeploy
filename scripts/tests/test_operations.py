@@ -267,18 +267,47 @@ class OperationsTests(unittest.TestCase):
             self.assertEqual(docker_command(), ['docker', '--host', 'unix:///run/ci/docker.sock'])
             self.assertEqual(docker_command('ci-linux'), ['docker', '--context', 'ci-linux'])
 
-    def test_sonar_uses_absolute_paths_from_maven_module(self):
-        with patch.dict(os.environ, {'SONAR_HOST_URL': 'http://sonar.invalid', 'SONAR_AUTH_TOKEN': 'test-placeholder'}), patch.object(ci, 'run') as execute:
-            ci.main('sonar')
-        command = execute.call_args.args[0]
-        properties = dict(item[2:].split('=', 1) for item in command if item.startswith('-D'))
-        for key in ['sonar.sources', 'sonar.tests', 'sonar.java.binaries', 'sonar.coverage.jacoco.xmlReportPaths', 'sonar.javascript.lcov.reportPaths']:
-            for value in properties[key].split(','):
-                self.assertTrue(Path(value).is_absolute(), (key, value))
-                self.assertTrue(Path(value).is_relative_to(ci.ROOT))
-                self.assertNotIn('/backend/backend/', value)
-        self.assertEqual(properties['sonar.sources'], ','.join((ci.ROOT / value).as_posix() for value in ['backend/src/main/java', 'frontend/src']))
-        self.assertEqual(execute.call_args.kwargs['env']['SONAR_TOKEN'], 'test-placeholder')
+    def test_sonar_scanner_analyzes_both_sources_from_repository_root(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder).resolve()
+            home = root / 'scanner'
+            scanner = home / 'bin' / ('sonar-scanner.bat' if ci.WIN else 'sonar-scanner')
+            scanner.parent.mkdir(parents=True)
+            scanner.touch()
+            for name in ('frontend/src', 'backend/target/classes'):
+                (root / name).mkdir(parents=True)
+            for name in ('frontend/coverage/lcov.info', 'backend/target/site/jacoco/jacoco.xml'):
+                target = root / name
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.touch()
+            report = root / 'backend/target/sonar/report-task.txt'
+            classpath = root / 'backend/target/sonar-classpath.txt'
+            library = root / 'dependency.jar'
+            library.touch()
+            def fake_run(command, directory, **kwargs):
+                if 'dependency:build-classpath' in command:
+                    classpath.write_text(str(library), encoding='utf-8')
+                else:
+                    report.write_text('ceTaskId=test-task\n', encoding='utf-8')
+            env = {'SONAR_HOST_URL': 'http://sonar.invalid', 'SONAR_AUTH_TOKEN': 'test-placeholder',
+                   'SONAR_SCANNER_HOME': str(home)}
+            with patch.dict(os.environ, env, clear=True), patch.object(ci, 'ROOT', root), patch.object(ci, 'run', side_effect=fake_run) as execute:
+                ci.main('sonar')
+            self.assertEqual(execute.call_count, 2)
+            self.assertIn('dependency:build-classpath', execute.call_args_list[0].args[0])
+            command, directory = execute.call_args.args
+            self.assertEqual(command[0], str(scanner))
+            self.assertEqual(directory, root)
+            properties = dict(item[2:].split('=', 1) for item in command[1:])
+            self.assertEqual(properties['sonar.projectBaseDir'], root.as_posix())
+            self.assertEqual(properties['sonar.sources'], 'backend/src/main/java,frontend/src')
+            self.assertEqual(properties['sonar.tests'], 'backend/src/test/java,frontend/tests')
+            self.assertEqual(properties['sonar.java.binaries'], 'backend/target/classes')
+            self.assertEqual(properties['sonar.java.libraries'], library.as_posix())
+            self.assertEqual(properties['sonar.coverage.jacoco.xmlReportPaths'], 'backend/target/site/jacoco/jacoco.xml')
+            self.assertEqual(properties['sonar.javascript.lcov.reportPaths'], 'frontend/coverage/lcov.info')
+            self.assertEqual(properties['sonar.scanner.metadataFilePath'], report.as_posix())
+            self.assertEqual(execute.call_args.kwargs['env']['SONAR_TOKEN'], 'test-placeholder')
 
     def manifest(self):
         return {'commit':'a'*40,'images':{name:'registry.example/team/sms-'+name+'@sha256:'+'b'*64 for name in ['backend','frontend','migration']}}
