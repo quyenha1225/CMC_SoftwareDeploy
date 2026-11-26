@@ -267,10 +267,75 @@ def restore_test(runtime,folder):
         (folder/'restore-test.json').write_text(json.dumps({'passed':True,'tables':len(manifest['rows']),'private_archive_readable':True,'private_files_restored':len(expected),'checked_at':dt.datetime.now().isoformat()},indent=2))
         print('PASS isolated restore: '+str(len(manifest['rows']))+' tables and '+str(len(expected))+' restored private files')
     finally:
-        try:
-            invoke(runtime.docker+['rm','-f',name],capture=True,check=False,timeout=30)
-        except subprocess.TimeoutExpired:
-            print('Restore: Docker timed out removing '+name,file=sys.stderr,flush=True)
+        had_failure = sys.exc_info()[0] is not None
+        # Docker may be busy after restoring a large dump. Verify the exact
+        # disposable container is absent; never remove another project or volume.
+        removed = False
+        for attempt in range(3):
+            try:
+                subprocess.run(runtime.docker+['rm','-f',name],capture_output=True,timeout=30)
+                listing = subprocess.run(
+                    runtime.docker+['ps','-a','--filter','name=^/'+name+'
+
+def main():
+    parser=argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--env-file',type=Path,default=ROOT/'.env')
+    parser.add_argument('--context')
+    parser.add_argument('--production',action='store_true')
+    parser.add_argument('command',choices=['init','config','up','status','smoke','backup','restore-test','restart-test','ci','logs'])
+    parser.add_argument('--ci',action='store_true')
+    parser.add_argument('--backup-dir',type=Path)
+    args=parser.parse_args()
+    if args.command=='init':initialize(args.env_file.resolve(),args.ci);return
+    runtime=Runtime(args.env_file,args.context,args.production)
+    if args.command=='config':runtime.run('config','--quiet')
+    elif args.command in ['up','ci']:
+        if args.production:raise RuntimeError('Use reviewed digest deployment, not local up.')
+        if args.command=='up' and not args.ci:
+            ensure_demo_credentials(runtime)
+        runtime.run('build','frontend','backend','migrate')
+        prepare_demo_deployment(runtime)
+        runtime.run('up','-d','--no-build','--wait','--wait-timeout','300','frontend','backend')
+        verify_demo_after_rollout(runtime)
+        smoke(runtime)
+        if args.command=='ci':
+            try:
+                snapshot=backup(runtime);restore_test(runtime,snapshot)
+                runtime.run('restart','db');runtime.run('up','-d','--wait','--wait-timeout','180','backend','frontend');smoke(runtime)
+            finally:runtime.run('down','--remove-orphans')
+    elif args.command=='status':runtime.run('ps','-a')
+    elif args.command=='logs':runtime.run('logs','--tail','100','backend','migrate')
+    elif args.command=='smoke':smoke(runtime,login=not args.production)
+    elif args.command=='backup':backup(runtime)
+    elif args.command=='restore-test':
+        if not args.backup_dir:raise RuntimeError('--backup-dir required')
+        restore_test(runtime,args.backup_dir)
+    elif args.command=='restart-test':
+        before=runtime.sql('SELECT COUNT(*) FROM students UNION ALL SELECT COUNT(*) FROM payments')
+        runtime.run('restart','db');runtime.run('up','-d','--wait','--wait-timeout','180','backend','frontend')
+        if before!=runtime.sql('SELECT COUNT(*) FROM students UNION ALL SELECT COUNT(*) FROM payments'):raise RuntimeError('Persistence check failed')
+        smoke(runtime,login=not args.production)
+        print('PASS MySQL restart retained students/payments')
+
+if __name__=='__main__':
+    try:main()
+    except (RuntimeError,subprocess.SubprocessError,OSError,urllib.error.URLError) as failure:
+        print('Stopped: '+str(failure),file=sys.stderr);sys.exit(1)
+,'--format','{{.Names}}'],
+                    capture_output=True,text=True,timeout=15)
+                if listing.returncode == 0 and name not in listing.stdout.splitlines():
+                    removed = True
+                    break
+            except (OSError, subprocess.SubprocessError):
+                pass
+            if attempt < 2:
+                time.sleep(2)
+        if not removed:
+            message = 'Restore: could not verify cleanup of disposable container '+name
+            print(message,file=sys.stderr,flush=True)
+            if not had_failure:
+                (folder/'restore-test.json').unlink(missing_ok=True)
+                raise RuntimeError(message)
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
