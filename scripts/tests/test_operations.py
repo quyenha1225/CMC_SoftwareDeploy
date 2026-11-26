@@ -298,8 +298,9 @@ class OperationsTests(unittest.TestCase):
             command, directory = execute.call_args.args
             self.assertEqual(command[0], str(scanner))
             self.assertEqual(directory, root)
-            properties = dict(item[2:].split('=', 1) for item in command[1:])
-            self.assertEqual(properties['sonar.projectBaseDir'], root.as_posix())
+            self.assertEqual(command[1:], ['-Dproject.settings=backend/target/sonar/scanner.properties'])
+            properties = dict(line.split('=', 1) for line in (report.parent / 'scanner.properties').read_text(encoding='utf-8').splitlines())
+            self.assertNotIn('sonar.projectBaseDir', properties)
             self.assertEqual(properties['sonar.sources'], 'backend/src/main/java,frontend/src')
             self.assertEqual(properties['sonar.tests'], 'backend/src/test/java,frontend/tests')
             self.assertEqual(properties['sonar.java.binaries'], 'backend/target/classes')
