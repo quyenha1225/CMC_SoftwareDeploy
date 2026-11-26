@@ -587,8 +587,13 @@ pipeline {
 
             steps {
                 script { recordStage('SonarQube Analysis', 'started') }
-                withSonarQubeEnv('sonarqube') {
-                    executeStep('sonar')
+                script {
+                    def scannerHome = tool name: 'SonarScanner', type: 'hudson.plugins.sonar.SonarRunnerInstallation'
+                    withEnv(["SONAR_SCANNER_HOME=${scannerHome}"]) {
+                        withSonarQubeEnv('sonarqube') {
+                            executeStep('sonar')
+                        }
+                    }
                 }
             }
         }
