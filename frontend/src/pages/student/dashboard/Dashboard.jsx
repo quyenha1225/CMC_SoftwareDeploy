@@ -248,7 +248,7 @@ export default function Dashboard({ role, state, account, navigate }) {
             </Card>
             <Card title="Việc cần xử lý">
               <div className="todo-list">
-                <div
+                <button type="button"
                   onClick={() =>
                     navigate(
                       principal
@@ -269,8 +269,8 @@ export default function Dashboard({ role, state, account, navigate }) {
                     <small>Chờ xem xét</small>
                   </span>
                   <Icon name="chevron" size={17} />
-                </div>
-                <div
+                </button>
+                <button type="button"
                   onClick={() =>
                     navigate(
                       training
@@ -289,8 +289,8 @@ export default function Dashboard({ role, state, account, navigate }) {
                     <small>Đang xử lý</small>
                   </span>
                   <Icon name="chevron" size={17} />
-                </div>
-                <div onClick={() => navigate("notices")}>
+                </button>
+                <button type="button" onClick={() => navigate("notices")}>
                   <span className="todo-icon amber">
                     <Icon name="bell" size={18} />
                   </span>
@@ -299,7 +299,7 @@ export default function Dashboard({ role, state, account, navigate }) {
                     <small>Cập nhật mới</small>
                   </span>
                   <Icon name="chevron" size={17} />
-                </div>
+                </button>
               </div>
             </Card>
           </div>
