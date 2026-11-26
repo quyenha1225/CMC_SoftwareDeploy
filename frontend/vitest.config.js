@@ -8,7 +8,7 @@ export default defineConfig({
     setupFiles: ['./tests/unit/setup.js'],
     coverage: {
       provider: 'v8', reporter: ['text', 'lcov', 'json-summary'],
-      include: ['src/v6/{Auth,Forms,PortalNavigation,StudentTuition}.jsx'],
+      include: ['src/v6/{Auth,Forms,PortalNavigation,StudentTuition,EmailDetail}.jsx'],
     },
   },
 });
