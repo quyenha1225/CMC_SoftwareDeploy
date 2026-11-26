@@ -693,8 +693,8 @@ pipeline {
                 }
             }
 
-            failFast true
-            parallel {
+            // Run resource-intensive scanners sequentially on the shared Docker engine.
+            stages {
 
                 stage('Dependency and Image Scan') {
                     post {
